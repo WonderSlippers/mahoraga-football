@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+const compile=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText).toString('base64');
+const goal=compile(fs.readFileSync(new URL('../lib/goal-model.ts',import.meta.url),'utf8').replace('import {readJsonLimited} from "./limited-response";',''));
+const math=new URL('../public/market-math.js',import.meta.url).href;
+const strategy=new URL('../public/strategy-status.js',import.meta.url).href;
+const source=fs.readFileSync(new URL('../lib/simulation-lab.ts',import.meta.url),'utf8').replace('import { env } from "cloudflare:workers";','const env={};').replaceAll('@/lib/goal-model',goal).replaceAll('./goal-model',goal).replace('../public/market-math.js',math).replace('../public/strategy-status.js',strategy).replace('./scan-progress-claim.js',new URL('../lib/scan-progress-claim.js',import.meta.url).href).replace('./lab-shards.js',new URL('../lib/lab-shards.js',import.meta.url).href);
+const {settlePortfolio}=await import(compile(source));
+test('public single-source full-time score settles immediately',()=>{
+ const ticket={id:'open',day:'2026-09-20',stake:25,status:'open',pnl:0,legs:[{matchId:'123',leagueCode:'esp.1',home:'A',away:'B',kickoffAt:Date.now()-1000,pick:0,odds:2,status:'open'}]};
+ const observedAt=Date.now()-1000,sourceUrl='https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=esp.1';
+ const match={id:'123',leagueCode:'esp.1',status:'finished',hs:2,as:0,period:2,detail:'FT',independentFinalVerified:false,home:'A',away:'B',observedAt,sourceUrl};
+ assert.equal(settlePortfolio({tickets:[ticket]},[match]),1);
+ assert.equal(ticket.status,'win');assert.equal(ticket.pnl,25);
+ assert.match(ticket.legs[0].settlementEvidence.provider,/单源/);
+ assert.equal(ticket.legs[0].settlementEvidence.sourceUrl,sourceUrl);
+ assert.equal(ticket.legs[0].settlementEvidence.capturedAt,observedAt);
+});

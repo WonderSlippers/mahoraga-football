@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789420451956,
+      "tag": "0000_neat_machine_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789421100624,
+      "tag": "0001_unusual_iron_lad",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789462374481,
+      "tag": "0002_bent_junta",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789463112043,
+      "tag": "0003_sloppy_cable",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790127103204,
+      "tag": "0004_yielding_liz_osborn",
+      "breakpoints": true
+    }
+  ]
+}

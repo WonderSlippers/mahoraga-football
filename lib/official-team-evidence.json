@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-15T09:16:14Z",
+  "collection": "manual-primary-source-verification",
+  "automatedFeed": false,
+  "modelUse": "research-only",
+  "sources": {
+    "schedule": "https://www.inter.it/en/news/serie-a-2026-27-schedule-inter-matchdays-6-12",
+    "lineups": "https://www.inter.it/en/news/team-news-inter-udinese-serie-a-2026-27",
+    "press": "https://www.inter.it/en/news/press-conference-chivu-ahead-of-inter-udinese-26-27",
+    "result": "https://www.inter.it/en/news/inter-udinese-serie-a-2026-27"
+  },
+  "fixtures": [
+    {"home": "Inter", "away": "Udinese", "kickoff": "2026-09-14T18:45:00Z", "source": "schedule", "state": "finished", "score": [5,3], "resultSource": "result"},
+    {"home": "Roma", "away": "Inter", "kickoff": "2026-09-19T16:00:00Z", "source": "schedule", "state": "scheduled"},
+    {"home": "Inter", "away": "Parma", "kickoff": "2026-10-10T16:00:00Z", "source": "schedule", "state": "scheduled"},
+    {"home": "Inter", "away": "Club Brugge", "kickoff": "2026-10-13T19:00:00Z", "source": "schedule", "state": "scheduled"}
+  ],
+  "lineupObservation": {
+    "home": "Inter", "away": "Udinese", "kickoff": "2026-09-14T18:45:00Z",
+    "source": "lineups", "sourcePublishedAt": null, "status": "confirmed-for-this-match-only",
+    "homeFormation": "3-5-2", "awayFormation": "3-4-2-1",
+    "homeStarters": ["Martinez", "Akanji", "Stones", "Bastoni", "Diouf", "Barella", "Zielinski", "Mkhitaryan", "Carlos Augusto", "Thuram", "Esposito"],
+    "awayStarters": ["Okoye", "Abankwah", "Kabasele", "Ebosse", "Vojvoda", "Miller", "Karlstrom", "Kamara", "Ekkelenkamp", "Gomez", "Davis"],
+    "eligibleForHistoricalPrediction": false
+  },
+  "availabilityObservations": [
+    {"player": "Dimarco", "scope": "Inter-Udinese 2026-09-14", "source": "press", "sourcePublishedAt": null, "status": "reported-available", "summaryZh": "该场赛前教练称已参加合练且可出场；不是对下一场的确认。"},
+    {"player": "Spence", "scope": "Inter-Udinese 2026-09-14", "source": "press", "sourcePublishedAt": null, "status": "recovering-availability-unconfirmed", "summaryZh": "该场赛前教练称仍在恢复状态，未明确最终出场资格。"},
+    {"player": "Çalhanoğlu", "scope": "Inter-Udinese 2026-09-14", "source": "press", "sourcePublishedAt": null, "status": "historical-injury-context", "summaryZh": "教练回顾此前伤病及季前准备，不足以判定当前伤停或下一场缺席。"}
+  ],
+  "coverage": {
+    "team": "Inter", "completeAllCompetitions": false,
+    "nextMatchLineup": "unknown", "opponentAvailability": "unknown",
+    "playerMinutes": "not-complete", "travel": "unknown", "nationalTeamDuty": "unknown"
+  }
+}

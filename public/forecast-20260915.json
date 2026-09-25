@@ -1,0 +1,604 @@
+{
+  "modelVersion": "venue-goals-poisson-v1-prospective-20260915",
+  "modelSha256": "57cee016080e99feb94acbe548a9d3384cd6c3622503c804ed71019175cb2255",
+  "createdAt": "2026-09-15T09:46:52.655Z",
+  "dataCutoffExclusive": "2026-09-15",
+  "historyMatches": 1560,
+  "supplementAdded": 10,
+  "sourceHashes": [
+    {
+      "file": "2022-23.json",
+      "sha256": "8d09f0f9846981626cdfec48903e1f21e7c79aabe6f92535c9e092e8e79b808b"
+    },
+    {
+      "file": "2023-24.json",
+      "sha256": "03e13eafbf78dfe00d7e89dd3bf6643986eb6e8fd86c7664aeb8c5bc0bed88d0"
+    },
+    {
+      "file": "2024-25.json",
+      "sha256": "c3d18f552d83382cd4b6b21127adbbfe38e7f8618ddc979fb5404f2df07d0a75"
+    },
+    {
+      "file": "2025-26.json",
+      "sha256": "d6070bdf731546ccf97767f062e8af4bd26dd309dee69f6092025bf9c78f43c1"
+    },
+    {
+      "file": "2026-27.json",
+      "sha256": "1feef8cdd2e7c3aeadbe05154083ec3f87cb1f8c90af6cd26b0d63f5711c9380"
+    }
+  ],
+  "supplementSha256": "2176c2ca53b0c93b2e2a706671666012d7eb215a3a8bc63282517faeede99b26",
+  "parameters": {
+    "halfLifeDays": 365,
+    "priorMatches": 8
+  },
+  "limits": [
+    "Probabilities only, no bets or ROI",
+    "Shared score model; no market-specific fitting",
+    "No lineups, injuries, travel or fatigue input",
+    "EPL results only; promoted-team history may be sparse",
+    "Locally frozen file, not a server timestamp or independent preregistration"
+  ],
+  "records": [
+    {
+      "id": "401879275",
+      "date": "2026-09-18T19:00Z",
+      "home": "Brentford",
+      "away": "Chelsea",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260918&limit=100",
+      "observedAt": "2026-09-15T09:45:17.4745552+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.4307352621432608,
+          "baseline": 0.4201100178464639
+        },
+        "draw": {
+          "p": 0.23166521440379104,
+          "baseline": 0.26523776161606216
+        },
+        "away": {
+          "p": 0.33759952345294814,
+          "baseline": 0.3167155554056034
+        },
+        "over1.5": {
+          "p": 0.8324997321897675,
+          "baseline": 0.7971705611314286
+        },
+        "over2.5": {
+          "p": 0.6260442660540781,
+          "baseline": 0.5622188264802411
+        },
+        "over3.5": {
+          "p": 0.4038531710747844,
+          "baseline": 0.328136802105666
+        },
+        "home-handicap-1.5": {
+          "p": 0.2261360075384316,
+          "baseline": 0.23015710918285132
+        },
+        "home-handicap-0.5": {
+          "p": 0.4307352621432608,
+          "baseline": 0.4201100178464639
+        },
+        "home-handicap0.5": {
+          "p": 0.6624004765470519,
+          "baseline": 0.6832844445943974
+        },
+        "home-handicap1.5": {
+          "p": 0.8409777903748894,
+          "baseline": 0.8564588768650797
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401879269",
+      "date": "2026-09-19T11:30Z",
+      "home": "Tottenham Hotspur",
+      "away": "Aston Villa",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260919&limit=100",
+      "observedAt": "2026-09-15T09:45:19.1659797+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.3675427206112068,
+          "baseline": 0.4201106445089011
+        },
+        "draw": {
+          "p": 0.25233973688826383,
+          "baseline": 0.26523960310697503
+        },
+        "away": {
+          "p": 0.3801175425005294,
+          "baseline": 0.3167169931012124
+        },
+        "over1.5": {
+          "p": 0.7703548346594439,
+          "baseline": 0.7971682301054049
+        },
+        "over2.5": {
+          "p": 0.5325556390642717,
+          "baseline": 0.5622183384315516
+        },
+        "over3.5": {
+          "p": 0.3099407602190194,
+          "baseline": 0.3281381502122417
+        },
+        "home-handicap-1.5": {
+          "p": 0.16896860565601066,
+          "baseline": 0.23015922584877946
+        },
+        "home-handicap-0.5": {
+          "p": 0.3675427206112068,
+          "baseline": 0.4201106445089011
+        },
+        "home-handicap0.5": {
+          "p": 0.6198824574994699,
+          "baseline": 0.6832830068987917
+        },
+        "home-handicap1.5": {
+          "p": 0.8224218896471633,
+          "baseline": 0.8564560807774884
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401879274",
+      "date": "2026-09-19T14:00Z",
+      "home": "Brighton & Hove Albion",
+      "away": "Arsenal",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260919&limit=100",
+      "observedAt": "2026-09-15T09:45:19.1669535+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.26073386582513763,
+          "baseline": 0.4201106445089011
+        },
+        "draw": {
+          "p": 0.26118568441092505,
+          "baseline": 0.26523960310697503
+        },
+        "away": {
+          "p": 0.47808044976393693,
+          "baseline": 0.3167169931012124
+        },
+        "over1.5": {
+          "p": 0.7133724371493186,
+          "baseline": 0.7971682301054049
+        },
+        "over2.5": {
+          "p": 0.45702484665198984,
+          "baseline": 0.5622183384315516
+        },
+        "over3.5": {
+          "p": 0.2431226253095335,
+          "baseline": 0.3281381502122417
+        },
+        "home-handicap-1.5": {
+          "p": 0.0957977326127043,
+          "baseline": 0.23015922584877946
+        },
+        "home-handicap-0.5": {
+          "p": 0.26073386582513763,
+          "baseline": 0.4201106445089011
+        },
+        "home-handicap0.5": {
+          "p": 0.5219195502360621,
+          "baseline": 0.6832830068987917
+        },
+        "home-handicap1.5": {
+          "p": 0.7612163637155812,
+          "baseline": 0.8564560807774884
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401878778",
+      "date": "2026-09-19T14:00Z",
+      "home": "Everton",
+      "away": "Ipswich Town",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260919&limit=100",
+      "observedAt": "2026-09-15T09:45:19.1675598+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.4708006873165714,
+          "baseline": 0.4201106445089011
+        },
+        "draw": {
+          "p": 0.23006023194302058,
+          "baseline": 0.26523960310697503
+        },
+        "away": {
+          "p": 0.29913908074040735,
+          "baseline": 0.3167169931012124
+        },
+        "over1.5": {
+          "p": 0.8266086256366407,
+          "baseline": 0.7971682301054049
+        },
+        "over2.5": {
+          "p": 0.6166012287366632,
+          "baseline": 0.5622183384315516
+        },
+        "over3.5": {
+          "p": 0.39376197798906637,
+          "baseline": 0.3281381502122417
+        },
+        "home-handicap-1.5": {
+          "p": 0.25626460226438647,
+          "baseline": 0.23015922584877946
+        },
+        "home-handicap-0.5": {
+          "p": 0.4708006873165714,
+          "baseline": 0.4201106445089011
+        },
+        "home-handicap0.5": {
+          "p": 0.7008609192595918,
+          "baseline": 0.6832830068987917
+        },
+        "home-handicap1.5": {
+          "p": 0.8671508288225106,
+          "baseline": 0.8564560807774884
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401879271",
+      "date": "2026-09-19T14:00Z",
+      "home": "Newcastle United",
+      "away": "Hull City",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260919&limit=100",
+      "observedAt": "2026-09-15T09:45:19.1680763+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.4709969698185105,
+          "baseline": 0.4201106445089011
+        },
+        "draw": {
+          "p": 0.22849666346766845,
+          "baseline": 0.26523960310697503
+        },
+        "away": {
+          "p": 0.3005063667138206,
+          "baseline": 0.3167169931012124
+        },
+        "over1.5": {
+          "p": 0.8318356815125189,
+          "baseline": 0.7971682301054049
+        },
+        "over2.5": {
+          "p": 0.6249731320597,
+          "baseline": 0.5622183384315516
+        },
+        "over3.5": {
+          "p": 0.402701322960357,
+          "baseline": 0.3281381502122417
+        },
+        "home-handicap-1.5": {
+          "p": 0.25761098673074606,
+          "baseline": 0.23015922584877946
+        },
+        "home-handicap-0.5": {
+          "p": 0.4709969698185105,
+          "baseline": 0.4201106445089011
+        },
+        "home-handicap0.5": {
+          "p": 0.6994936332861799,
+          "baseline": 0.6832830068987917
+        },
+        "home-handicap1.5": {
+          "p": 0.86547606356244,
+          "baseline": 0.8564560807774884
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401879270",
+      "date": "2026-09-19T16:30Z",
+      "home": "Nottingham Forest",
+      "away": "Coventry City",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260919&limit=100",
+      "observedAt": "2026-09-15T09:45:19.1686472+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.4489440168532282,
+          "baseline": 0.4201106445089011
+        },
+        "draw": {
+          "p": 0.2840660227434285,
+          "baseline": 0.26523960310697503
+        },
+        "away": {
+          "p": 0.2669899604033431,
+          "baseline": 0.3167169931012124
+        },
+        "over1.5": {
+          "p": 0.648299884266779,
+          "baseline": 0.7971682301054049
+        },
+        "over2.5": {
+          "p": 0.38045170575646,
+          "baseline": 0.5622183384315516
+        },
+        "over3.5": {
+          "p": 0.18297514284802696,
+          "baseline": 0.3281381502122417
+        },
+        "home-handicap-1.5": {
+          "p": 0.20557977621227566,
+          "baseline": 0.23015922584877946
+        },
+        "home-handicap-0.5": {
+          "p": 0.4489440168532282,
+          "baseline": 0.4201106445089011
+        },
+        "home-handicap0.5": {
+          "p": 0.7330100395966569,
+          "baseline": 0.6832830068987917
+        },
+        "home-handicap1.5": {
+          "p": 0.9075093010792785,
+          "baseline": 0.8564560807774884
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401879276",
+      "date": "2026-09-20T13:00Z",
+      "home": "AFC Bournemouth",
+      "away": "Liverpool",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260920&limit=100",
+      "observedAt": "2026-09-15T09:45:22.0700925+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.36270725446470314,
+          "baseline": 0.42011127235266027
+        },
+        "draw": {
+          "p": 0.2451769848421384,
+          "baseline": 0.2652414480692895
+        },
+        "away": {
+          "p": 0.39211576069315807,
+          "baseline": 0.3167184335070263
+        },
+        "over1.5": {
+          "p": 0.7933177348667055,
+          "baseline": 0.7971658946851493
+        },
+        "over2.5": {
+          "p": 0.5656028924528442,
+          "baseline": 0.5622178494628343
+        },
+        "over3.5": {
+          "p": 0.3416540070804441,
+          "baseline": 0.3281395008601376
+        },
+        "home-handicap-1.5": {
+          "p": 0.16944561406873232,
+          "baseline": 0.2301613465048435
+        },
+        "home-handicap-0.5": {
+          "p": 0.36270725446470314,
+          "baseline": 0.42011127235266027
+        },
+        "home-handicap0.5": {
+          "p": 0.6078842393068417,
+          "baseline": 0.683281566492976
+        },
+        "home-handicap1.5": {
+          "p": 0.8100421670190231,
+          "baseline": 0.8564532794189764
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401879273",
+      "date": "2026-09-20T13:00Z",
+      "home": "Leeds United",
+      "away": "Crystal Palace",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260920&limit=100",
+      "observedAt": "2026-09-15T09:45:22.0708872+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.4799410823045526,
+          "baseline": 0.42011127235266027
+        },
+        "draw": {
+          "p": 0.24707927485937034,
+          "baseline": 0.2652414480692895
+        },
+        "away": {
+          "p": 0.27297964283607723,
+          "baseline": 0.3167184335070263
+        },
+        "over1.5": {
+          "p": 0.7629485107243369,
+          "baseline": 0.7971658946851493
+        },
+        "over2.5": {
+          "p": 0.5222357634932084,
+          "baseline": 0.5622178494628343
+        },
+        "over3.5": {
+          "p": 0.30035418180858126,
+          "baseline": 0.3281395008601376
+        },
+        "home-handicap-1.5": {
+          "p": 0.24995749684163834,
+          "baseline": 0.2301613465048435
+        },
+        "home-handicap-0.5": {
+          "p": 0.4799410823045526,
+          "baseline": 0.42011127235266027
+        },
+        "home-handicap0.5": {
+          "p": 0.727020357163923,
+          "baseline": 0.683281566492976
+        },
+        "home-handicap1.5": {
+          "p": 0.8916808624855116,
+          "baseline": 0.8564532794189764
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401879272",
+      "date": "2026-09-20T13:00Z",
+      "home": "Manchester City",
+      "away": "Sunderland",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260920&limit=100",
+      "observedAt": "2026-09-15T09:45:22.0716256+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.6718902662039816,
+          "baseline": 0.42011127235266027
+        },
+        "draw": {
+          "p": 0.19462155299253242,
+          "baseline": 0.2652414480692895
+        },
+        "away": {
+          "p": 0.13348818080348546,
+          "baseline": 0.3167184335070263
+        },
+        "over1.5": {
+          "p": 0.7880850501803243,
+          "baseline": 0.7971658946851493
+        },
+        "over2.5": {
+          "p": 0.5579276910351124,
+          "baseline": 0.5622178494628343
+        },
+        "over3.5": {
+          "p": 0.33414870002830943,
+          "baseline": 0.3281395008601376
+        },
+        "home-handicap-1.5": {
+          "p": 0.4286523446188893,
+          "baseline": 0.2301613465048435
+        },
+        "home-handicap-0.5": {
+          "p": 0.6718902662039816,
+          "baseline": 0.42011127235266027
+        },
+        "home-handicap0.5": {
+          "p": 0.8665118191965141,
+          "baseline": 0.683281566492976
+        },
+        "home-handicap1.5": {
+          "p": 0.9605333889457961,
+          "baseline": 0.8564532794189764
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    },
+    {
+      "id": "401878777",
+      "date": "2026-09-20T15:30Z",
+      "home": "Fulham",
+      "away": "Manchester United",
+      "state": "pre",
+      "sourceUrl": "https://cdn.espn.com/core/soccer/scoreboard?xhr=1&league=eng.1&date=20260920&limit=100",
+      "observedAt": "2026-09-15T09:45:22.0722011+00:00",
+      "league": "eng.1",
+      "predictedAt": "2026-09-15T09:46:52.655Z",
+      "probabilities": {
+        "home": {
+          "p": 0.38849852322855405,
+          "baseline": 0.42011127235266027
+        },
+        "draw": {
+          "p": 0.2478660397599098,
+          "baseline": 0.2652414480692895
+        },
+        "away": {
+          "p": 0.36363543701153583,
+          "baseline": 0.3167184335070263
+        },
+        "over1.5": {
+          "p": 0.7847035741203836,
+          "baseline": 0.7971658946851493
+        },
+        "over2.5": {
+          "p": 0.5530140732086719,
+          "baseline": 0.5622178494628343
+        },
+        "over3.5": {
+          "p": 0.32938869826804623,
+          "baseline": 0.3281395008601376
+        },
+        "home-handicap-1.5": {
+          "p": 0.18587318362639701,
+          "baseline": 0.2301613465048435
+        },
+        "home-handicap-0.5": {
+          "p": 0.38849852322855405,
+          "baseline": 0.42011127235266027
+        },
+        "home-handicap0.5": {
+          "p": 0.6363645629884634,
+          "baseline": 0.683281566492976
+        },
+        "home-handicap1.5": {
+          "p": 0.8313483643124977,
+          "baseline": 0.8564532794189764
+        }
+      },
+      "odds": null,
+      "stake": 0,
+      "status": "forecast-only-awaiting-result"
+    }
+  ]
+}
