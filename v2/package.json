@@ -1,0 +1,41 @@
+{
+  "name": "mahoraga-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "doctor": "node scripts/runtime.mjs doctor",
+    "bootstrap:demo": "node scripts/runtime.mjs bootstrap",
+    "dev": "node scripts/runtime.mjs dev",
+    "stop:v2": "node scripts/runtime.mjs stop",
+    "check": "tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
+    "test:integration": "tsx --test --test-concurrency=1 tests/integration/*.test.ts",
+    "test:e2e": "playwright test",
+    "report:verification": "node scripts/report.mjs"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "ajv-formats": "3.0.1",
+    "decimal.js": "10.6.0",
+    "drizzle-orm": "0.45.2",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-router-dom": "7.13.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260515.1",
+    "@playwright/test": "1.58.2",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "esbuild": "0.27.3",
+    "miniflare": "4.20260515.0",
+    "prettier": "3.8.1",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3",
+    "vite": "8.0.13"
+  }
+}
