@@ -34,6 +34,7 @@ export interface Env {
   API_HOST: string;
   BOOTSTRAP_HASH: string;
   SERVICE_TOKEN: string;
+  LOCAL_SESSION_TOKEN: string;
   APP_SHA: string;
 }
 export default {
@@ -135,6 +136,26 @@ export default {
       }
       if (isWrite && req.headers.get("Origin") !== env.WEB_ORIGIN)
         throw new Error("ORIGIN_INVALID");
+      if (path === "/api/v2/session/local" && req.method === "POST") {
+        if (
+          !env.LOCAL_SESSION_TOKEN ||
+          req.headers.get("X-V2-Local-Capability") !== env.LOCAL_SESSION_TOKEN
+        )
+          throw new Error("AUTH_REQUIRED");
+        exactFields(body, []);
+        const id = uid(),
+          csrf = uid();
+        await stmt(
+          env.DB,
+          "INSERT INTO sessions VALUES(?,?,?)",
+          id,
+          csrf,
+          now + 86400000,
+        ).run();
+        return ok({ csrf }, 200, {
+          "Set-Cookie": `mahoraga_v2=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`,
+        });
+      }
       if (path === "/api/v2/session/bootstrap" && req.method === "POST") {
         if (now - bootstrapWindow > 60000) {
           bootstrapWindow = now;
@@ -252,8 +273,16 @@ export default {
               "SELECT p.* FROM predictions p JOIN fixture_revisions r ON r.id=p.fixtureRevisionId WHERE r.fixtureId=?",
               m[1],
             ),
-            evidence:await rows(env.DB,"SELECT s.*,c.content FROM fixture_revisions r JOIN source_snapshots s ON s.id=r.sourceSnapshotId JOIN source_chunks c ON c.snapshotId=s.id WHERE r.fixtureId=? ORDER BY r.revision LIMIT 20",m[1]),
-            bundles:await rows(env.DB,"SELECT b.id,b.cutoffAt,b.manifestHash,b.state FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId WHERE r.fixtureId=? LIMIT 20",m[1]),
+            evidence: await rows(
+              env.DB,
+              "SELECT s.*,c.content FROM fixture_revisions r JOIN source_snapshots s ON s.id=r.sourceSnapshotId JOIN source_chunks c ON c.snapshotId=s.id WHERE r.fixtureId=? ORDER BY r.revision LIMIT 20",
+              m[1],
+            ),
+            bundles: await rows(
+              env.DB,
+              "SELECT b.id,b.cutoffAt,b.manifestHash,b.state FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId WHERE r.fixtureId=? LIMIT 20",
+              m[1],
+            ),
           });
         }
         m = path.match(/^\/api\/v2\/predictions\/([^/]+)(\/explanation)?$/);

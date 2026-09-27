@@ -26,6 +26,7 @@ export function engine(c, dir, { port = 8788, persist = true } = {}) {
       API_HOST: "127.0.0.1:" + port,
       BOOTSTRAP_HASH: hash(c.bootstrap),
       SERVICE_TOKEN: c.serviceToken,
+      LOCAL_SESSION_TOKEN: c.localSessionToken || "",
       APP_SHA: c.appCodeSha,
     },
     outboundService: () => new Response("NETWORK_DISABLED", { status: 403 }),

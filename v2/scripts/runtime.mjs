@@ -7,6 +7,7 @@ import { createServer } from "vite";
 import { safeState, root, freePort, modeGuard } from "./safety.mjs";
 import { runtime, config, engine, migrate } from "./runtime-lib.mjs";
 import { workerBuild } from "./build.mjs";
+import { localSessionPlugin } from "./local-session.mjs";
 process.chdir(root);
 const command = process.argv[2];
 modeGuard(process.env.V2_MODE || "DEMO", process.env.V2_HOST || "127.0.0.1");
@@ -75,6 +76,7 @@ if (command === "doctor") {
   const c = config(dir);
   await workerBuild();
   c.bootstrap = crypto.randomBytes(24).toString("hex");
+  c.localSessionToken = crypto.randomBytes(32).toString("hex");
   c.appCodeSha = execFileSync("git", ["rev-parse", "HEAD"], {
     encoding: "utf8",
   }).trim();
@@ -109,6 +111,7 @@ if (command === "doctor") {
   }
   const web = await createServer({
     configFile: path.join(root, "apps/web/vite.config.ts"),
+    plugins: [localSessionPlugin(c)],
   });
   await web.listen();
   const runId = crypto.randomUUID();
@@ -173,11 +176,7 @@ if (command === "doctor") {
   });
   process.on("SIGINT", close);
   process.on("SIGTERM", close);
-  console.log(
-    "DEMO_READY http://127.0.0.1:5273 login code: .runtime-v2/" +
-      (process.env.V2_PROFILE || "demo") +
-      "/login-code.txt",
-  );
+  console.log("DEMO_READY http://127.0.0.1:5273 automatic local session");
 } else if (command === "stop") {
   const record = JSON.parse(
     fs.readFileSync(path.join(dir, "run.json"), "utf8"),

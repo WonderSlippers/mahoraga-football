@@ -34,16 +34,30 @@ const date = (n: number) =>
   new Date(n).toLocaleString("zh-CN", { hour12: false });
 function App() {
   const [logged, setLogged] = useState(false),
-    [code, setCode] = useState(""),
     [error, setError] = useState("");
-  useEffect(() => {
+  const connect = () => {
+    setError("");
     api("/session")
+      .catch(async () => {
+        const response = await fetch("/api/v2/session/local", {
+          method: "POST",
+          headers: {
+            "X-V2-Local-Session": "1",
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+        });
+        const result: any = await response.json();
+        if (!response.ok) throw Error(result.error.code);
+        return result.data;
+      })
       .then((s) => {
         csrf = s.csrf;
         setLogged(true);
       })
-      .catch(() => {});
-  }, []);
+      .catch((e) => setError(String(e)));
+  };
+  useEffect(connect, []);
   return (
     <>
       <header>
@@ -55,35 +69,8 @@ function App() {
       </header>
       {!logged ? (
         <main className="login">
-          <h1>打开本地研究工作台</h1>
-          <p>
-            输入新环境生成的一次性登录口令。口令保存在本地运行目录的
-            login-code.txt。
-          </p>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              try {
-                const s = await api("/session/bootstrap", { passphrase: code });
-                csrf = s.csrf;
-                setCode("");
-                setLogged(true);
-              } catch (e) {
-                setError(String(e));
-              }
-            }}
-          >
-            <label>
-              本地口令
-              <input
-                type="password"
-                autoComplete="off"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-              />
-            </label>
-            <button>进入 DEMO</button>
-          </form>
+          <h1>{error ? "本地服务暂时无法连接" : "正在打开工作台…"}</h1>
+          {error && <button onClick={connect}>重新连接</button>}
           <p role="alert">{error}</p>
         </main>
       ) : (
@@ -231,7 +218,20 @@ function Detail() {
       </div>
       <p role="alert">{error}</p>
       <p role="status">{notice}</p>
-      <details><summary>原始证据与冻结输入</summary><p>人工生成的 DEMO 原始响应；哈希对应保存的原始字节。未知来源更新时间保持 null。</p><pre>{JSON.stringify({evidence:data.fixture.evidence,bundles:data.fixture.bundles},null,2)}</pre></details>
+      <details>
+        <summary>原始证据与冻结输入</summary>
+        <p>
+          人工生成的 DEMO 原始响应；哈希对应保存的原始字节。未知来源更新时间保持
+          null。
+        </p>
+        <pre>
+          {JSON.stringify(
+            { evidence: data.fixture.evidence, bundles: data.fixture.bundles },
+            null,
+            2,
+          )}
+        </pre>
+      </details>
       {data.decisions.length === 0 ? (
         <div className="empty">
           Python runner 正在领取任务。请稍后刷新；无结果不会填成 0。

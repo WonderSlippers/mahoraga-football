@@ -15,7 +15,7 @@ npm run bootstrap:demo
 npm run dev
 ```
 
-浏览器打开 http://127.0.0.1:5273 。读取 `.runtime-v2/demo/login-code.txt` 中的一次性口令，在页面输入。口令不放 URL、localStorage 或日志。每次 `dev` 生成新的口令，旧的有效 HttpOnly 会话在期限内可继续使用。
+浏览器打开 http://127.0.0.1:5273 即自动进入。新本地启动器为同源页面建立 HttpOnly/Strict 会话，无需输入口令；CSRF、Origin、Host 和独立内部服务权限继续有效。
 
 端口占用时启动失败，必须先核对是谁占用；没有自动杀进程/换端口。不要把原 5173 当新站入口。
 
@@ -47,3 +47,4 @@ npm run report:verification
 E2E 使用全新 profile、5273/8788 和本机 Chrome，测试结束只停止自己创建的 supervisor。若常用 DEMO 已运行，先使用它的 `stop:v2` 停止本轮新服务，不能停止旧站。测试启动前要保证新端口空闲。
 
 文档和逐项范围见 `docs/mahoraga-2`。P3—P9、真实来源、V6/V7 parity、历史账本导入和长时间负载验收尚未完成。正式切换仍需要用户另行明确确认。
+

@@ -56,13 +56,40 @@ test.afterAll(async () => {
 });
 test("A38 A39 A40 A72 browser → Python → D1 → ticket → settlement → correction → restart", async ({
   page,
+  browser,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  const denied = await page.request.post("/api/v2/session/local", {
+    headers: {
+      Origin: "http://evil.test",
+      "X-V2-Local-Session": "1",
+      "Sec-Fetch-Site": "cross-site",
+    },
+    data: {},
+  });
+  expect(denied.status()).toBe(403);
+  const direct = await page.request.post(
+    "http://127.0.0.1:8788/api/v2/session/local",
+    {
+      headers: {
+        Origin: "http://127.0.0.1:5273",
+        Authorization: "Bearer " + config.serviceToken,
+      },
+      data: {},
+    },
+  );
+  expect(direct.status()).toBe(401);
   await page.goto("/workbench");
-  await page.getByLabel("本地口令").fill(config.bootstrap);
-  await page.getByRole("button", { name: "进入 DEMO" }).click();
   await expect(page.getByRole("heading", { name: "今日观察" })).toBeVisible();
+  await expect(page.locator("input[type=password]")).toHaveCount(0);
+  const fresh = await browser.newContext();
+  const freshPage = await fresh.newPage();
+  await freshPage.goto("http://127.0.0.1:5273/");
+  await expect(
+    freshPage.getByRole("heading", { name: "今日观察" }),
+  ).toBeVisible();
+  await fresh.close();
   await page.getByRole("button", { name: "创建 DEMO 观察" }).click();
   await expect(
     page.getByRole("link", { name: "查看证据与纸面决策 →" }),
