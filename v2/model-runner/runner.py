@@ -25,8 +25,12 @@ def main():
     def post(path,data):
         request=urllib.request.Request(base+path,json.dumps(data).encode(),{'Authorization':'Bearer '+token,'Content-Type':'application/json'})
         with urllib.request.urlopen(request,timeout=10) as response:return json.load(response)['data']
+    last_tick=0
     while True:
         try:
+            if time.monotonic()-last_tick>30:
+                post('/internal/v2/scheduler/tick',{})
+                last_tick=time.monotonic()
             job=post('/internal/v2/model-jobs/claim',{'owner':owner})
             if job:
                 post('/internal/v2/model-jobs/'+job['id']+'/complete',{'owner':owner,'fencingToken':job['fencingToken'],'bundleHash':job['bundleHash'],'modelHash':job['modelHash'],'central':predict(job),'featureCanonical':job['canonical']})

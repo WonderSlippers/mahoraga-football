@@ -45,3 +45,9 @@ Windows / Node24.14.0 / Python3.12.3 / Chrome / Miniflare4.20260515.0（真正wo
 V6：250条真实档案输入，五联赛；21条动作、229条NO_ACTION，所选压力EV最大误差0。V7：全部115条2026合格档案输入，五联赛；中心概率最大绝对误差1.1102230246251565e-16。raw与混合版本最大差0.10767742851596951，固定使用raw。树边界及缺失/时间/变体/hash否定测试实际执行。
 
 首次运行退出1：6项中5通过，V7样本断言失败。原因是错误假设每联赛至少50条2026记录；实际20/29/18/18/30共115条。改为全量115条，未补造数据、未用更早训练期冒充2026。复验6项全部通过。此修正没有放宽100条总量门槛。原始历史缺捕获时间仍列限制，不用合成守卫数据冒充原模型数值对照。
+# 真实来源切片验证（2026-09-28）
+`npm run check`退出0；`npm run test:unit`32通过/0失败/0跳过；`npm run test:integration`21通过/0失败/0跳过，随后新增出站桥测试单独1通过；`npm run test:e2e`1通过/0跳过；build退出0。
+
+实际网络命令 `node scripts/live-source-smoke.mjs` 最终退出0，HTTP200，306场规范化，DEGRADED=QUOTE_AND_XG_NOT_PROVIDED，截图research-desktop/mobile.png；无pageerror，无390px横向溢出。完整捕获JSON保留在.runtime-v2/source-probes/capture-2026-09-27T20-30-58.894Z.json（具体文件以目录实际时间为准），snapshotId fa4db4ec-3a15-44c0-8ceb-10093568f747。
+
+初次真实Worker采集FAILED：workerd不支持请求redirect:error，修为manual且出站桥禁止重定向。中间重试收到SOURCE_BACKOFF，未绕过退避；后续正常成功。增加Worker HTTP→出站桥测试防止仅service测试漏掉运行时差异。失败记录仍保存在独立研究库。

@@ -7,7 +7,7 @@ export function localSessionPlugin(config) {
         if (req.url !== "/api/v2/session/local") return next();
         if (
           req.method !== "POST" ||
-          req.headers.host !== "127.0.0.1:5273" ||
+          req.headers.host !== new URL(config.webOrigin).host ||
           req.headers.origin !== config.webOrigin ||
           req.headers["sec-fetch-site"] !== "same-origin" ||
           req.headers["x-v2-local-session"] !== "1" ||
@@ -20,7 +20,7 @@ export function localSessionPlugin(config) {
         req.resume();
         try {
           const response = await fetch(
-            "http://127.0.0.1:8788/api/v2/session/local",
+            `http://127.0.0.1:${config.apiPort || 8788}/api/v2/session/local`,
             {
               method: "POST",
               headers: {

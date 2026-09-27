@@ -27,3 +27,11 @@
 
 ## 后续实施：研究推断切片
 T15—T18 IN_PROGRESS：新 inference-only V6/V7 适配器已实现，固定哈希的研究原函数实际参与对照。V6 250条、V7全部115条2026合格历史记录覆盖五联赛，6项Python测试全通过。缺输入/错变体/训练时间/压力语义守卫已实现。实时原始历史 feature builder 与 API 研究任务接入仍未完成，不能因此记整个P4 DONE。
+
+## P3 真实来源切片
+T11 IN_PROGRESS：OpenLigaDB 德甲固定响应、身份和90分钟比分解析已实现；五联赛能力矩阵明确未支持项。实时可用赔率源尚缺。
+T12 IN_PROGRESS：8MiB流式上限、64KiB原始UTF8块、完整批次原子发布、规范化独立重试与一分钟退避已实现并测试；没有报价来源的端到端保价验收尚缺。
+T13 IN_PROGRESS：持久T−60观察槽、改期superseded、过期missed、30秒进程内tick已有；真实quote到bundle尚未具备。
+T14 DONE（只读德甲切片）：5274/8789、research独立installation与D1，浏览器实际采集306场；状态DEGRADED明确缺报价/xG，不生成假预测/票据。真实截图与capture JSON在.runtime-v2/source-probes。
+
+回归：32单元通过、21 D1集成通过，新增Worker出站桥集成单独1通过；原离线E2E1通过，TS和build退出0。完整下一轮汇总将合并22项D1测试。

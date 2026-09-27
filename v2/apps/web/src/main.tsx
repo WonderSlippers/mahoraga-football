@@ -35,6 +35,9 @@ const date = (n: number) =>
 function App() {
   const [logged, setLogged] = useState(false),
     [error, setError] = useState("");
+  const [mode, setMode] = useState('DEMO');
+  const research = mode === 'LOCAL_RESEARCH';
+  useEffect(() => { document.title = '魔虚罗 2.0 · ' + (research ? '真实研究' : 'DEMO'); }, [research]);
   const connect = () => {
     setError("");
     api("/session")
@@ -51,8 +54,9 @@ function App() {
         if (!response.ok) throw Error(result.error.code);
         return result.data;
       })
-      .then((s) => {
+      .then(async (s) => {
         csrf = s.csrf;
+        setMode((await api('/meta')).mode);
         setLogged(true);
       })
       .catch((e) => setError(String(e)));
@@ -64,8 +68,8 @@ function App() {
         <div className="brand">
           魔虚罗 <span>2.0</span>
         </div>
-        <span className="badge">DEMO · 合成数据</span>
-        <small>离线研究工作台 / 不连接真实投注账户</small>
+        <span className="badge">{research ? 'LOCAL RESEARCH · 真实只读来源' : 'DEMO · 合成数据'}</span>
+        <small>本地研究工作台 / 不连接真实投注账户</small>
       </header>
       {!logged ? (
         <main className="login">
@@ -78,24 +82,26 @@ function App() {
           <nav>
             <p className="navtitle">研究流程</p>
             <NavLink to="/workbench">01 今日观察</NavLink>
-            <NavLink to="/ledger">02 纸面账本</NavLink>
+            {!research && <NavLink to="/ledger">02 纸面账本</NavLink>}
             <NavLink to="/models">03 模型状态</NavLink>
             <NavLink to="/system">04 系统信息</NavLink>
             <div className="navnote">
-              DEMO 专用数据库
+              {research ? '真实研究独立数据库' : 'DEMO 专用数据库'}
               <br />
               自动出票：关闭
               <br />
-              真实网络：禁用
+              {research ? '来源白名单：OpenLigaDB' : '真实网络：禁用'}
+              <br />
+              <a href={research ? 'http://127.0.0.1:5273/workbench' : 'http://127.0.0.1:5274/workbench'}>{research ? '打开离线 DEMO' : '打开真实研究'}</a>
             </div>
           </nav>
           <main>
             <Routes>
-              <Route path="/fixtures/:id" element={<Detail />} />
-              <Route path="/ledger" element={<Ledger />} />
+              <Route path="/fixtures/:id" element={research ? <ResearchDetail /> : <Detail />} />
+              <Route path="/ledger" element={research ? <Sources /> : <Ledger />} />
               <Route path="/models" element={<Models />} />
               <Route path="/system" element={<System />} />
-              <Route path="*" element={<Workbench />} />
+              <Route path="*" element={research ? <Sources /> : <Workbench />} />
             </Routes>
           </main>
         </div>
@@ -479,6 +485,36 @@ function Models() {
       ))}
     </>
   );
+}
+function Sources() {
+  const { data, error, refresh, setError } = useLoad(async () => ({ sources: await api('/sources'), fixtures: await api('/fixtures') }));
+  const [busy, setBusy] = useState(false);
+  const [season, setSeason] = useState(2026);
+  return <>
+    <p className="eyebrow">LOCAL RESEARCH / READ ONLY</p><h1>真实来源观察</h1>
+    <div className="callout">赛程与赛果来自真实公开来源。当前来源不提供报价和 xG，研究模型受阻；没有报价就不会生成预测或纸面票。</div>
+    <div className="toolbar"><label>起始赛季年份 <input aria-label="赛季年份" type="number" min="2020" max="2099" value={season} onChange={e => setSeason(Number(e.target.value))}/></label>
+      <button disabled={busy} onClick={async () => { setBusy(true); setError(''); try { await api('/source-captures', {season}); await refresh(); } catch(e) { setError(String(e)); } finally { setBusy(false); } }}>{busy ? '正在采集与保存证据…' : '采集德甲公开赛程'}</button>
+      <button className="secondary" onClick={refresh}>刷新本地记录</button></div>
+    <p role="alert">{error}</p>
+    <h2>最近采集</h2>
+    {data?.sources.runs.length === 0 && <p>尚未采集。采集不会连接真实投注账户，也不会写入旧站。</p>}
+    {data?.sources.runs.map((r: any) => <article key={r.id}><div className="row"><h3>OpenLigaDB · 德甲 {r.season}/{r.season+1}</h3><span className="badge">{r.state}</span></div>
+      <p>实际完成时间：{r.finishedAt ? date(r.finishedAt) : '进行中'} · 规范化比赛：{r.normalizedCount}</p>
+      <p>状态原因：{r.reason === 'QUOTE_AND_XG_NOT_PROVIDED' ? '赛程已保存；来源不提供报价和 xG' : r.reason || '等待完成'}</p>
+      <p className="mono">原始证据：{r.snapshotId || '尚无完整证据'}</p></article>)}
+    <details><summary>五联赛能力与观察覆盖</summary><pre>{JSON.stringify({capabilities:data?.sources.capabilities, coverage:data?.sources.coverage,slots:data?.sources.slots},null,2)}</pre></details>
+    <h2>已保存赛程（当前最多显示50条）</h2>
+    {data?.fixtures.map((f:any) => <article key={f.id}><h3><Link to={'/fixtures/'+f.id}>{f.home} vs {f.away}</Link></h3><p>开球：{date(f.kickoffAt)} · {f.status} · 报价缺失</p></article>)}
+  </>;
+}
+function ResearchDetail() {
+  const {id} = useParams();
+  const {data,error} = useLoad(() => api('/fixtures/'+id));
+  return <><p className="eyebrow">LOCAL RESEARCH / EVIDENCE</p><h1>{data ? `${data.home} vs ${data.away}` : '读取比赛证据…'}</h1><p role="alert">{error}</p>
+    <div className="callout">没有可用报价，未生成预测。来源更新时间未知时保留 null；页面时间为实际捕获时间。</div>
+    {data && <><h2>开球版本</h2><pre>{JSON.stringify(data.revisions,null,2)}</pre><h2>原始证据时间线</h2>{data.evidence.map((e:any,i:number) => <article key={e.id+':'+i}><p>捕获：{date(e.observedAt)} · 入库：{date(e.ingestedAt)}</p><p className="mono">SHA256 {e.payloadHash}</p><details><summary>原始响应分块（完整响应由多个块组成）</summary><pre>{e.content}</pre></details></article>)}</>}
+  </>;
 }
 function System() {
   const { data, error } = useLoad(() => api("/meta"));

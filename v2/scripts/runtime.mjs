@@ -10,7 +10,12 @@ import { workerBuild } from "./build.mjs";
 import { localSessionPlugin } from "./local-session.mjs";
 process.chdir(root);
 const command = process.argv[2];
-modeGuard(process.env.V2_MODE || "DEMO", process.env.V2_HOST || "127.0.0.1");
+const mode = process.env.V2_MODE || 'DEMO';
+modeGuard(mode, process.env.V2_HOST || "127.0.0.1");
+const webPort = mode === 'DEMO' ? 5273 : 5274;
+const apiPort = mode === 'DEMO' ? 8788 : 8789;
+if (mode === 'LOCAL_RESEARCH' && (!process.env.V2_PROFILE || process.env.V2_PROFILE === 'demo'))
+  throw Error('RESEARCH_PROFILE_REQUIRED');
 const dir = runtime();
 const python = path.join(
   root,
@@ -18,16 +23,16 @@ const python = path.join(
   process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
 );
 if (command === "doctor") {
-  await freePort(5273);
-  await freePort(8788);
+  await freePort(webPort);
+  await freePort(apiPort);
   console.log(
     JSON.stringify({
       node: process.version,
       python: fs.existsSync(python),
-      mode: "DEMO",
+      mode,
       state: "isolated .runtime-v2 profile",
-      ports: [5273, 8788],
-      network: false,
+      ports: [webPort, apiPort],
+      network: mode === 'LOCAL_RESEARCH' ? 'OPENLIGADB_ALLOWLIST' : false,
     }),
   );
 } else if (command === "bootstrap") {
@@ -45,10 +50,11 @@ if (command === "doctor") {
   else {
     c = {
       installationId: crypto.randomUUID(),
-      mode: "DEMO",
+      mode,
       bootstrap: crypto.randomBytes(24).toString("hex"),
       serviceToken: crypto.randomBytes(32).toString("hex"),
-      webOrigin: "http://127.0.0.1:5273",
+      webOrigin: `http://127.0.0.1:${webPort}`,
+      apiPort,
       appCodeSha: execFileSync("git", ["rev-parse", "HEAD"], {
         encoding: "utf8",
       }).trim(),
@@ -62,18 +68,20 @@ if (command === "doctor") {
       mode: 0o600,
     });
   }
+  if (c.mode !== mode) throw Error('INSTALLATION_MISMATCH');
   await workerBuild();
   const mf = engine(c, dir, { port: 0 });
   try {
     await migrate(await mf.getD1Database("DB"), c);
-    console.log("DEMO_BOOTSTRAPPED " + c.installationId);
+    console.log(mode + "_BOOTSTRAPPED " + c.installationId);
   } finally {
     await mf.dispose();
   }
 } else if (command === "dev") {
-  await freePort(5273);
-  await freePort(8788);
+  await freePort(webPort);
+  await freePort(apiPort);
   const c = config(dir);
+  if (c.mode !== mode) throw Error('INSTALLATION_MISMATCH');
   await workerBuild();
   c.bootstrap = crypto.randomBytes(24).toString("hex");
   c.localSessionToken = crypto.randomBytes(32).toString("hex");
@@ -99,7 +107,7 @@ if (command === "doctor") {
   fs.writeFileSync(path.join(dir, "login-code.txt"), c.bootstrap, {
     mode: 0o600,
   });
-  const mf = engine(c, dir);
+  const mf = engine(c, dir, { port: apiPort });
   await mf.ready;
   const db = await mf.getD1Database("DB");
   const installation = await db
@@ -112,6 +120,7 @@ if (command === "doctor") {
   const web = await createServer({
     configFile: path.join(root, "apps/web/vite.config.ts"),
     plugins: [localSessionPlugin(c)],
+    server: { port: webPort, proxy: { '/api': { target: `http://127.0.0.1:${apiPort}`, changeOrigin: true } } },
   });
   await web.listen();
   const runId = crypto.randomUUID();
@@ -123,7 +132,7 @@ if (command === "doctor") {
     stdio: ["ignore", log, log],
     env: {
       ...process.env,
-      V2_API: "http://127.0.0.1:8788",
+      V2_API: `http://127.0.0.1:${apiPort}`,
       V2_SERVICE_TOKEN: c.serviceToken,
     },
   });
@@ -176,7 +185,7 @@ if (command === "doctor") {
   });
   process.on("SIGINT", close);
   process.on("SIGTERM", close);
-  console.log("DEMO_READY http://127.0.0.1:5273 automatic local session");
+  console.log(mode + `_READY http://127.0.0.1:${webPort} automatic local session`);
 } else if (command === "stop") {
   const record = JSON.parse(
     fs.readFileSync(path.join(dir, "run.json"), "utf8"),

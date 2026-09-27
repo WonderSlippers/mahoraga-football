@@ -21,3 +21,7 @@
 固定 V6 配置388 与 V7 return_partial UNBLENDED_EXPLORATORY；新适配器只含推断，不引入训练入口。原研究函数作为独立数值参考，源码/权重/样本各自固定SHA256。V6 central=null，方向缺支持保留null。V7不接受请求覆盖变体。
 
 现有档案特征没有真实历史报价首次捕获时间，因此此次365条记录是历史数值对照，不是前瞻时间验证，也不是收益验证。时间守卫测试使用明确合成时间单列报告。当前未具备实时原始特征构造器时拒绝LOCAL_RESEARCH输入，不填0或借市场基准冒充研究模型。测试通过不会晋升模型。
+# 真实来源隔离与兼容
+LOCAL_RESEARCH必须使用独立profile（research）、独立installation/D1、5274/8789和独立cookie；旧5173与DEMO5273各自保留。既有DEMO数据库mode不可转换；0001仅对新空库允许两种mode，既有窄DEMO约束保留。0002只追加来源表，schemaVersion升2，不重建原票或旧表。研究模式当前只允许采集写入，不允许财务命令。
+
+采集只允许固定OpenLigaDB HTTPS路径、拒绝重定向；完整原文和UTF8字节hash先原子持久化，再规范化。失败保留原证据。没有时区的来源更新时间保留null。仅After90Minutes可作为常规赛果，AET/PEN不能替代。ESPN备用入口返回陈旧日期且无报价，不能因HTTP200判成功；football-data说明其赛前赔率按周收集，不能冒充实时十分钟内报价。

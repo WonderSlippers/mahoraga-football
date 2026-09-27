@@ -2,6 +2,8 @@ import { exactFields, sha } from "../../../packages/contracts/index";
 import { stmt, one, rows, uid } from "./repositories/db";
 import { place, settle, summary } from "./services/commands";
 import { observe, claim, complete, demoResult } from "./services/observations";
+import { captureSource, tickSources } from './services/sources';
+import { capabilities } from '../../../packages/sources/index';
 let bootstrapWindow = 0,
   bootstrapAttempts = 0;
 function wire(data: unknown): unknown {
@@ -66,7 +68,7 @@ export default {
         req.headers.get("Origin") !== env.WEB_ORIGIN
       )
         throw new Error("ORIGIN_INVALID");
-      if (env.MODE !== "DEMO") throw new Error("NETWORK_DISABLED");
+      if (!['DEMO','LOCAL_RESEARCH'].includes(env.MODE)) throw new Error("NETWORK_DISABLED");
       const installation = await one(
         env.DB,
         "SELECT * FROM installations WHERE id=?",
@@ -75,6 +77,7 @@ export default {
       if (installation.mode !== env.MODE)
         throw new Error("INSTALLATION_MISMATCH");
       const context = { db: env.DB, installationId: env.INSTALLATION_ID, now };
+      const cookieName = env.MODE === 'DEMO' ? 'mahoraga_v2' : 'mahoraga_v2_research';
       const isWrite = req.method !== "GET";
       let body: Record<string, any> = {};
       if (isWrite) {
@@ -112,6 +115,11 @@ export default {
         )
           throw new Error("AUTH_REQUIRED");
         if (req.method !== "POST") throw new Error("NOT_FOUND");
+        if (path === '/internal/v2/scheduler/tick') {
+          exactFields(body, []);
+          await tickSources(context);
+          return ok({ tickedAt: now });
+        }
         if (path === "/internal/v2/model-jobs/claim") {
           exactFields(body, ["owner"]);
           if (typeof body.owner !== "string" || body.owner.length > 100)
@@ -153,7 +161,7 @@ export default {
           now + 86400000,
         ).run();
         return ok({ csrf }, 200, {
-          "Set-Cookie": `mahoraga_v2=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`,
+          "Set-Cookie": `${cookieName}=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`,
         });
       }
       if (path === "/api/v2/session/bootstrap" && req.method === "POST") {
@@ -190,12 +198,12 @@ export default {
           throw new Error("BOOTSTRAP_USED");
         }
         return ok({ csrf }, 200, {
-          "Set-Cookie": `mahoraga_v2=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`,
+          "Set-Cookie": `${cookieName}=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400`,
         });
       }
       const cookie = req.headers
         .get("Cookie")
-        ?.match(/(?:^|;\s*)mahoraga_v2=([^;]+)/)?.[1];
+        ?.match(new RegExp(`(?:^|;\\s*)${cookieName}=([^;]+)`))?.[1];
       const session = cookie
         ? await stmt(
             env.DB,
@@ -214,18 +222,24 @@ export default {
           return ok({
             installationId: env.INSTALLATION_ID,
             mode: env.MODE,
-            schemaVersion: 1,
+            schemaVersion: installation.schemaVersion,
             appCodeSha: env.APP_SHA,
-            network: "DISABLED",
+            network: env.MODE === 'DEMO' ? 'DISABLED' : 'OPENLIGADB_ALLOWLIST',
             autoPaper: false,
             jobs: await rows(
               env.DB,
               "SELECT state,COUNT(*) AS count FROM jobs GROUP BY state",
             ),
-            ports: { web: 5273, api: 8788 },
+            ports: { web: Number(new URL(env.WEB_ORIGIN).port), api: Number(env.API_HOST.split(':')[1]) },
           });
         if (path === "/api/v2/models")
           return ok(await rows(env.DB, "SELECT * FROM model_manifests"));
+        if (path === '/api/v2/sources') return ok({
+          capabilities, mode: env.MODE, autoPaper: false,
+          runs: await rows(env.DB, 'SELECT * FROM source_runs ORDER BY startedAt DESC LIMIT 20'),
+          coverage: await rows(env.DB, 'SELECT s.competition,s.season,f.status,COUNT(*) count FROM fixture_sources s JOIN fixtures f ON f.id=s.fixtureId GROUP BY s.competition,s.season,f.status'),
+          slots: await rows(env.DB, 'SELECT state,reason,COUNT(*) count FROM observation_slots GROUP BY state,reason'),
+        });
         if (path === "/api/v2/fixtures")
           return ok(
             await rows(
@@ -338,6 +352,11 @@ export default {
           });
       }
       if (req.method === "POST") {
+        if (path === '/api/v2/source-captures') {
+          exactFields(body, ['season']);
+          return ok(await captureSource(context, key, body.season));
+        }
+        if (env.MODE !== 'DEMO') throw Error('RESEARCH_READ_ONLY');
         if (path === "/api/v2/observation-requests") {
           exactFields(body, []);
           return ok(await observe(context, key), 202);

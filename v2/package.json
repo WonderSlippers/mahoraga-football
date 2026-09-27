@@ -14,7 +14,10 @@
     "test:integration": "tsx --test --test-concurrency=1 tests/integration/*.test.ts",
     "test:e2e": "playwright test",
     "report:verification": "node scripts/report.mjs",
-    "test:model-parity": "node scripts/run-python.mjs model-parity"
+    "test:model-parity": "node scripts/run-python.mjs model-parity",
+    "bootstrap:research": "node scripts/research.mjs bootstrap",
+    "dev:research": "node scripts/research.mjs dev",
+    "stop:research": "node scripts/research.mjs stop"
   },
   "dependencies": {
     "ajv": "8.17.1",
