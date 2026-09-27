@@ -13,7 +13,8 @@
     "test:unit": "tsx --test tests/unit/*.test.ts",
     "test:integration": "tsx --test --test-concurrency=1 tests/integration/*.test.ts",
     "test:e2e": "playwright test",
-    "report:verification": "node scripts/report.mjs"
+    "report:verification": "node scripts/report.mjs",
+    "test:model-parity": "node scripts/run-python.mjs model-parity"
   },
   "dependencies": {
     "ajv": "8.17.1",
