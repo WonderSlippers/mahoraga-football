@@ -1,0 +1,1790 @@
+[
+  {
+    "archive": "mahoraga_2_codex_handoff.zip",
+    "sha256": "81e825f67684797831a0f42db78d8a0d0d03c84f29ad53a01485e1457af84982",
+    "expandedBytes": 397651,
+    "executed": false,
+    "entries": [
+      {
+        "name": "mahoraga_2_codex_plan/00_START_HERE.md",
+        "bytes": 5700,
+        "sha256": "987ee2c8de049b75117e41463482f162e361545f1b71b7e401faa21724c98e99",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/01_PRODUCT_ARCHITECTURE.md",
+        "bytes": 20017,
+        "sha256": "2a45f44519a21eb32601e2196e1244d6947b720162233820d676ad1f0a182f55",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/02_DATA_API_CONTRACTS.md",
+        "bytes": 25131,
+        "sha256": "ac8b48ebdb5369284a59dbe7b027c9ea27ee1368ba53c599e9f92338cc9837b0",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/03_IMPLEMENTATION_TASKS.md",
+        "bytes": 15115,
+        "sha256": "9e53b9f637c08a010df02cdd6e531ae03beeea783a46a58419e7efe8e67ec42e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/04_ACCEPTANCE_TESTS.md",
+        "bytes": 21999,
+        "sha256": "f35c0ffe54b283c396f6f7d291bfc1400d119bb9bdb12e711466e379c4794972",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/05_MIGRATION_RUNBOOK.md",
+        "bytes": 8908,
+        "sha256": "7948c88268edabf4094cb73924ea42617ffea7568a6417b8041d541f17412a03",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/06_AUDIT_TRACEABILITY.md",
+        "bytes": 9516,
+        "sha256": "5364f5d2144b7d4a834c0b3aceef634f94ff23444cb5e50ed89799c5247e71b2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/07_MODEL_INTEGRATION.md",
+        "bytes": 10192,
+        "sha256": "27ebf5e87afd089a113948eea7782d401281541069ad15d02925b2cc70874cc4",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/AGENTS.v2.template.md",
+        "bytes": 2050,
+        "sha256": "0ef5ecc04f36521147956f5fd1e37f81b4221fa4afd49e5191acf4a12836e7c5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/MAHORAGA_2.0_CODEX_COMPLETE.md",
+        "bytes": 119570,
+        "sha256": "96d0eaf60345e64e7b556d7ce36dfcb0bd67a5596799f1e1c981c29898a6e943",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/MANIFEST.json",
+        "bytes": 4570,
+        "sha256": "7a16ef5c8f7207abcf0676ba655af8d13519e2abd1b0a4f4cdfa054695493a4a",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/README.md",
+        "bytes": 1325,
+        "sha256": "cdca7bffcded9cca84bd0d5b415af5e0a11453d5a5c8456c340c26fb7aad492d",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/examples/acceptance-tests.json",
+        "bytes": 17178,
+        "sha256": "9f7402f826b8d2988f31195117c58f604ce5e9de0f9377f3c628e67867559a5e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/examples/golden-market-cases.json",
+        "bytes": 8050,
+        "sha256": "16e9335ae6d8b8727fb751145f9c97d05b64374bbbfbeaf433c0d08e9a285b64",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/examples/model-manifest.example.json",
+        "bytes": 1376,
+        "sha256": "67c667dce854a317563c4b97ed06585735ce634a3a1ee65b0e0f9330847e03e9",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/examples/prediction.example.json",
+        "bytes": 592,
+        "sha256": "a502b8533b200b62d046e5673242b4ddbac6758a64e1b8858bc9e71b2f8575ed",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/examples/runtime.example.json",
+        "bytes": 1129,
+        "sha256": "d0735b4b78f9decec15e6e65658325459332ba2732725650bc39148bd78f546a",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/examples/tasks.json",
+        "bytes": 17032,
+        "sha256": "489f6ad9e814fb0baf32bf152e8e4de531700f86ee3092d0faec4d4fb730b906",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/handoff-validation.json",
+        "bytes": 14543,
+        "sha256": "17a586ddff1e88fd946742f831ae41aac6eb2fb204fbe04334f2e153fe344451",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/references/audit-2026-09-25.md",
+        "bytes": 61480,
+        "sha256": "6761ac58206c5391fecbb91c4a952a939891f75472d9ceab2e1ace42e2ca9a99",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/references/model-package-inventory.json",
+        "bytes": 1049,
+        "sha256": "7e1aad557afd18452edfc9a3cf03f76a148711b8f9bbb3d87b9c776ef63a9528",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/references/v6-current-fragment.md",
+        "bytes": 6261,
+        "sha256": "edac7d4e5443bb54d4635128e3abca0dc9f9e44e20957e806a876008b2079944",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/references/v6-report.md",
+        "bytes": 10022,
+        "sha256": "f7340489ff27ef06bdbe4555ed03464998b9093c6fd3f30f9c29e710c7e648fa",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/references/v7-report.md",
+        "bytes": 10301,
+        "sha256": "405ef16fbea60948f2bd2724b48597854849644f5d5572b4d2adb5de5c8ccc14",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_2_codex_plan/validate_handoff.py",
+        "bytes": 4545,
+        "sha256": "9137fb9e523118d4a593144d546f06dc139ff8848d8c4dafd5956d05e45e5471",
+        "loadPolicy": "INVENTORY_ONLY"
+      }
+    ]
+  },
+  {
+    "archive": "mahoraga_v6_league_policy_study.zip",
+    "sha256": "55c227a81eadd1a409962f9437d691c3225f37699ba04e39443072f3a8944894",
+    "expandedBytes": 32554933,
+    "executed": false,
+    "entries": [
+      {
+        "name": "mahoraga_v6_league_policies/REPORT.md",
+        "bytes": 10022,
+        "sha256": "f7340489ff27ef06bdbe4555ed03464998b9093c6fd3f30f9c29e710c7e648fa",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/README.md",
+        "bytes": 2309,
+        "sha256": "4d1d198de97f0386133fcf2a70a1a8be737893f95aceb2911bedeecb481de05e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/requirements.txt",
+        "bytes": 82,
+        "sha256": "35dd6d5ed9a94ca83a65727a80d323f8e6c0ceab52be7293cef5380ef673b0fe",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/PROTOCOL.md",
+        "bytes": 1934,
+        "sha256": "b504c5eca829fd8f86b3f7c419f4b5cc7f8507d9b167f262acb3b38a021b999f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/run_all.sh",
+        "bytes": 269,
+        "sha256": "18e309aba1901dc0c299c210268c5d75e407afb7a918e5489efcc47e9158d9a2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/inputs/fixtures_v5.csv",
+        "bytes": 6932069,
+        "sha256": "4bb01bd5c731ebb9e8318531c9d0e66967726eea0e54de9383a6ef1355972c20",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/inputs/provenance.json",
+        "bytes": 385,
+        "sha256": "31893ceffd569399ea4f1960cb7b42aff8913b1a0d3a8d3c8576fcb6aaa67126",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/inputs/features_v5.csv",
+        "bytes": 8322721,
+        "sha256": "74e035a7bf2c235c36b502a5339544c0cd596594d20fe231740beb9e83dc6f50",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/inputs/extended_2026_features.csv",
+        "bytes": 8415804,
+        "sha256": "a21bef386cf3e42dfd4a970a7079b028f7c471385f648ba689e6872b9e58b2b7",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/inputs/seven_league_raw.csv",
+        "bytes": 5709870,
+        "sha256": "413ed4eb2f0762f25003b3f5dc43b24ccece1d127788f314a438dc939621a8ea",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_ger.1.json",
+        "bytes": 2486,
+        "sha256": "01c9e7e42df89dea4c6f2d4afa89527192f42bb39ade0e1d96f549e0f2ae9dc2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2023_eng.1.json",
+        "bytes": 2894,
+        "sha256": "1ae88dcdfdffcde0cc62b175075e445562c7014ba78d4faeddb84b1be77c6a99",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_esp.1.json",
+        "bytes": 11406,
+        "sha256": "fceebbc714a6194aada853b33aed20206be092423621ec411c4d394147a111c0",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2021_esp.1.json",
+        "bytes": 2339,
+        "sha256": "329b73d3430fd6f2af398475f3436d6e44e3ff0a99b6e0a170d843202f425095",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2023_ger.1.json",
+        "bytes": 2299,
+        "sha256": "148dc2c27bbf6a914f81532ed3d99c68ea64df5e99c15f75808fb38ee85e93b1",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2022_fra.1.json",
+        "bytes": 2786,
+        "sha256": "b6e951c3f6b29a9de636d12faf4fa104520bc4141badd2c92642c1791c249361",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2023_ger.1.json",
+        "bytes": 5481,
+        "sha256": "9ce42861e7b676638ab858c2958317eef5c760f238df968781593e98a8ce0166",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2022_ita.1.json",
+        "bytes": 6560,
+        "sha256": "b39601f5efa734f2ef28651804e69c7bc7af2ffe6df24d3cdab7be97d60e46e0",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2025_esp.1.json",
+        "bytes": 6749,
+        "sha256": "2c06cce6b3c7181efdb07aed402932844236e93ff29884b3f56e711eb90cbe5e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_fra.1.json",
+        "bytes": 2641,
+        "sha256": "c1bbae1546b6d4316ef6e2b97e1b73f0d45a367e802d0d3f90d72c2385f01942",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2022_ita.1.json",
+        "bytes": 2941,
+        "sha256": "27f8860cf8af657128b35ddf2002405555eb24a016b00aee288b5aad2bc1471c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_fra.1.json",
+        "bytes": 11044,
+        "sha256": "d83b1cb91eb9f09adfd7ea6401411d01109d15dc42260d67d9d7ba0c64611117",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2025_ita.1.json",
+        "bytes": 6868,
+        "sha256": "01b88f010b929c9cfed32ddfe9215131791c7504251b20efc773d0d960aece39",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_ita.1.json",
+        "bytes": 2634,
+        "sha256": "cf8fb69e5a4acd968f6affa16a5b3e938c93ea18f2f486fa978b168494e58764",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2022_esp.1.json",
+        "bytes": 6515,
+        "sha256": "6c23b30275dac63f4992b371c9c48ab95df3d00f1336b3628fbaf38482473a5f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2025_fra.1.json",
+        "bytes": 5299,
+        "sha256": "b7a644fd45ef8146ccb49030fe283fad4e77b96e48b284b74fd5733e0c2aac8e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2022_ger.1.json",
+        "bytes": 1848,
+        "sha256": "708a1560bc6d6af938d89a72ec6f9676adfe39836f4650fa7befbd5a82d4668b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2022_fra.1.json",
+        "bytes": 6659,
+        "sha256": "953839ef410ffd867829f8769a693fbe18f41205ea0235f2f42e0b93854772da",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2023_fra.1.json",
+        "bytes": 3114,
+        "sha256": "4cdb4b7e52d5021ee03c5b9786e38c43a57966ca336440b0bc33ce79550a5ee2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2024_esp.1.json",
+        "bytes": 2902,
+        "sha256": "4195701e9d745871b00d2fb0b0ced1875e97b00506fe6dfe736ee0832f60583b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_eng.1.json",
+        "bytes": 8876,
+        "sha256": "2749c030d56dca31b141974284b4e52abb368230d32010e76562475eeac80e41",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2021_ita.1.json",
+        "bytes": 5615,
+        "sha256": "4d95667794943a6e5d972866e29227b89eefcfb66ae78ca8a3ecad425e6f6ce7",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2024_eng.1.json",
+        "bytes": 2638,
+        "sha256": "e22bbf53a2b6d35bbe8cbc22eddef42f7ad08a27322bc1a9ec6eeaca2b501fdc",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2024_ita.1.json",
+        "bytes": 2888,
+        "sha256": "e71c437b914bbbee0734700ad5ffc6dd93b0a7df0324cff1447e24c577328613",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2023_esp.1.json",
+        "bytes": 6805,
+        "sha256": "07648f61548061015599a0d7786ec21b53a9926f2276964fd72c71e25410548a",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_eng.1_structure.txt",
+        "bytes": 4643,
+        "sha256": "9ad5d3786c79f25aab2b6696044ee7a9d1082cb9df76c553908e646e16f7ae89",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2021_eng.1.json",
+        "bytes": 6500,
+        "sha256": "e836d6c762352b416af963300e0d983f2cb7e60e7dec0e3c9e1879bf7329f82c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2023_eng.1.json",
+        "bytes": 7204,
+        "sha256": "1c75c932a7bc33d8426b2c4aa68dfffc06e8c494559ca4c83d708a0ba45a469a",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2024_eng.1.json",
+        "bytes": 7155,
+        "sha256": "f17bc5e54bd5b7db076f8f3383f30ddfdd0a3e52c1e83fe5217ed349fe3bb842",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2025_eng.1.json",
+        "bytes": 6749,
+        "sha256": "9c8508cfa3751bf7434cff8fcdee37af3c92104172829b6b7329583a0af9fc2c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2024_ita.1.json",
+        "bytes": 6757,
+        "sha256": "9315baf574038f96e5015468e2e05d2cfae0e8247b2136006df7527194d14f36",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2021_esp.1.json",
+        "bytes": 6597,
+        "sha256": "7a4515c0c9b0ecfa1df5b4a75c94e0c120ee51c689e8b0644aa391f07020fa9f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2023_esp.1.json",
+        "bytes": 2959,
+        "sha256": "3081d01f47c5bede197654c7123bccad446c100cd1b613bae5426c3cf6c5dea5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_ger.1_structure.txt",
+        "bytes": 5410,
+        "sha256": "8b6a1045c93cb3f7764d3e3ffb4ecd693441065d4b09f3bb05f75f9c7811747f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_ger.1.json",
+        "bytes": 10179,
+        "sha256": "68879a95f4e53bef89b0c5fc600d5a69e141f4a9d9b869bffa895fcc10defcc7",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_ita.1_structure.txt",
+        "bytes": 6546,
+        "sha256": "c63da35c838333f7c686157824ce0d31402f2c20ea03c862c7624fd2021416ae",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2025_ger.1.json",
+        "bytes": 4012,
+        "sha256": "f284cdfdab584c7b81b5060afaa47027315fcc012bc0eb98a8b5a7ee6b279eec",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2024_ger.1.json",
+        "bytes": 5566,
+        "sha256": "47f90d3e69c03133e976c45f720773113fa575c8c5e65d15495aa1803f8a437e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2024_fra.1.json",
+        "bytes": 5615,
+        "sha256": "f341aaa814cec1738045bca1c30ae06730aaddcb4f82ba264217e8c81750685b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2021_fra.1.json",
+        "bytes": 2593,
+        "sha256": "1388c4199a25992609ef481c91a74a5e390674aeb40f1ad3602e195deeeed949",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2023_ita.1.json",
+        "bytes": 6015,
+        "sha256": "73e1a1bfde0a4ce118f290e924d6a4d8b9e2006eba12e6227fccd09f07c5d4d2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2022_ger.1.json",
+        "bytes": 5545,
+        "sha256": "14b629346e62f3e54a9b02442439f36328a56e15695e484c5e59781c4ce2b08a",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/honest_candidate_config.json",
+        "bytes": 219,
+        "sha256": "84d437ba9837247edbd63b81a823bb71a42d8bd6478f0f84235f2ea8e4e5bfec",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2022_esp.1.json",
+        "bytes": 2800,
+        "sha256": "e58b1f264046ef582b54bacde4d1f6e8e0799cb25e41a472c220db00c312c469",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2021_fra.1.json",
+        "bytes": 5004,
+        "sha256": "1f6971e2450bcb0658e5e83f3de15df58a7fd81bc30baed219af5d6b5bbc1b4e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_ita.1.json",
+        "bytes": 12156,
+        "sha256": "0a79f78e48ccad13ee4e9871460b737a6200b02d8b3d4daac7f5ba70b8281184",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2024_fra.1.json",
+        "bytes": 2731,
+        "sha256": "aa4ada3fba16fa17b61b8683164eeea2f707381abd3dab10b45b5e6e9c0fbad0",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_esp.1_structure.txt",
+        "bytes": 6099,
+        "sha256": "9bd720c096c9142d60b8b731dcf95a6e6ea816a932c3ff357f1f0b61c6147efe",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/RETROSPECTIVE_fra.1_structure.txt",
+        "bytes": 5930,
+        "sha256": "17d9352835ca6c97ee0913bfbf596f61dc1ea17005eacdb2257315c5457d3eca",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2021_ita.1.json",
+        "bytes": 2477,
+        "sha256": "472fbbd7e7c9c8c9ee71e542ab5579de0ef8dd1c16783beffb80046a15fe6cbf",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2024_esp.1.json",
+        "bytes": 6311,
+        "sha256": "8599f2a299d1c085aa8e05f6d4658edca3faaa5fd7f79e0d37aed77f849b29fa",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2022_eng.1.json",
+        "bytes": 5950,
+        "sha256": "7983ca8089a07d66c21e86cc9e831b2ebb248b6a4cecc9de74f7cbb4bef1fd01",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2021_eng.1.json",
+        "bytes": 2629,
+        "sha256": "aa81028baebc36060f1ea7767423d95744d4749252770c9bf371909c1f127908",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2023_ita.1.json",
+        "bytes": 2795,
+        "sha256": "b254b551e3d3f8a0db666543f6ff0f4ff8a2cd995d8e186adbc4579819fb82bf",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2022_eng.1.json",
+        "bytes": 3107,
+        "sha256": "8c4fdae580952bd1e40a5c68abf1de8c364f93cb69e70c156fc73dcbaf7abbb3",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/PAST_ONLY_2023_fra.1.json",
+        "bytes": 7176,
+        "sha256": "44325cf14b13b393948f3d7334a1ba53d51301c4cfe4ec339bebd811a2806797",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_eng.1.json",
+        "bytes": 2721,
+        "sha256": "fe20f46d6d784e2f1cdd7b225ec985bef4212d6f060bed3e22b734af159ef476",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_esp.1.json",
+        "bytes": 2793,
+        "sha256": "63668f4c299d4c4b56f6806d469341d77486bd998cc57fcd649b10520147afdb",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2024_ger.1.json",
+        "bytes": 2645,
+        "sha256": "80f5eb35a87d9391d95eee30f33958cab673f7aec63f5c714c604012352dee66",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_policy_sides.npz",
+        "bytes": 476223,
+        "sha256": "ebfd07d4121df9b0ce96c2d5bcfc354929a0e6dd86d308f6ab975232d37c0814",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_candidate_stress_0.95.csv",
+        "bytes": 442,
+        "sha256": "393ae446566e39614a7b3c9305db997b28d25d2b8a4bf3e6ccfe2cdfad4e4eed",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/routed_all_programs_annual.csv",
+        "bytes": 904,
+        "sha256": "e8a34d54454bb0eff1fc7e365323017915ce40e8b01197159b6774f7f374418f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_only_league_annual.csv",
+        "bytes": 4455,
+        "sha256": "7242443a72b89535fce8c8852b2e4c2d2f3a39b8d45073fb9e01eef47e529003",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_candidate_league_final.csv",
+        "bytes": 390,
+        "sha256": "05ba5321c36c659672d2cbb6fb82d784e242258d29c3fcffaf9a0938cc778fc3",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_esp.1_annual.csv",
+        "bytes": 99,
+        "sha256": "a496ef2533236ebf5996692825838d30e0097ba244ed593d6dbc1f621c512e1e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/summary.json",
+        "bytes": 731,
+        "sha256": "4ebe04405f362338887b7c443bb5c2e2ec590db35dbf656e91d49a88630e6cd3",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past.log",
+        "bytes": 10175,
+        "sha256": "40137f51f1e5a78463846425642b2cb649c22d8ce6b2537dc8c025fd48a44db3",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_annual_final.csv",
+        "bytes": 355,
+        "sha256": "ea599da70ed3051f846580ddbb6ed7b7ca47a948927f194dc699d8ff406f33a9",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_stress_0.95.csv",
+        "bytes": 450,
+        "sha256": "e7273b262b3c5e2dea1cb02fed8a8c339811e325e6b6e68ad00da0909d2b608f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_only_annual.csv",
+        "bytes": 242,
+        "sha256": "cb9d57bc11c943be34dc938bbe5e08518df7e975bf3edecfc566bd76d7ee8613",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_routed_actions.csv",
+        "bytes": 421994,
+        "sha256": "5f0c964996572b99e966967cf0f4f2f474dc9f3c68261d652f0b4cbb1fe9c63b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/full_rebuild_check.log",
+        "bytes": 479,
+        "sha256": "780a3a5adf9008922d19165bafa3da646098563acfbf21ff8f70fd2607fefa29",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_ita.1_annual.csv",
+        "bytes": 111,
+        "sha256": "322ce2ee3398591e52870e2eb673380dd4163699095991a25f63203abe46bbd3",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit.log",
+        "bytes": 6250,
+        "sha256": "f6e5743322602dd02823e5dd24963a6dc9f993c9ef257df3975d26abfcd62073",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/retrospective_flat_rules.csv",
+        "bytes": 14128,
+        "sha256": "0e12dd729479ae13ef53768a70988288f576ac2bb40fd8d38c2cd0d58f1aec85",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_exploratory_NOT_VALIDATION.csv",
+        "bytes": 24901,
+        "sha256": "6bf31f7f4f2206c31fa0200bd325c6c4542fe53029d00e4d32d9b6152c657b93",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_candidate_league_annual_final.csv",
+        "bytes": 1167,
+        "sha256": "d874121774bed66940c33df5a72118c5cba87f2143065f24691ccd772e79fcf1",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/forward_v6.log",
+        "bytes": 262,
+        "sha256": "5b6667d59be0e677a37d443a88cfb8881fe8554629f08e3572a6a5b73ee2e893",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_constraints_league_final.csv",
+        "bytes": 372,
+        "sha256": "9b1ae71cfb1c08b502313c605850d672a635091deff2908afd07a0fde088637d",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/forward_extend.log",
+        "bytes": 159,
+        "sha256": "86001614afa6ec78ccbac6f75d447751bb7a2c9a43d6147b91b3828c3a84b875",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_ger.1_annual.csv",
+        "bytes": 97,
+        "sha256": "71ab6b290a82b9a6b6401cfe462665e170e97d1a8b1bf247b795b5049bddf9e8",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_stress_0.98.csv",
+        "bytes": 385,
+        "sha256": "f281671da460e8a5781a0054e8342362dd54d2e5c2fbd746fa0f6627993dc9fd",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_registry.csv",
+        "bytes": 14659,
+        "sha256": "38b8d84573b4df1b442d0eaa3fcc0428c68defe407a7ba70c217aaa400e94243",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_constraints_stress_0.98.csv",
+        "bytes": 463,
+        "sha256": "184176bb9431c555254319ff96d094660da5695a54c0b79f438742bb45d687ec",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_training_audit.json",
+        "bytes": 9292,
+        "sha256": "6c1845af10608efe418bcba08c2df242fb3a262d1c1bbf750a09016e7a3ed0bb",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_constraints_stress_1.00.csv",
+        "bytes": 407,
+        "sha256": "3ed5be9d460d7de6b4a691d9ab2c51669190a72881baa32ca81b3d26e51815d5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/forward_rebuild.log",
+        "bytes": 211,
+        "sha256": "a22c5e4e374e009547d4bed7681de8b27c470ed8d57117dce929e0e137a407dc",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/forward_2026_summary.csv",
+        "bytes": 155,
+        "sha256": "b8463d5855c639fca42e7498223fdd99900bfe5b089301e5ea63838eeab4dcde",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_constraints_league_annual_final.csv",
+        "bytes": 1795,
+        "sha256": "28ed310c9068f6c0e82f963e80a09a11fb3b02636f74fab646192defd602b59f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_routing_audit.csv",
+        "bytes": 7258,
+        "sha256": "c9bf0170e59c591426d3f87c081c0f734aa9dcd266b5b7becb11c11a9f7444ba",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_stress_1.00.csv",
+        "bytes": 380,
+        "sha256": "a6dfa96d580abb258417c67a7aa94c168779a21d0b3c19bca907117406d46ac2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/retrospective_search_all.csv",
+        "bytes": 4546,
+        "sha256": "cba3218fd1ab16a8da378f5e00d3360977c871fd3c691f24477b95f0587d33bf",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_only_search_all.csv",
+        "bytes": 32828,
+        "sha256": "d905d1d4479707e21f356f952225c9a19b40df6b39f600101cae4a8dd35a2913",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_routed_annual.csv",
+        "bytes": 612,
+        "sha256": "6a69350edfef5ba1cdd3aaedd621e320023248018980bc57431392452ae8b9a2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/retrospective_chosen.csv",
+        "bytes": 452,
+        "sha256": "96d4c66d90ed80f0f178a0a9a7bbeb0dbe5522537d432837c97b52e7b7150f6b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_policy_annual_all.csv",
+        "bytes": 691149,
+        "sha256": "cb6d165f15eb9974cbb3eebfd8adca79313d040f1c2b94ac326193da9abae947",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/validation.json",
+        "bytes": 11089,
+        "sha256": "040a51a7e568280d01178e8657fc330288988e3a23a228a7b60e6383e93f44a0",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_only_audit.json",
+        "bytes": 12035,
+        "sha256": "bb507b8eb7813aad1bbf9a6a451fab62452051145040b6a4485f7c61f064b34d",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_candidate_stress_1.00.csv",
+        "bytes": 392,
+        "sha256": "dcf2003f7b8aac066ff4689aad5c1bc881f3c22657467151627b0f0195c05bd7",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_candidate_annual_final.csv",
+        "bytes": 355,
+        "sha256": "8111255f97271fa3c9542f4ae2cf9a3976b6414cae9661d42ecde9ad1c4e6455",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_league_final.csv",
+        "bytes": 353,
+        "sha256": "44c13f07a6568b8055b16465933008ad3769639858195d3cf5900ece787396a2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/retrospective_actions.csv",
+        "bytes": 253985,
+        "sha256": "6363b70e77212595cf1c0dadff1dea09f26f6260519cd21008195d620e856946",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_constraints_stress_0.95.csv",
+        "bytes": 459,
+        "sha256": "77138e060f00a8ca50f801c81fa8a0787f471cf34e16ec2d6652472f60cb2867",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_eng.1_annual.csv",
+        "bytes": 98,
+        "sha256": "eaeff1400f2fa427e827e0be3d64261800af6e0527b4de4c294426ae508db662",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/validation.log",
+        "bytes": 750,
+        "sha256": "8c4aca9d7a9531d37693cd2d9f9c7f5f3bc267753b44407ffb8902f35d5e302c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/forward_2026_audit.json",
+        "bytes": 1621,
+        "sha256": "5833c00db9039ff6fb2b5ef0d1269ec911fa69a6a3735e5f872a2a8c2bd6b36c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/forward_2026_actions.csv",
+        "bytes": 2973,
+        "sha256": "d5e96a77be1fcae743b501031f0ab34e6c86f0ddc107a94ae95e304b7654ab80",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_fra.1_annual.csv",
+        "bytes": 112,
+        "sha256": "ea3d71035149a68538e5320892dd4111ce7adc0cc57bbd6b6680938a051e5841",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_candidate_stress_0.98.csv",
+        "bytes": 404,
+        "sha256": "7915802981e1252d4ea7f7a708e340a113dabb58eaf3dde1419f50d021cc3973",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest.log",
+        "bytes": 2879,
+        "sha256": "0d76b7051d8300cc9badc462db76858dfc976a957869bffd7af1a870e71712c1",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/summary_preview.png",
+        "bytes": 192653,
+        "sha256": "189baadc1724fec73b6788abede180bc2e36dddab8eebbc75104560569230d47",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/honest_candidate_POSTHOC_actions.csv",
+        "bytes": 96209,
+        "sha256": "e67a48e54e9768c589edc06fa7423ac9822a639b1c64ab37565f1165140df4a8",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/clean_replay.log",
+        "bytes": 20207,
+        "sha256": "00d569fb9c127b83c420c5deb9b08fee46f8477a3f23cf9e6b4fdde05ebb9e91",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_constraints_annual_final.csv",
+        "bytes": 386,
+        "sha256": "bc53062a295b30db859a343ffcf983bf85ab004944b1d15922a21ec6a9e2bce9",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/past_only_actions.csv",
+        "bytes": 454224,
+        "sha256": "306a8544a5bc312c40a25b7c8b18489a06ffb22ba304e774a996f3b6109eabed",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/environment.json",
+        "bytes": 119,
+        "sha256": "4c847d35fd54a3f3eec224ceea14dc891296238ff24accac1fa4317b265b2fee",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/outputs/fit_league_annual_final.csv",
+        "bytes": 1533,
+        "sha256": "3b759fc859bbccc3aa6d7879ca6b5f01279d23b6be239a13ec29754c70793c79",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/walk_forward_constraints.py",
+        "bytes": 3349,
+        "sha256": "29c9d6bba8e356acf8b99bfc10b532d91d90d74b4d9d669d4ba6722663a61e95",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/honest_calibrated_policy.py",
+        "bytes": 7352,
+        "sha256": "feb64aa75cbd8e387394a9afa1bca98f04a4304d3569e99be283b15005c5c246",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/fit_constraints.py",
+        "bytes": 4877,
+        "sha256": "6d7aed1edf841238e7fd1e6b29a1f0f022db31ba92512ddff55b702368553e73",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/rebuild_inputs.py",
+        "bytes": 1485,
+        "sha256": "beb58ce1e32f48a618e8cceb8dfa3cefecbb12f6c42b95c15b6685f4d33d6631",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/forward_fragment.py",
+        "bytes": 3511,
+        "sha256": "fd9350ce751a29fe588f37bdef7b82fa4f6bda80468048959b083582053f752e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/write_report.py",
+        "bytes": 10050,
+        "sha256": "74493ac50ce77f0623f1cb9883514cf4a4b0c60e05c54294cccf7cfdca1d971d",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/common.py",
+        "bytes": 2458,
+        "sha256": "6a250367efe281c2345c4c49b0c9b403774278eee2a76ebe7781bda55125f177",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/finalize_validate.py",
+        "bytes": 9653,
+        "sha256": "6d6b573c29527b8d0f5322f24bb0190c78b2c397069058e6829e1fd40f84f6f1",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/paper_inference.py",
+        "bytes": 2333,
+        "sha256": "49f262ee047778e07d680f35467281a6fe44364eb7fef724a59a4fa739d92e9a",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/upstream/goal-core.mjs",
+        "bytes": 6935,
+        "sha256": "9d51a43305e092727c71abaad9bbf6043826f8aa493898d28330d038a215dd76",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/upstream/features_v5.py",
+        "bytes": 5490,
+        "sha256": "92c95ab144bbcd9daed8b105066807f7eb5f1ce25a8c176edf9f7ee609e27bbf",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/upstream/build_features.py",
+        "bytes": 8479,
+        "sha256": "5155e1eac0ff8dfb90cc4ff03b8434d5ca84f52253527c0c768854c1b5a0035f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/code/upstream/run-model.mjs",
+        "bytes": 1000,
+        "sha256": "6f2d880c2e0e4f88cd04b5980d7e15ca2918075e6516a310eac35fbd33a0f85c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v6_league_policies/SHA256SUMS.json",
+        "bytes": 14807,
+        "sha256": "e8b1a7191a4c633637d10fad60c38f031801f67b414c5b51a5aba833d2d8edd2",
+        "loadPolicy": "INVENTORY_ONLY"
+      }
+    ]
+  },
+  {
+    "archive": "mahoraga_v7_research.zip",
+    "sha256": "579a5ca030068fae75ea26d7ff0b59641eb81c9054cd71027c57efabb8f1cd22",
+    "expandedBytes": 47981014,
+    "executed": false,
+    "entries": [
+      {
+        "name": "mahoraga_v7_lab/mahoraga_v7_results.xlsx",
+        "bytes": 193113,
+        "sha256": "5546165492e67b0d23816a354e8ccb7a0e404a66fac2a70328b38624251bb78f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/requirements.txt",
+        "bytes": 80,
+        "sha256": "b50f836422834cbe80e16d437cfa8388ecce482435cf136dcd86f2f1f3ff905f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/REPORT.md",
+        "bytes": 10301,
+        "sha256": "405ef16fbea60948f2bd2724b48597854849644f5d5572b4d2adb5de5c8ccc14",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/README.md",
+        "bytes": 2689,
+        "sha256": "f75f35df69ee095354b5b838b02393f5bc14ac7ff7a6b46f47a990a358f5d644",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/ADDENDUM_2.md",
+        "bytes": 1363,
+        "sha256": "12d324923f269cb0d0cbfcc4c48f2ac86882d4295499e1da48287b8abc5f95a6",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/PROTOCOL.md",
+        "bytes": 4103,
+        "sha256": "c111bce8134542623160b5b620f931c5251e197ebda876478c77b35fc1a097b1",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/ADDENDUM_1.md",
+        "bytes": 1359,
+        "sha256": "c1ee4305be19c0a86b119f4c3e04dddabf6259cf34d455d1b0eec60121798e49",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/run_all.sh",
+        "bytes": 384,
+        "sha256": "0bc7e83ff6e8a60f3a8081fdcf5b1fe38fc79e0424ec1601f11398fc6bdd487b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/write_report.py",
+        "bytes": 12495,
+        "sha256": "20c6ce9f4352c36c979ff79e107b8d15ed15c1888729133b9daab1c29da834f9",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/validate_extensions.py",
+        "bytes": 3129,
+        "sha256": "5ca07e46753b393303132fc976dbfa43fd554845ad4807cc7d9ea074a0533120",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/paper_inference.py",
+        "bytes": 3229,
+        "sha256": "dd334d0ec0572874792c7714ab4b4008646e6f2992025918604d8b88ae5eb5f8",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/grouped_calibration.py",
+        "bytes": 5485,
+        "sha256": "16a51af34b5e0381ca16dc32e746cf8d8d49d3b917aee90b72622f85a75fbe36",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/model.py",
+        "bytes": 10323,
+        "sha256": "cf5aac447b2c01ba3418eae338ac939fa731b6c6ae94f97a9b44530dfb92035b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/build_workbook_optional.py",
+        "bytes": 14791,
+        "sha256": "d5200ac515d7a9491fdcdda40091540a4a68043a52914bb70dda0d5e438ae55c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/test_inference.py",
+        "bytes": 2284,
+        "sha256": "070be5f066fc0ba9008de906c7a70100cb624878b4984959b24095d695c3271e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/validate.py",
+        "bytes": 9031,
+        "sha256": "c09482c2ef86de2bc670a19608fddd926c5ea5389af3ef5e9e6ba128ab81f88f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/return_weighted.py",
+        "bytes": 5126,
+        "sha256": "c8e03d5c73a821b0a6ebbf4d256756cb14610b4d08f99e127cd556dd24515708",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/run_study.py",
+        "bytes": 7456,
+        "sha256": "be49eac83a67d235997242134b713f41ec85514fa4405f4076833663a64e2008",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/code/diagnostics.py",
+        "bytes": 8193,
+        "sha256": "bd1971bfb6db59acf2c1fe452bb8e0cde2af309dbd2d192722c19d6a335e9014",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/tree_pool_2022.json",
+        "bytes": 5326,
+        "sha256": "cd6da94bf42772d7029f35503c52330ab6c10a21febe75357760f2ca366b504e",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_no_xg_2023.json",
+        "bytes": 10090,
+        "sha256": "ff72b69f1859b2dc6c00b984edfeac2e26b5cf2e992ba7c69ccad8cfd6aadd53",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/shared_2024.json",
+        "bytes": 5539,
+        "sha256": "09a2a8c30f97d6793d68917187debe95d0de62fbdfd6aa787dfcd9a084566a20",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_2023.json",
+        "bytes": 11172,
+        "sha256": "0b355104ca2d6e6a901247c29bedfadd94cf108ffa4648c62222888d94b6277b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_partial_2021.json",
+        "bytes": 11335,
+        "sha256": "e466a7dfc00ad04abad69335de76060e90513ca8262a8b6b59cfa0c0faf9416b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_power_2021.json",
+        "bytes": 11176,
+        "sha256": "10bcec58fb8465a25b54490eb03bbb88f4f40f64c31ad2514a6a0f889f5685bd",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r5_2025.json",
+        "bytes": 351524,
+        "sha256": "32ac350a6304ef8d34fc97d4cef8df7459531ae5be825a09c484d4eed4c24f7b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_partial_2026.json",
+        "bytes": 11364,
+        "sha256": "7746e847ec329635a1f16737e7d2394a2561d9220e047a8800c3cfae9c3b1775",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_shared_2022.json",
+        "bytes": 5629,
+        "sha256": "48369f2054c56517fc87bfe29d06ce9f868ee2e194709465123986f89a7b2f49",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r25_2024.json",
+        "bytes": 338570,
+        "sha256": "13626b14e889d46765ffe03dc4ff62e84b2932a1db141e2dcc97ba0bf32e4cca",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r100_2023.json",
+        "bytes": 400154,
+        "sha256": "17c8ccc855c3d8c3b5cb7a1aa8cd0945b8f920f96100aac9606a35d7b8b46cc8",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_shared_2023.json",
+        "bytes": 5531,
+        "sha256": "824a7e374c5573dc73707fe75d33834316625246c6131084b6cb355f2b0bc154",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/shared_2021.json",
+        "bytes": 5474,
+        "sha256": "01ca5f4de8dbaea97ba13a0d43c7005dc2f7dcaec46786a72bb3665a433004a5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_power_2024.json",
+        "bytes": 11240,
+        "sha256": "48e7edc3bfc5e4b849b968cf2d1044d125187770f60ce555d27a0a1d435f5ba5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r5_2026.json",
+        "bytes": 412541,
+        "sha256": "f8802407b84662b8702d141ee504df097a7f40c67992120cce4cc25b2ca5fc1c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_partial_2023.json",
+        "bytes": 11309,
+        "sha256": "14c827e3621836ab2374bbacc04148cdb62390f8485c19bbbd8288c7834bfa7c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r5_2023.json",
+        "bytes": 391654,
+        "sha256": "76f6d7e067cd5d6a0fdb74110d31964d2f9ae3394687beaf96ca18d8d30be33b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r5_2021.json",
+        "bytes": 199006,
+        "sha256": "7f59e2c1576c960ad5f51d4a0afff08cb3de4426227d79a129cc5e87204672d2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/tree_pool_2021.json",
+        "bytes": 5829,
+        "sha256": "f1fae3036a8693a19d7e2da195c7c378c329eb60f937d584be5d940439ee2712",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r5_2024.json",
+        "bytes": 332485,
+        "sha256": "685a3f89f416b086fb085745093f925dce1fe72d987e9e4d1aabe129d468f779",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/shared_2022.json",
+        "bytes": 5549,
+        "sha256": "cc4d4819c5cc280ee5b52cfd5058dc43e7fe238a8675f5bb53b687b8400ac360",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/shared_2025.json",
+        "bytes": 5529,
+        "sha256": "55879d72255cd993672742d55f6c0aa4b96b718ef7440e7069f5ebd9c91d9a02",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r100_2022.json",
+        "bytes": 328926,
+        "sha256": "f3506200f3595b7255d07997ab959178df7675cc26d21c58b82f7f2e2a6dc1c1",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r100_2025.json",
+        "bytes": 359396,
+        "sha256": "a229bc9aad47bb5066de438c149ac77b57b8e7a3e329cfdf74dadc9e2d7f3fc2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_no_xg_2022.json",
+        "bytes": 10134,
+        "sha256": "2a4754f17089fbf225d9fa517b7f9f9670e6c2339fa7afbf93e88fc2ffed452c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_no_xg_2025.json",
+        "bytes": 10113,
+        "sha256": "a6b29bdbe802ba11746a1346f09d3700a349c47d8467e4df3f9ea1e7601eea53",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_power_2026.json",
+        "bytes": 11243,
+        "sha256": "3464260d02cc254d8218f80b5cdf4736033cd848b26085df4b8182a0e42cfd8c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/shared_2023.json",
+        "bytes": 5454,
+        "sha256": "51185d984d9c5281541c874a0e8a142e0c45428db90e3d0380a437591559c1fe",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r25_2021.json",
+        "bytes": 202998,
+        "sha256": "47182c3b30819bbd539a6f0b0f8d1b95715993cfe81899277b2c536c3d4e27cd",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_2021.json",
+        "bytes": 11186,
+        "sha256": "90506e1a5817e5fa49b8995cb26f57f2edc319b1ad23939c7a47ebb7df70a4c4",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r25_2025.json",
+        "bytes": 357763,
+        "sha256": "66f7f0562f63954d88cdc94c570e77218649abb5cb81905d5206f192774efa10",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r25_2022.json",
+        "bytes": 327263,
+        "sha256": "9695680faec23239a68455475f2373f22b0d342edf6b68bacb0242b349ab0b14",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/tree_pool_2025.json",
+        "bytes": 6451,
+        "sha256": "2ca333f6f18a173c9609e1fee648d07ff99e66cac0abbf57cedc34d07df129be",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r100_2024.json",
+        "bytes": 340162,
+        "sha256": "c6338db80b100fe8acffdebd583e29ce9178a60fd74f5d6742d44fa68a172841",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r25_2023.json",
+        "bytes": 398689,
+        "sha256": "543f8018ee03b7d601c2812e88ec3fd59dbcbd2c1acbe488ffa600ac56f18386",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r100_2026.json",
+        "bytes": 421073,
+        "sha256": "f17cfb748ebb7c5e9ce9ce8e3531f1d8fbedc2be7a41b67b5e817c3edc4dd065",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/tree_pool_2024.json",
+        "bytes": 6465,
+        "sha256": "5151a0acbed719eadb9ff4a90174c255546a7ea5d4f85df5020ed7426d182527",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_power_2022.json",
+        "bytes": 11257,
+        "sha256": "e56bdb5bf4791b9984b4ee51c122f9294ab8acb092252aa4710c198eff7b33bc",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_no_xg_2021.json",
+        "bytes": 10052,
+        "sha256": "bc06ff5fdbf97a2f1361479b61ceb4ff4b08c3a81c5bc24f4933e3caa8cb08ef",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_partial_2022.json",
+        "bytes": 11396,
+        "sha256": "bbba6629a051d27019fbdfbcdc75dc6bda259818914dc317586c4cbc0b3aa97b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/tree_pool_2023.json",
+        "bytes": 6310,
+        "sha256": "063b1a0508f44f560a37a684153682fd2a8aa70312a47f34a7768a23225a4295",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r25_2026.json",
+        "bytes": 419594,
+        "sha256": "54cb6137d1797053f50ec4c69937927dcc6f6b4c6c7cf85cf61d9f1aed16a167",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_shared_2024.json",
+        "bytes": 5605,
+        "sha256": "b69052d995ea46143268981259c5cf28b3e16bccfd7011d9f0bad6d6b2ce9176",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_shared_2021.json",
+        "bytes": 5532,
+        "sha256": "af07e69fdeba9c49a7a009c9245b8bc514a83664c5fae41a4c075ab769099646",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_2024.json",
+        "bytes": 11242,
+        "sha256": "93482844e9233e1e397cae0c1d563d694229644f574d7cbd13624184bc329717",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_no_xg_2024.json",
+        "bytes": 10138,
+        "sha256": "bd7ca565c58c0dcdc80109c8ef6f7c91a701621634cdbd3e1138c97c08d2c621",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r100_2021.json",
+        "bytes": 204220,
+        "sha256": "d00c921d5234b81f6c5d914f2bfc20b7ee864f295c2af9554dc50fdb50de3bc3",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_partial_2024.json",
+        "bytes": 11395,
+        "sha256": "c6de6f6a09cd89174e695d514f53c55a79a40e79d7a5481c6249f54a9407e297",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_partial_2025.json",
+        "bytes": 11365,
+        "sha256": "0e4313eb8a13c2998f32d8d23947ef2322be08a0a02d9be446576aaa1aca9461",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_2026.json",
+        "bytes": 11234,
+        "sha256": "813f8595a0450621724786baf3bc65cc94172b2c137581d9c95e6a4c6ede080f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_shared_2026.json",
+        "bytes": 5593,
+        "sha256": "1f57ba0648718bb53a47b34f4ecb0fe910d5abaf4575dffa9a5e420dad9ef5a8",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/tree_pool_2026.json",
+        "bytes": 5360,
+        "sha256": "b2a9a6c3bb4d7e2e575e93a14b5ea5397c30dd4066743dcd7c4727edf099922c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_2025.json",
+        "bytes": 11248,
+        "sha256": "d2c2e91cc8c393e5d420c49ed2cb86c485afa9980c329437202c8c4281b34892",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_power_2023.json",
+        "bytes": 11193,
+        "sha256": "a05742916b87b14323c2f868ef64e000daab368798dbe4ffe1ebf936549f418d",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_2022.json",
+        "bytes": 11265,
+        "sha256": "7a40b6db34763a52f6c1a6c05ce66f24234fea08f1d12dfea7dbefea70190922",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/return_shared_2025.json",
+        "bytes": 5608,
+        "sha256": "058688b35c6281bb4c2795bef18516e526b3189dfbe67b4ea85c052f31030828",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_no_xg_2026.json",
+        "bytes": 10125,
+        "sha256": "29bdfd3f7e716aab473cf9382eb859c43c8615786b05dd6636e5d838c12fb882",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/group_r5_2022.json",
+        "bytes": 321833,
+        "sha256": "35adc9543271cd24dd8e011e4fe281df8379535d18676648261542f6bc3a722a",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/partial_power_2025.json",
+        "bytes": 11242,
+        "sha256": "b6c9071e74aa59a698c28e74770943621e7c0a38a266739c0726c7f85335f9d1",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/models/shared_2026.json",
+        "bytes": 5532,
+        "sha256": "4f8b992cf673e05e3ee418eeb3efdd6dd9f10d30722b1f05ede8998eca22f6a3",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/inputs/inference_contract_example.json",
+        "bytes": 1669,
+        "sha256": "1d1240aec054496376c82d6df0f8df25b4eade0ba2cc947b6e6d91c438d12191",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/inputs/provenance.json",
+        "bytes": 606,
+        "sha256": "30e268d0f0a0446c21c6de99e96934b799389edd54774ae27b968c52f240a0a3",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/inputs/raw.csv",
+        "bytes": 5709870,
+        "sha256": "413ed4eb2f0762f25003b3f5dc43b24ccece1d127788f314a438dc939621a8ea",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/inputs/features.csv",
+        "bytes": 8415804,
+        "sha256": "a21bef386cf3e42dfd4a970a7079b028f7c471385f648ba689e6872b9e58b2b7",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/selected_league_summary.csv",
+        "bytes": 262,
+        "sha256": "a7c2251d0ef46b0c71cfb45f65e3e7364980190357d394084f1593eee31b0eba",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/return_probabilities.npz",
+        "bytes": 1539998,
+        "sha256": "43d744f813ecbce61c7668c5d85f6839770e5cb8b4ee52e67bb52e44e9ca7f1f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/decisions.npz",
+        "bytes": 201714,
+        "sha256": "ccf81b1bb91e4d401921939dc5b76c25682bf38d39d1110684b32119ba69cfb5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/conditional_null_reference.csv",
+        "bytes": 518,
+        "sha256": "18aefe56046b737a574c16d5d8283fbc6eb38fc49ce04f0caeb3219cd47808e8",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/validation.json",
+        "bytes": 7741,
+        "sha256": "d7b1dafb964652ef8e9d0e42d894f0d7e71701beb0195d7a05d7e8f82ff3afa6",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/return_annual.csv",
+        "bytes": 5424,
+        "sha256": "022c63e6c42f19fcf5d8e8ee3ed286e61f0581fd0bdbcadda51af68565f3c66b",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/probabilities.npz",
+        "bytes": 2115426,
+        "sha256": "cb06d861b9165042b6e9d29d965b8bf7ffbf24f709d92f59d8a29c4205da696f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/league_summary.csv",
+        "bytes": 6133,
+        "sha256": "b342d6c1dd6ca0d4f4162106af631f87a058af74eb4839be1b6640e23974997f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/current_fragment_actions.csv",
+        "bytes": 13669,
+        "sha256": "65b1871e9076564f0885487cbffc0ab28a184f826c595329da6d5f37c1869543",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/past_only_routes.csv",
+        "bytes": 3305,
+        "sha256": "45299236bd0382c77a807e0d66c40775a9ea9c7be9e5bd100cb98643f7c96ebf",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/return_quality_bands.csv",
+        "bytes": 373,
+        "sha256": "a5a03826431ef3bc03eed8756b033f4d5280dd00968bc51f469ad074e94c32ec",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/return_probability_metrics.csv",
+        "bytes": 3994,
+        "sha256": "73a98a8c7f57d4b5fb5263950769ae390b4b3e795dad77feb1715d01e1585ff4",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/paired_comparison.json",
+        "bytes": 464,
+        "sha256": "fc8aca54042fe265a55b9aedf106c768f319e81660c31ae01a8878f37eead279",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/probability_metrics.csv",
+        "bytes": 3198,
+        "sha256": "ac8efb344463321c0811d2dc8103422453fe93ce9de687beb8f0559d7918c01f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/training_audit.json",
+        "bytes": 63014,
+        "sha256": "2d23102f8369a63c6cc6a0023ca5b930841c96e7e35cb7f71d891c328a2d9583",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/source_summary.csv",
+        "bytes": 3650,
+        "sha256": "6c770dbd2b6f1449d2d2ca283db025c9c838338f333552ea50e4307ad544b744",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/combined_actions.csv",
+        "bytes": 3226319,
+        "sha256": "07a7ef6d505a0e5b05c996b4851b9b30e0a222d37da253cb89a78e3169c5d0bb",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/coverage.csv",
+        "bytes": 879,
+        "sha256": "5dba560cc0d944f5069ee2b34b9e40a6c55c700fcf7c68e156db4c19804147ca",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/return_decisions.npz",
+        "bytes": 10131,
+        "sha256": "2a378b91a54064f9fc5cb60a783e06399e59e7df7f98ba8955762acfd6ca9d1a",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/return_actions.csv",
+        "bytes": 680868,
+        "sha256": "605059a9007a7d75da391cb6580e5085079ccde432350c8d4b6b8fc6d4862b66",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/annual.csv",
+        "bytes": 12235,
+        "sha256": "9d48ab868429c18fb6d6254f54f19ec0eff84bae45a4e6d0b6e51146e9c34131",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/combined_summary.csv",
+        "bytes": 10202,
+        "sha256": "9d8c6f81331245b01636102e99a17d83c38233e35eb95f14de6a910890803a30",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/summary_preview.png",
+        "bytes": 259306,
+        "sha256": "4107b522daa79ebba1b2aba5ea80438682e91794668178c0acbc6e352d135da9",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/source_filter_comparison.csv",
+        "bytes": 690,
+        "sha256": "787669198037d1525edf8f5ab6b6a6a945ab01146eea55fa5979b7889657ffd2",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/return_quality_scores.csv",
+        "bytes": 64247,
+        "sha256": "338a2daf32be9993392338eb34b2ef8c2c0f2492c8daaebee28db3c1d45896b5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/group_probabilities.npz",
+        "bytes": 1154140,
+        "sha256": "50f12062efef3f0f980206b35201f4e99f493cda88984cd4c608c5aee8910421",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/aggregate_probability_metrics.csv",
+        "bytes": 1570,
+        "sha256": "67b16bfa99e621a103bb3168bfbd8e9030dd47b50959d86ec7c5b14ff49696f7",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/roi_intervals.csv",
+        "bytes": 2876,
+        "sha256": "201a6edd4a8e91f6abe0befc23c9c5420157366c46b675f46d6fa28836b29a86",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/coefficients_2026.csv",
+        "bytes": 7332,
+        "sha256": "f6f2e675cbf9a8c4830bc6daa503516e5f7694a833dc6114a54d5da643586bad",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/fixtures.csv",
+        "bytes": 8042622,
+        "sha256": "75cd259925f6e02407e9a56958a3a7d45feb88540b75cd510e41697fc7681942",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/group_decisions.npz",
+        "bytes": 8394,
+        "sha256": "b5b40501e1db33ac8d9c03ba9033a2abf9391765a5f53df09441b274cba3e376",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/combined_probability_metrics.csv",
+        "bytes": 8256,
+        "sha256": "8c1aa72b730eb20a3d403f6e330f3fb677ac886e19c20c84210cefbbfc5981c5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/group_probability_metrics.csv",
+        "bytes": 1065,
+        "sha256": "85ce85f2383aacb5963fd56f7d34646db8559b12e6f3c220d76a4d9294d5a38c",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/all_actions.csv",
+        "bytes": 1740063,
+        "sha256": "7eeca1b6f494f0428f64e6e1fbfe076caf63312ec916521cc47f4e946d87c798",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/combined_annual.csv",
+        "bytes": 20934,
+        "sha256": "42e9b2e74e7773bb0a5854d4e388b8e2f58d91d9d361408084cc114188a86585",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/group_actions.csv",
+        "bytes": 794658,
+        "sha256": "d72d6c7fadab3aaafe663fdaba2357e781650fc9ed10fb36a3df2261481543bf",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/group_annual.csv",
+        "bytes": 4545,
+        "sha256": "1dea34fe94e7b145fc2ae932c46312615dba5dfb8ab332bb96c69fe5bae61a60",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/outputs/summary.csv",
+        "bytes": 1284,
+        "sha256": "5bff33d0737f90d061108e352900be9c28d6c3395d038ed74c8ebf11bf21dee5",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/upstream/mahoraga_v6_league_policies/REPORT.md",
+        "bytes": 10022,
+        "sha256": "f7340489ff27ef06bdbe4555ed03464998b9093c6fd3f30f9c29e710c7e648fa",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/upstream/mahoraga_v6_league_policies/PROTOCOL.md",
+        "bytes": 1934,
+        "sha256": "b504c5eca829fd8f86b3f7c419f4b5cc7f8507d9b167f262acb3b38a021b999f",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/upstream/mahoraga_v6_league_policies/code/honest_calibrated_policy.py",
+        "bytes": 7352,
+        "sha256": "feb64aa75cbd8e387394a9afa1bca98f04a4304d3569e99be283b15005c5c246",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/upstream/mahoraga_v6_league_policies/code/common.py",
+        "bytes": 2458,
+        "sha256": "6a250367efe281c2345c4c49b0c9b403774278eee2a76ebe7781bda55125f177",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/upstream/mahoraga_v6_league_policies/inputs/fixtures_v5.csv",
+        "bytes": 6932069,
+        "sha256": "4bb01bd5c731ebb9e8318531c9d0e66967726eea0e54de9383a6ef1355972c20",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/upstream/mahoraga_v6_league_policies/outputs/honest_candidate_POSTHOC_actions.csv",
+        "bytes": 96209,
+        "sha256": "e67a48e54e9768c589edc06fa7423ac9822a639b1c64ab37565f1165140df4a8",
+        "loadPolicy": "INVENTORY_ONLY"
+      },
+      {
+        "name": "mahoraga_v7_lab/SHA256SUMS.json",
+        "bytes": 12907,
+        "sha256": "d155699ca618cc1c73a56155062ec6c23934ec3edfd18e356d59c845e604e955",
+        "loadPolicy": "INVENTORY_ONLY"
+      }
+    ]
+  }
+]
