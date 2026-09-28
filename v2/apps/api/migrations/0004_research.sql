@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS model_registry_events(id TEXT PRIMARY KEY,modelId TEXT NOT NULL REFERENCES model_manifests(id),status TEXT NOT NULL,actor TEXT NOT NULL,reason TEXT NOT NULL,at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS reported_trade_events(id TEXT PRIMARY KEY,account TEXT NOT NULL,externalKey TEXT NOT NULL,revision INTEGER NOT NULL,stakeAtoms TEXT NOT NULL,grossClaimAtoms TEXT,currency TEXT NOT NULL,description TEXT NOT NULL,evidenceNote TEXT NOT NULL,reason TEXT NOT NULL,at INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode='USER_REPORTED'),UNIQUE(account,externalKey,revision));
+CREATE INDEX IF NOT EXISTS reported_current ON reported_trade_events(account,externalKey,revision);
+CREATE TABLE IF NOT EXISTS evaluation_runs(id TEXT PRIMARY KEY,mode TEXT NOT NULL,protocol TEXT NOT NULL,asOf INTEGER NOT NULL,createdAt INTEGER NOT NULL,state TEXT NOT NULL,manifestHash TEXT NOT NULL,metricsJson TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS evaluation_samples(evaluationId TEXT NOT NULL REFERENCES evaluation_runs(id),ordinal INTEGER NOT NULL,predictionId TEXT NOT NULL,adjudicationId TEXT,modelId TEXT NOT NULL,exclusion TEXT,PRIMARY KEY(evaluationId,ordinal));

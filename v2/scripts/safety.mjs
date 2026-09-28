@@ -26,7 +26,8 @@ export async function freePort(port) {
   });
 }
 export function modeGuard(mode, host) {
-  if (!["DEMO", "LOCAL_RESEARCH"].includes(mode) || host !== "127.0.0.1") throw Error("NETWORK_DISABLED");
+  if (!["DEMO", "LOCAL_RESEARCH"].includes(mode) || host !== "127.0.0.1")
+    throw Error("NETWORK_DISABLED");
 }
 export function backupGuard() {
   throw Error("CONSISTENT_EXPORT_REQUIRED");

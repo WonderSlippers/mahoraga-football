@@ -1,9 +1,22 @@
 import { exactFields, sha } from "../../../packages/contracts/index";
 import { stmt, one, rows, uid } from "./repositories/db";
 import { place, settle, summary } from "./services/commands";
-import { observe, claim, complete, demoResult } from "./services/observations";
-import { captureSource, tickSources } from './services/sources';
-import { capabilities } from '../../../packages/sources/index';
+import {
+  observe,
+  claim,
+  complete,
+  demoResult,
+  heartbeat,
+  failJob,
+} from "./services/observations";
+import { captureSource, tickSources } from "./services/sources";
+import { capabilities } from "../../../packages/sources/index";
+import { importPreview, importCommit, batchReport } from "./services/imports";
+import { adjudicate } from "./services/adjudications";
+import { reportTrade } from "./services/reported";
+import { evaluate } from "./services/evaluations";
+import { csvCell } from "../../../packages/evaluation/index";
+import { createExport, stepExport, downloadExport } from "./services/exports";
 let bootstrapWindow = 0,
   bootstrapAttempts = 0;
 function wire(data: unknown): unknown {
@@ -38,6 +51,7 @@ export interface Env {
   SERVICE_TOKEN: string;
   LOCAL_SESSION_TOKEN: string;
   APP_SHA: string;
+  APP_BUILD_HASH: string;
 }
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
@@ -68,7 +82,8 @@ export default {
         req.headers.get("Origin") !== env.WEB_ORIGIN
       )
         throw new Error("ORIGIN_INVALID");
-      if (!['DEMO','LOCAL_RESEARCH'].includes(env.MODE)) throw new Error("NETWORK_DISABLED");
+      if (!["DEMO", "LOCAL_RESEARCH"].includes(env.MODE))
+        throw new Error("NETWORK_DISABLED");
       const installation = await one(
         env.DB,
         "SELECT * FROM installations WHERE id=?",
@@ -77,7 +92,8 @@ export default {
       if (installation.mode !== env.MODE)
         throw new Error("INSTALLATION_MISMATCH");
       const context = { db: env.DB, installationId: env.INSTALLATION_ID, now };
-      const cookieName = env.MODE === 'DEMO' ? 'mahoraga_v2' : 'mahoraga_v2_research';
+      const cookieName =
+        env.MODE === "DEMO" ? "mahoraga_v2" : "mahoraga_v2_research";
       const isWrite = req.method !== "GET";
       let body: Record<string, any> = {};
       if (isWrite) {
@@ -89,7 +105,14 @@ export default {
             const x = await reader.read();
             if (x.done) break;
             size += x.value.byteLength;
-            if (size > 32768) {
+            if (
+              size >
+              (["/api/v2/imports/preview", "/api/v2/imports/commit"].includes(
+                path,
+              )
+                ? 9 * 1024 * 1024
+                : 32768)
+            ) {
               await reader.cancel();
               throw new Error("PAYLOAD_LIMIT");
             }
@@ -114,10 +137,60 @@ export default {
           req.headers.get("Authorization") !== `Bearer ${env.SERVICE_TOKEN}`
         )
           throw new Error("AUTH_REQUIRED");
+        const bundleMatch = path.match(
+          /^\/internal\/v2\/input-bundles\/([^/]+)\/chunks$/,
+        );
+        if (bundleMatch && req.method === "GET") {
+          const offset = Number(url.searchParams.get("offset") || 0);
+          if (!Number.isInteger(offset) || offset < 0 || offset > 8388608)
+            throw Error("INVALID_CURSOR");
+          const b = await one(
+            env.DB,
+            "SELECT canonical,manifestHash FROM input_bundles WHERE id=? AND state='READY'",
+            bundleMatch[1],
+          );
+          const bytes = new TextEncoder().encode(b.canonical),
+            part = bytes.slice(offset, offset + 32768);
+          return ok({
+            contentBase64: btoa(
+              Array.from(part, (n) => String.fromCharCode(n)).join(""),
+            ),
+            offset,
+            offsetUnit: "UTF8_BYTES",
+            nextOffset:
+              offset + part.length < bytes.length ? offset + part.length : null,
+            manifestHash: b.manifestHash,
+          });
+        }
         if (req.method !== "POST") throw new Error("NOT_FOUND");
-        if (path === '/internal/v2/scheduler/tick') {
+        if (path === "/internal/v2/export-jobs/step") {
+          exactFields(body, []);
+          return ok(await stepExport(context));
+        }
+        const leaseMatch = path.match(
+          /^\/internal\/v2\/model-jobs\/([^/]+)\/(heartbeat|fail)$/,
+        );
+        if (leaseMatch) {
+          exactFields(
+            body,
+            leaseMatch[2] === "heartbeat"
+              ? ["owner", "fencingToken"]
+              : ["owner", "fencingToken", "reason", "retryable"],
+          );
+          return ok(
+            leaseMatch[2] === "heartbeat"
+              ? await heartbeat(context, leaseMatch[1], body as any)
+              : await failJob(context, leaseMatch[1], body as any),
+          );
+        }
+        if (path === "/internal/v2/scheduler/tick") {
           exactFields(body, []);
           await tickSources(context);
+          await stmt(
+            env.DB,
+            "INSERT INTO runtime_health VALUES('PYTHON_PULL_RUNNER',?) ON CONFLICT(component) DO UPDATE SET lastSeenAt=excluded.lastSeenAt",
+            now,
+          ).run();
           return ok({ tickedAt: now });
         }
         if (path === "/internal/v2/model-jobs/claim") {
@@ -217,6 +290,211 @@ export default {
         throw new Error("CSRF_INVALID");
       const key = req.headers.get("Idempotency-Key") || "";
       if (req.method === "GET") {
+        if (path === "/api/v2/export-jobs")
+          return ok(
+            await rows(
+              env.DB,
+              "SELECT id,mode,createdAt,state,rowsExported,nextChunk,chainHash,reason FROM export_jobs ORDER BY createdAt DESC LIMIT 30",
+            ),
+          );
+        const download = path.match(
+          /^\/api\/v2\/export-jobs\/([a-f0-9-]+)\/download$/,
+        );
+        if (download) return await downloadExport(env.DB, download[1]);
+        if (path === "/api/v2/fixture-page") {
+          const state = url.searchParams.get("status") || "SCHEDULED";
+          if (!["SCHEDULED", "FINISHED", "ALL"].includes(state))
+            throw Error("INVALID_FILTER");
+          const ascending = state === "SCHEDULED",
+            afterAt = url.searchParams.get("afterAt"),
+            afterId = url.searchParams.get("afterId");
+          const at = afterAt === null ? null : Date.parse(afterAt);
+          if (
+            afterAt !== null &&
+            (!Number.isFinite(at) || !afterId || afterId.length > 100)
+          )
+            throw Error("INVALID_CURSOR");
+          const conditions = ["r.revision=f.currentRevision"];
+          const params: any[] = [];
+          if (state !== "ALL") {
+            conditions.push("f.status=?");
+            params.push(state);
+          }
+          if (at !== null) {
+            conditions.push(
+              `(r.kickoffAt,r.id) ${ascending ? ">" : "<"} (?,?)`,
+            );
+            params.push(at, afterId);
+          }
+          const page = await rows(
+            env.DB,
+            `SELECT f.*,r.kickoffAt,r.id revisionId,(SELECT COUNT(*) FROM predictions p JOIN market_expectations e ON e.predictionId=p.id JOIN decisions d ON d.expectationId=e.id WHERE p.fixtureRevisionId=r.id) decisionCount FROM fixture_revisions r JOIN fixtures f ON f.id=r.fixtureId WHERE ${conditions.join(" AND ")} ORDER BY r.kickoffAt ${ascending ? "ASC" : "DESC"},r.id ${ascending ? "ASC" : "DESC"} LIMIT 51`,
+            ...params,
+          );
+          return ok({
+            items: page.slice(0, 50),
+            nextCursor:
+              page.length > 50
+                ? { at: page[49].kickoffAt, id: page[49].revisionId }
+                : null,
+          });
+        }
+        if (path === "/api/v2/reported-trades")
+          return ok(
+            await rows(
+              env.DB,
+              `SELECT e.* FROM reported_trade_events e WHERE e.revision=(SELECT MAX(r.revision) FROM reported_trade_events r WHERE r.account=e.account AND r.externalKey=e.externalKey) ORDER BY e.at DESC,e.id LIMIT 100`,
+            ),
+          );
+        const reportedMatch = path.match(
+          /^\/api\/v2\/reported-trades\/([^/]+)\/history$/,
+        );
+        if (reportedMatch) {
+          const original = await one(
+            env.DB,
+            "SELECT account,externalKey FROM reported_trade_events WHERE id=?",
+            reportedMatch[1],
+          );
+          return ok(
+            await rows(
+              env.DB,
+              "SELECT * FROM reported_trade_events WHERE account=? AND externalKey=? ORDER BY revision LIMIT 100",
+              original.account,
+              original.externalKey,
+            ),
+          );
+        }
+        if (path === "/api/v2/evaluations")
+          return ok(
+            await rows(
+              env.DB,
+              "SELECT * FROM evaluation_runs ORDER BY createdAt DESC LIMIT 30",
+            ),
+          );
+        const evalMatch = path.match(
+          /^\/api\/v2\/evaluations\/([^/]+)(\/csv)?$/,
+        );
+        if (evalMatch) {
+          const run = await one(
+            env.DB,
+            "SELECT * FROM evaluation_runs WHERE id=?",
+            evalMatch[1],
+          );
+          if (evalMatch[2]) {
+            const metrics = JSON.parse(run.metricsJson);
+            const lines = [
+              [
+                "mode",
+                "protocol",
+                "asOf",
+                "modelId",
+                "sampleCount",
+                "brier",
+                "logLoss",
+                "settledStakeAtoms",
+                "profitAtoms",
+                "roi",
+                "manifestHash",
+              ],
+              ...Object.entries(metrics).map(([id, m]: any) => [
+                run.mode,
+                run.protocol,
+                new Date(run.asOf).toISOString(),
+                id,
+                m.sampleCount,
+                m.brier,
+                m.logLoss,
+                m.settledStakeAtoms,
+                m.profitAtoms,
+                m.roi,
+                run.manifestHash,
+              ]),
+            ];
+            return new Response(
+              "\uFEFF" +
+                lines.map((row) => row.map(csvCell).join(",")).join("\r\n"),
+              {
+                headers: {
+                  "Content-Type": "text/csv; charset=utf-8",
+                  "Content-Disposition":
+                    'attachment; filename="evaluation.csv"',
+                  "Cache-Control": "no-store",
+                },
+              },
+            );
+          }
+          const offset = Number(url.searchParams.get("offset") || 0);
+          if (!Number.isSafeInteger(offset) || offset < 0)
+            throw Error("INVALID_CURSOR");
+          const samples = await rows(
+            env.DB,
+            "SELECT * FROM evaluation_samples WHERE evaluationId=? AND ordinal>=? ORDER BY ordinal LIMIT 51",
+            run.id,
+            offset,
+          );
+          return ok({
+            ...run,
+            metrics: JSON.parse(run.metricsJson),
+            samples: samples.slice(0, 50),
+            nextOffset: samples.length > 50 ? samples[49].ordinal + 1 : null,
+          });
+        }
+        if (path === "/api/v2/imports")
+          return ok(
+            (
+              await rows(
+                env.DB,
+                "SELECT * FROM import_batches ORDER BY createdAt DESC LIMIT 20",
+              )
+            ).map(batchReport),
+          );
+        const fileMatch = path.match(
+          /^\/api\/v2\/imports\/([^/]+)\/files\/(\d+)\/chunks$/,
+        );
+        if (fileMatch) {
+          const batch = await one(
+            env.DB,
+            "SELECT * FROM import_batches WHERE id=? AND state IN('PREVIEW','COMMITTED')",
+            fileMatch[1],
+          );
+          const index = Number(fileMatch[2]),
+            after = Number(url.searchParams.get("after") ?? -1);
+          if (!Number.isInteger(after) || after < -1)
+            throw Error("INVALID_CURSOR");
+          const chunks = await rows(
+            env.DB,
+            "SELECT chunkNo,content FROM import_file_chunks WHERE batchId=? AND fileIndex=? AND chunkNo>? ORDER BY chunkNo LIMIT 5",
+            batch.id,
+            index,
+            after,
+          );
+          return ok({
+            chunks: chunks.slice(0, 4),
+            nextCursor: chunks.length > 4 ? chunks[3].chunkNo : null,
+          });
+        }
+        if (path === "/api/v2/archives") {
+          const after = url.searchParams.get("after") || "";
+          const portfolio = url.searchParams.get("portfolio");
+          const page = await rows(
+            env.DB,
+            `SELECT a.id,a.portfolio,a.kind,a.originalId,a.stakeAtoms,a.pnlAtoms,a.legCount,a.status,a.currency,a.mode,a.warningsJson FROM archive_records a JOIN import_batches b ON b.id=a.batchId WHERE b.state='COMMITTED' AND a.id>? ${portfolio ? "AND a.portfolio=?" : ""} ORDER BY a.id LIMIT 51`,
+            ...(portfolio ? [after, portfolio] : [after]),
+          );
+          return ok({
+            items: page.slice(0, 50),
+            nextCursor: page.length > 50 ? page[49].id : null,
+          });
+        }
+        const archiveMatch = path.match(/^\/api\/v2\/archives\/([^/]+)$/);
+        if (archiveMatch)
+          return ok(
+            await one(
+              env.DB,
+              "SELECT a.* FROM archive_records a JOIN import_batches b ON b.id=a.batchId WHERE b.state='COMMITTED' AND a.id=?",
+              archiveMatch[1],
+            ),
+          );
         if (path === "/api/v2/session") return ok({ csrf: session.csrf });
         if (path === "/api/v2/meta")
           return ok({
@@ -224,22 +502,42 @@ export default {
             mode: env.MODE,
             schemaVersion: installation.schemaVersion,
             appCodeSha: env.APP_SHA,
-            network: env.MODE === 'DEMO' ? 'DISABLED' : 'OPENLIGADB_ALLOWLIST',
+            workerBuildHash: env.APP_BUILD_HASH || null,
+            health: await rows(
+              env.DB,
+              "SELECT component,lastSeenAt FROM runtime_health",
+            ),
+            network: env.MODE === "DEMO" ? "DISABLED" : "OPENLIGADB_ALLOWLIST",
             autoPaper: false,
             jobs: await rows(
               env.DB,
               "SELECT state,COUNT(*) AS count FROM jobs GROUP BY state",
             ),
-            ports: { web: Number(new URL(env.WEB_ORIGIN).port), api: Number(env.API_HOST.split(':')[1]) },
+            ports: {
+              web: Number(new URL(env.WEB_ORIGIN).port),
+              api: Number(env.API_HOST.split(":")[1]),
+            },
           });
         if (path === "/api/v2/models")
           return ok(await rows(env.DB, "SELECT * FROM model_manifests"));
-        if (path === '/api/v2/sources') return ok({
-          capabilities, mode: env.MODE, autoPaper: false,
-          runs: await rows(env.DB, 'SELECT * FROM source_runs ORDER BY startedAt DESC LIMIT 20'),
-          coverage: await rows(env.DB, 'SELECT s.competition,s.season,f.status,COUNT(*) count FROM fixture_sources s JOIN fixtures f ON f.id=s.fixtureId GROUP BY s.competition,s.season,f.status'),
-          slots: await rows(env.DB, 'SELECT state,reason,COUNT(*) count FROM observation_slots GROUP BY state,reason'),
-        });
+        if (path === "/api/v2/sources")
+          return ok({
+            capabilities,
+            mode: env.MODE,
+            autoPaper: false,
+            runs: await rows(
+              env.DB,
+              "SELECT * FROM source_runs ORDER BY startedAt DESC LIMIT 20",
+            ),
+            coverage: await rows(
+              env.DB,
+              "SELECT s.competition,s.season,f.status,COUNT(*) count FROM fixture_sources s JOIN fixtures f ON f.id=s.fixtureId GROUP BY s.competition,s.season,f.status",
+            ),
+            slots: await rows(
+              env.DB,
+              "SELECT state,reason,COUNT(*) count FROM observation_slots GROUP BY state,reason",
+            ),
+          });
         if (path === "/api/v2/fixtures")
           return ok(
             await rows(
@@ -251,9 +549,66 @@ export default {
           return ok(
             await rows(
               env.DB,
-              `SELECT d.*,e.ev,e.probability,e.predictionId,p.modelId,p.fixtureRevisionId,r.fixtureId,q.selection,q.decimalOdds,qs.observedAt FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions p ON p.id=e.predictionId JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId ORDER BY d.decidedAt DESC LIMIT 100`,
+              `SELECT d.*,e.ev,e.probability,e.predictionId,p.modelId,p.fixtureRevisionId,r.fixtureId,q.selection,q.decimalOdds,qs.observedAt FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions p ON p.id=e.predictionId JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId ${url.searchParams.has("fixtureId") ? "WHERE r.fixtureId=?" : ""} ORDER BY d.decidedAt DESC LIMIT 100`,
+              ...(url.searchParams.has("fixtureId")
+                ? [url.searchParams.get("fixtureId")]
+                : []),
             ),
           );
+        if (path === "/api/v2/quote-page") {
+          const marketId = url.searchParams.get("marketId"),
+            at = url.searchParams.get("afterAt"),
+            id = url.searchParams.get("afterId");
+          if (!marketId || marketId.length > 100) throw Error("INVALID_MARKET");
+          const values: any[] = [marketId];
+          let cursor = "";
+          if (at !== null) {
+            const time = Date.parse(at);
+            if (!Number.isFinite(time) || !id || id.length > 100)
+              throw Error("INVALID_CURSOR");
+            cursor = " AND (observedAt,id)<(?,?)";
+            values.push(time, id);
+          }
+          const page = await rows(
+            env.DB,
+            `SELECT * FROM quote_sets WHERE marketId=?${cursor} ORDER BY observedAt DESC,id DESC LIMIT 51`,
+            ...values,
+          );
+          return ok({
+            items: page.slice(0, 50),
+            nextCursor:
+              page.length > 50
+                ? { at: page[49].observedAt, id: page[49].id }
+                : null,
+            qualification:
+              "Raw quote sets; completeness must be verified against selections before pricing",
+          });
+        }
+        if (path === "/api/v2/ticket-page") {
+          const at = url.searchParams.get("afterAt"),
+            id = url.searchParams.get("afterId"),
+            conditions: string[] = [],
+            params: any[] = [];
+          if (at !== null) {
+            const stamp = Date.parse(at);
+            if (!Number.isFinite(stamp) || !id || id.length > 100)
+              throw Error("INVALID_CURSOR");
+            conditions.push("(t.createdAt,t.id)<(?,?)");
+            params.push(stamp, id);
+          }
+          const page = await rows(
+            env.DB,
+            `SELECT t.*,s.currentStatus,s.gross,s.revision settlementRevision,l.predictionId,l.selection,l.frozenOdds FROM tickets t JOIN ticket_state s ON s.ticketId=t.id JOIN ticket_legs l ON l.ticketId=t.id ${conditions.length ? "WHERE " + conditions.join(" AND ") : ""} ORDER BY t.createdAt DESC,t.id DESC LIMIT 51`,
+            ...params,
+          );
+          return ok({
+            items: page.slice(0, 50),
+            nextCursor:
+              page.length > 50
+                ? { at: page[49].createdAt, id: page[49].id }
+                : null,
+          });
+        }
         if (path === "/api/v2/tickets")
           return ok(
             await rows(
@@ -280,6 +635,11 @@ export default {
             adjudications: await rows(
               env.DB,
               "SELECT * FROM result_adjudications WHERE fixtureId=? ORDER BY revision",
+              m[1],
+            ),
+            resultObservations: await rows(
+              env.DB,
+              "SELECT * FROM result_observations WHERE fixtureId=? ORDER BY observedAt DESC,id LIMIT 100",
               m[1],
             ),
             predictions: await rows(
@@ -323,7 +683,7 @@ export default {
           return ok({
             original: await one(
               env.DB,
-              "SELECT t.*,l.predictionId,l.fixtureRevisionId,l.frozenOdds,l.marketSpecJson FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id WHERE t.id=?",
+              "SELECT t.*,l.predictionId,l.fixtureRevisionId,l.frozenOdds,l.marketSpecJson,r.fixtureId FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions r ON r.id=l.fixtureRevisionId WHERE t.id=?",
               m[1],
             ),
             current: await one(
@@ -352,11 +712,50 @@ export default {
           });
       }
       if (req.method === "POST") {
-        if (path === '/api/v2/source-captures') {
-          exactFields(body, ['season']);
+        if (path === "/api/v2/export-jobs") {
+          exactFields(body, []);
+          return ok(await createExport(context, key), 202);
+        }
+        if (path === "/api/v2/reported-trades") {
+          exactFields(body, [
+            "account",
+            "externalKey",
+            "expectedRevision",
+            "stakeAtoms",
+            "grossClaimAtoms",
+            "currency",
+            "description",
+            "evidenceNote",
+            "reason",
+          ]);
+          return ok(await reportTrade(context, key, body as any));
+        }
+        if (path === "/api/v2/evaluations") {
+          exactFields(body, ["asOf"]);
+          return ok(await evaluate(context, key, body as any));
+        }
+        if (path === "/api/v2/result-adjudications") {
+          exactFields(body, [
+            "fixtureId",
+            "expectedRevision",
+            "selectedEvidenceId",
+            "reason",
+          ]);
+          return ok(await adjudicate(context, key, body as any));
+        }
+        if (path === "/api/v2/imports/preview") {
+          exactFields(body, ["namespace", "files"]);
+          return ok(await importPreview(context, body as any));
+        }
+        if (path === "/api/v2/imports/commit") {
+          exactFields(body, ["previewId", "previewHash", "files"]);
+          return ok(await importCommit(context, body as any));
+        }
+        if (path === "/api/v2/source-captures") {
+          exactFields(body, ["season"]);
           return ok(await captureSource(context, key, body.season));
         }
-        if (env.MODE !== 'DEMO') throw Error('RESEARCH_READ_ONLY');
+        if (env.MODE !== "DEMO") throw Error("RESEARCH_READ_ONLY");
         if (path === "/api/v2/observation-requests") {
           exactFields(body, []);
           return ok(await observe(context, key), 202);

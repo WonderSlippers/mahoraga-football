@@ -10,12 +10,26 @@ import { workerBuild } from "./build.mjs";
 import { localSessionPlugin } from "./local-session.mjs";
 process.chdir(root);
 const command = process.argv[2];
-const mode = process.env.V2_MODE || 'DEMO';
+const mode = process.env.V2_MODE || "DEMO";
 modeGuard(mode, process.env.V2_HOST || "127.0.0.1");
-const webPort = mode === 'DEMO' ? 5273 : 5274;
-const apiPort = mode === 'DEMO' ? 8788 : 8789;
-if (mode === 'LOCAL_RESEARCH' && (!process.env.V2_PROFILE || process.env.V2_PROFILE === 'demo'))
-  throw Error('RESEARCH_PROFILE_REQUIRED');
+const webPort = Number(
+  process.env.V2_WEB_PORT || (mode === "DEMO" ? 5273 : 5274),
+);
+const apiPort = Number(
+  process.env.V2_API_PORT || (mode === "DEMO" ? 8788 : 8789),
+);
+if (
+  [webPort, apiPort].some(
+    (p) => !Number.isInteger(p) || p < 1024 || p > 65535 || p === 5173,
+  ) ||
+  webPort === apiPort
+)
+  throw Error("PROTECTED_OR_INVALID_PORT");
+if (
+  mode === "LOCAL_RESEARCH" &&
+  (!process.env.V2_PROFILE || process.env.V2_PROFILE === "demo")
+)
+  throw Error("RESEARCH_PROFILE_REQUIRED");
 const dir = runtime();
 const python = path.join(
   root,
@@ -32,7 +46,7 @@ if (command === "doctor") {
       mode,
       state: "isolated .runtime-v2 profile",
       ports: [webPort, apiPort],
-      network: mode === 'LOCAL_RESEARCH' ? 'OPENLIGADB_ALLOWLIST' : false,
+      network: mode === "LOCAL_RESEARCH" ? "OPENLIGADB_ALLOWLIST" : false,
     }),
   );
 } else if (command === "bootstrap") {
@@ -68,7 +82,7 @@ if (command === "doctor") {
       mode: 0o600,
     });
   }
-  if (c.mode !== mode) throw Error('INSTALLATION_MISMATCH');
+  if (c.mode !== mode) throw Error("INSTALLATION_MISMATCH");
   await workerBuild();
   const mf = engine(c, dir, { port: 0 });
   try {
@@ -81,7 +95,14 @@ if (command === "doctor") {
   await freePort(webPort);
   await freePort(apiPort);
   const c = config(dir);
-  if (c.mode !== mode) throw Error('INSTALLATION_MISMATCH');
+  if (c.mode !== mode) throw Error("INSTALLATION_MISMATCH");
+  if (
+    c.webOrigin !== `http://127.0.0.1:${webPort}` ||
+    (c.apiPort || 8788) !== apiPort
+  )
+    throw Error("PORT_CONFIGURATION_MISMATCH");
+  if (c.restorationState && c.restorationState !== "COMPLETE")
+    throw Error("RESTORE_NOT_READY");
   await workerBuild();
   c.bootstrap = crypto.randomBytes(24).toString("hex");
   c.localSessionToken = crypto.randomBytes(32).toString("hex");
@@ -120,26 +141,56 @@ if (command === "doctor") {
   const web = await createServer({
     configFile: path.join(root, "apps/web/vite.config.ts"),
     plugins: [localSessionPlugin(c)],
-    server: { port: webPort, proxy: { '/api': { target: `http://127.0.0.1:${apiPort}`, changeOrigin: true } } },
+    server: {
+      port: webPort,
+      proxy: {
+        "/api": { target: `http://127.0.0.1:${apiPort}`, changeOrigin: true },
+      },
+    },
   });
   await web.listen();
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
   const log = fs.openSync(path.join(dir, "runner.log"), "a");
-  const runner = spawn(python, ["model-runner/runner.py"], {
-    cwd: root,
-    windowsHide: true,
-    stdio: ["ignore", log, log],
-    env: {
-      ...process.env,
-      V2_API: `http://127.0.0.1:${apiPort}`,
-      V2_SERVICE_TOKEN: c.serviceToken,
-    },
-  });
-  let closing = false;
+  let closing = false,
+    runner,
+    record,
+    restartTimer;
+  let failures = 0;
+  const startRunner = () => {
+    const began = Date.now();
+    runner = spawn(python, ["model-runner/runner.py"], {
+      cwd: root,
+      windowsHide: true,
+      stdio: ["ignore", log, log],
+      env: {
+        ...process.env,
+        V2_API: `http://127.0.0.1:${apiPort}`,
+        V2_SERVICE_TOKEN: c.serviceToken,
+      },
+    });
+    if (record) {
+      record.runnerPid = runner.pid;
+      fs.writeFileSync(path.join(dir, "run.json"), JSON.stringify(record), {
+        mode: 0o600,
+      });
+    }
+    runner.on("error", () => {
+      console.error("RUNNER_START_FAILED");
+    });
+    runner.on("exit", () => {
+      if (closing) return;
+      failures = Date.now() - began > 60000 ? 0 : failures + 1;
+      const delay = Math.min(30000, 1000 * 2 ** Math.min(failures, 5));
+      console.error("OWN_RUNNER_RESTART_IN_MS", delay);
+      restartTimer = setTimeout(startRunner, delay);
+    });
+  };
+  startRunner();
   const close = async () => {
     if (closing) return;
     closing = true;
+    clearTimeout(restartTimer);
     runner.kill();
     await web.close();
     await mf.dispose();
@@ -172,7 +223,7 @@ if (command === "doctor") {
     void close();
   });
   await new Promise((resolve) => control.listen(0, "127.0.0.1", resolve));
-  const record = {
+  record = {
     runId,
     pid: process.pid,
     runnerPid: runner.pid,
@@ -185,7 +236,9 @@ if (command === "doctor") {
   });
   process.on("SIGINT", close);
   process.on("SIGTERM", close);
-  console.log(mode + `_READY http://127.0.0.1:${webPort} automatic local session`);
+  console.log(
+    mode + `_READY http://127.0.0.1:${webPort} automatic local session`,
+  );
 } else if (command === "stop") {
   const record = JSON.parse(
     fs.readFileSync(path.join(dir, "run.json"), "utf8"),

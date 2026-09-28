@@ -48,6 +48,19 @@ V6：250条真实档案输入，五联赛；21条动作、229条NO_ACTION，所�
 # 真实来源切片验证（2026-09-28）
 `npm run check`退出0；`npm run test:unit`32通过/0失败/0跳过；`npm run test:integration`21通过/0失败/0跳过，随后新增出站桥测试单独1通过；`npm run test:e2e`1通过/0跳过；build退出0。
 
-实际网络命令 `node scripts/live-source-smoke.mjs` 最终退出0，HTTP200，306场规范化，DEGRADED=QUOTE_AND_XG_NOT_PROVIDED，截图research-desktop/mobile.png；无pageerror，无390px横向溢出。完整捕获JSON保留在.runtime-v2/source-probes/capture-2026-09-27T20-30-58.894Z.json（具体文件以目录实际时间为准），snapshotId fa4db4ec-3a15-44c0-8ceb-10093568f747。
+实际网络命令 `node scripts/live-source-smoke.mjs` 最终退出0，HTTP200，306场规范化，DEGRADED=QUOTE_AND_XG_NOT_PROVIDED，截图research-desktop/mobile.png；无pageerror，无390px横向溢出。完整捕获JSON保留在.runtime-v2/source-probes/capture-2026-09-27T20-30-58.889Z.json，snapshotId fa4db4ec-3a15-44c0-8ceb-10093568f747。
 
 初次真实Worker采集FAILED：workerd不支持请求redirect:error，修为manual且出站桥禁止重定向。中间重试收到SOURCE_BACKOFF，未绕过退避；后续正常成功。增加Worker HTTP→出站桥测试防止仅service测试漏掉运行时差异。失败记录仍保存在独立研究库。
+
+## 后续验收与审查记录
+- 最新完整汇总 `.runtime-v2/verification/2026-09-28T00-04-38.850Z/verification.json`：doctor/check/build退出0；40 unit、39 integration、3 browser E2E、6 Python parity全部通过，0失败/0跳过。12项import为重复子集。逐命令前后源码摘要均为 `0917e4d26ab526800db30ec47369bdecda61035854ebe315889d33ed6c4661b2`。
+- 浏览器证据位于 `test-results/`：真实纸面确认、冻结、结算、更正、重启及6页面390px截图；本轮截图等待实际数据加载完成。runner进程恢复测试证据为 `supervisor-recovery.json`，实际Python租约恢复证据为 `.runtime-v2/fault-evidence/runner-recovery.json`。
+- 旧资源复核 `outputs/protected-resources-2026-09-28.json`（聊天交付目录）：304文件哈希、HEAD、默认short未提交清单、原5进程命令与5任务动作均相同。此前 `-uall` 展开未跟踪目录导致清单行数差异；用与盘点相同的参数复核后无差异，未修改旧资源。
+- `.runtime-v2/verification/2026-09-27T23-55-02.506Z`：doctor/check/build退出0；40 unit、38 integration、3 browser E2E、6 Python parity全部通过，0跳过；test:import重复子集12通过，不加到总数。随后针对重复业务结算幂等键新增1项测试实际通过，待最终总入口合并。
+- 前一汇总 `2026-09-27T23-46-54.656Z` 有1个导出测试文件进程异常退出，未给出内部断言失败。原日志保留；单独TAP复跑通过，另连续5次均退出0，之后全套38项通过。未伪称已确定异常退出根因。
+- 公共参考原50个测试文件：复制公开提交到新.runtime-v2/legacy-baseline后执行，161通过、0失败、0跳过，退出0。采用新v2依赖；不是旧活动dirty工作区的测试结论。其中原有源码检查保持“旧回归检查”的性质，不算模型验证。
+- 新research完整有界备份：40表/3537行，全部哈希一致；恢复身份9c576c60-ebb8-4cb8-a9b2-a465c34eede0，重启复验通过。证据`.runtime-v2/backup-2026-09-27T23-43-54.288Z/restore-test.json`。
+- 新demo备份：40表/50行，恢复身份bc98deeb-3d02-486d-afe8-a6cb6c98fa0b，哈希与重启通过。此为新DEMO自身备份，不是旧站账本。
+- API容量测量 `.runtime-v2/capacity-74ac3117-aed5-4c3b-b4f1-f1465506690a/report.json`：10万票具有实际腿/状态/ledger关联，百万合成quoteSet；100次meta p95=15.83ms，100次票页p95=14.98ms，2页无重漏，账本汇总一致。百万quoteSet只是索引容量测试，不是百万条具有完整证据的市场观测。
+- 原D1代理循环报告有长停顿，`acceptance-review.json`明确不接受A82。原exit0保留，不覆盖。实际Worker API长测独立进行；短时10000请求内存诊断不替代60分钟验收。
+- 原始模型对照、来源采集、合成财务/性能测试分开统计。新`report:verification`逐命令保存源码哈希前后值，运行中改源码不能记为同一版本通过。

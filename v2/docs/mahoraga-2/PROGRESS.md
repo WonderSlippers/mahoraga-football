@@ -1,6 +1,6 @@
 # 实施进度
 
-2026-09-28，第一轮P0—P2离线DEMO工程链路。
+2026-09-28。P0—P2离线DEMO工程链路已完成；后续低风险扩展已实现，最终稳定性与干净安装验收仍进行中。真实模型实时输入和Linux执行环境受阻，正式切换未授权。
 
 |任务|状态|已完成及证据|
 |---|---|---|
@@ -16,9 +16,9 @@
 |T09 原子纸面账本|DONE|100次并发重放、逐语句故障、CAS、守恒、review/reopen、负余额更正|
 |T10 浏览器链路|DONE|真实UI→API→Python→D1→票→结算→更正→重启；三视口截图|
 
-当前功能仅DEMO；T00—T10的DONE不代表全84项/P3—P9完成。A03未进行旧库备份，只验证拒绝冒充备份；A65真实历史导入未做，模型包登记没有代替导入验收。Drizzle核心类型和SQL migration共同维护；完整来源采集、长期压力、分页、模型parity见BLOCKERS。
+T00—T10的DONE不代表全84项/P3—P9完成。现已增加独立研究来源、历史导入、模型历史对照、评估和完整导出；详细范围见下表。A03未进行旧库备份；新库一致恢复不能冒充旧库备份。Drizzle核心类型和SQL migration共同维护；实时模型输入、长期压力及跨平台边界见BLOCKERS。
 
-验证汇总：26 unit + 16 D1 integration + 1 browser E2E，全部通过、0跳过。首次失败及后续复验日志均保留。命令/退出码/证据见TEST-REPORT和verification.json。
+最新完整验证：40 unit + 39 D1 integration + 3 browser E2E + 6 Python历史原函数parity，全部通过、0跳过。test:import的12项是重复子集，不叠加计数。首次失败及后续复验日志均保留。命令/退出码/证据见TEST-REPORT和verification.json。
 
 首次只读盘点提交2403b5b；本次阶段提交见Git历史。本轮不push，不接管旧5173，不写旧D1。
 
@@ -35,3 +35,28 @@ T13 IN_PROGRESS：持久T−60观察槽、改期superseded、过期missed、30�
 T14 DONE（只读德甲切片）：5274/8789、research独立installation与D1，浏览器实际采集306场；状态DEGRADED明确缺报价/xG，不生成假预测/票据。真实截图与capture JSON在.runtime-v2/source-probes。
 
 回归：32单元通过、21 D1集成通过，新增Worker出站桥集成单独1通过；原离线E2E1通过，TS和build退出0。完整下一轮汇总将合并22项D1测试。
+
+## 2026-09-28 后续实际实施（验收收口中）
+
+|任务|状态|证据与边界|
+|---|---|---|
+|T19 结果裁定|DONE|真实来源规范化服务、已知冲突 review、人工选择已有证据后追加 revision；D1 集成测试|
+|T20 更正与重放|DONE|原票 immutable；REOPEN/多次更正/欠额冻结/原子 CAS 真实 D1 回归|
+|T21 手工声明/多腿|DONE|USER_REPORTED 追加事件；历史 498 票/570 腿只读，独立于 PAPER|
+|T22 导入 staging|DONE|JSON/CSV/TXT/v1/v2 分片、原始字节/哈希、重复引用、冲突隔离、断点恢复|
+|T23 对账/档案提交|DONE|10 portfolios；498 原票、570 腿及207参考档案记录。2份原始 CSV 包含76133行报价，原文件下载哈希相等；未生成前瞻预测|
+|T24 恢复/预案|DONE（新库演练）|40表有界JSONL：research 3537行、DEMO 50行恢复到新身份，重启/hash核对通过。CUTOVER-PLAN.md明确新写入保全与额外确认边界；未备份/切换旧活动库|
+|T25 工作台|IN_PROGRESS|真实/DEMO隔离、状态过滤/游标分页、三视口、明确无行动/故障；真实模型必要输入仍BLOCKED|
+|T26 研究详情|IN_PROGRESS|证据、冻结值、预测标识、报价时间与更正展示；实时 V6/V7 对照未具备|
+|T27 账本|IN_PROGRESS|分页、原票/当前事件、手工声明、档案分账，后台完整导出已实现并测试|
+|T28 模型实验室|IN_PROGRESS|6份固定 manifest、历史原函数 parity 数量和输出语义、无训练/晋升；实时特征仍BLOCKED|
+|T29 系统恢复|IN_PROGRESS|runner心跳/队列/租约重试上限；启动器自有 runner 异常重启；真实 Python 进程终止后租约恢复测试通过|
+|T30 固定评估/导出|IN_PROGRESS|asOf样本 manifest、修订前后独立报告、Brier/logloss/null ROI/CLV缺失说明；JSONL后台导出冻结水位、断点恢复、流式下载已实现|
+|T31 安全供应链|IN_PROGRESS|升级锁定依赖，npm audit 0漏洞；静态边界检查明确不算模型验证，鉴权/Host/CSRF/SSRF实际测试|
+|T32 性能/故障|IN_PROGRESS|10万票/100万报价已实际测量；首轮连续性审查失败（长采样停顿），带15秒停顿守卫的完整60分钟重跑进行中|
+|T33 检查/CI|IN_PROGRESS|本机Windows核心/真实D1/Python/浏览器执行；Linux执行环境缺失，不冒充通过|
+|T34 空目录封版|TODO|待本轮检查汇总后从独立干净目录安装并回放|
+|T35 最终交接|IN_PROGRESS|首轮P0-P2已经可用；正在更新最新测试/截图/恢复/旧资源保护材料|
+|T36 正式切换|NOT_AUTHORIZED|未执行，必须另行明确确认|
+
+本节覆盖此前“历史导入尚未实现”“导出仅100条”的过时范围描述。各扩展阶段不因单个用例通过就整阶段记 DONE。

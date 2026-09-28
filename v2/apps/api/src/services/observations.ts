@@ -150,6 +150,11 @@ export async function observe(c: Context, key: string) {
 export async function claim(c: Context, owner: string) {
   await stmt(
     c.db,
+    "UPDATE jobs SET state='BLOCKED',reason='RETRY_EXHAUSTED' WHERE state='RUNNING' AND leaseUntil<=? AND attempts>=3",
+    c.now,
+  ).run();
+  await stmt(
+    c.db,
     "UPDATE jobs SET state='BLOCKED',reason='SLOT_MISSED' WHERE state IN ('QUEUED','RUNNING') AND deadlineAt<=?",
     c.now,
   ).run();
@@ -183,6 +188,61 @@ export async function claim(c: Context, owner: string) {
     bundleHash: b.manifestHash,
     modelHash: model.manifestHash,
   };
+}
+export async function heartbeat(
+  c: Context,
+  id: string,
+  p: { owner: string; fencingToken: number },
+) {
+  const r = await stmt(
+    c.db,
+    "UPDATE jobs SET leaseUntil=MIN(?,deadlineAt) WHERE id=? AND state='RUNNING' AND leaseOwner=? AND fencingToken=? AND leaseUntil>? AND deadlineAt>? RETURNING leaseUntil",
+    c.now + 30000,
+    id,
+    p.owner,
+    p.fencingToken,
+    c.now,
+    c.now,
+  ).first();
+  if (!r) throw Error("LEASE_EXPIRED");
+  return r;
+}
+export async function failJob(
+  c: Context,
+  id: string,
+  p: {
+    owner: string;
+    fencingToken: number;
+    reason: string;
+    retryable: boolean;
+  },
+) {
+  if (
+    ![
+      "FEATURE_MISSING",
+      "FEATURE_SCHEMA_MISMATCH",
+      "MODEL_HASH_MISMATCH",
+      "MODEL_RUNNER_ERROR",
+      "MODEL_UNSUPPORTED_MARKET",
+      "MODEL_PACKAGE_MISSING",
+      "RESEARCH_FIT_FORBIDDEN",
+    ].includes(p.reason) ||
+    typeof p.retryable !== "boolean"
+  )
+    throw Error("INVALID_FAILURE_REASON");
+  const r = await stmt(
+    c.db,
+    "UPDATE jobs SET state=CASE WHEN ?=1 AND attempts<3 AND deadlineAt>? THEN 'QUEUED' ELSE 'BLOCKED' END,reason=?,leaseUntil=0 WHERE id=? AND state='RUNNING' AND leaseOwner=? AND fencingToken=? AND leaseUntil>? RETURNING state,reason",
+    p.retryable ? 1 : 0,
+    c.now,
+    p.reason,
+    id,
+    p.owner,
+    p.fencingToken,
+    c.now,
+  ).first();
+  if (!r) throw Error("LEASE_EXPIRED");
+  return r;
 }
 export async function complete(
   c: Context,

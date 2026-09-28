@@ -42,9 +42,15 @@ test("A05 A80 occupied port does not kill or auto-switch; loopback modes only", 
 test("A06 ZIP traversal, symlink, expansion bombs denied by executable inspector", () => {
   const script = `import sys,io,zipfile,importlib.util,tempfile,pathlib\nspec=importlib.util.spec_from_file_location('assets','scripts/inspect_assets.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)\nwith tempfile.TemporaryDirectory(dir='.runtime-v2') as d:\n for name in ['../evil','/absolute','C:/absolute']:\n  p=pathlib.Path(d)/'bad.zip'\n  with zipfile.ZipFile(p,'w') as z:z.writestr(name,'bad')\n  try:m.inspect(p);raise AssertionError('accepted')\n  except ValueError:pass\n p=pathlib.Path(d)/'bad.zip'\n with zipfile.ZipFile(p,'w',compression=zipfile.ZIP_DEFLATED) as z:z.writestr('bomb','0'*2000000)\n try:m.inspect(p);raise AssertionError('accepted bomb')\n except ValueError:pass\n print('4 malicious archives rejected')`;
   assert.match(
-    execFileSync(".venv/Scripts/python.exe", ["-c", script], {
-      encoding: "utf8",
-    }),
+    execFileSync(
+      process.platform === "win32"
+        ? ".venv/Scripts/python.exe"
+        : ".venv/bin/python",
+      ["-c", script],
+      {
+        encoding: "utf8",
+      },
+    ),
     /4 malicious/,
   );
 });

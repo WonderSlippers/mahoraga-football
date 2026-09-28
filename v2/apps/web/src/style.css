@@ -95,6 +95,7 @@ h1 {
   margin: 12px 0 14px;
 }
 h2 {
+  overflow-wrap: anywhere;
   font-size: 19px;
   font-weight: 600;
   margin: 8px 0;
@@ -218,7 +219,8 @@ summary {
   margin: 60px auto;
   max-width: 600px;
 }
-input {
+input,
+select {
   display: block;
   width: 100%;
   margin: 12px 0 24px;
@@ -227,6 +229,44 @@ input {
   color: #fff;
   border: 1px solid #46606e;
   border-radius: 6px;
+}
+label {
+  display: block;
+  min-width: 0;
+}
+form {
+  max-width: 760px;
+}
+select {
+  max-width: 100%;
+  font: inherit;
+}
+:root[data-theme="light"] {
+  color: #172f3b;
+  background: #f3f6f8;
+}
+:root[data-theme="light"] header,
+:root[data-theme="light"] article,
+:root[data-theme="light"] .summary,
+:root[data-theme="light"] input,
+:root[data-theme="light"] select {
+  background: #fff;
+  color: #172f3b;
+}
+:root[data-theme="light"] nav,
+:root[data-theme="light"] pre,
+:root[data-theme="light"] .empty {
+  background: #e7eff3;
+  color: #172f3b;
+}
+:root[data-theme="light"] p,
+:root[data-theme="light"] button.secondary,
+:root[data-theme="light"] summary {
+  color: #415d6c;
+}
+:root[data-theme="light"] .callout {
+  background: #fbf1d9;
+  color: #675326;
 }
 pre {
   white-space: pre-wrap;
@@ -303,4 +343,23 @@ footer {
   .metrics strong {
     font-size: 22px;
   }
+}
+dialog {
+  color: #dbe5e9;
+  background: #151d2b;
+  border: 1px solid #45536b;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: min(600px, calc(100vw - 32px));
+}
+html[data-theme="light"] dialog {
+  color: #21313d;
+  background: #fff;
+}
+dialog::backdrop {
+  background: #0009;
+}
+:focus-visible {
+  outline: 3px solid #6ac6ff;
+  outline-offset: 4px;
 }

@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS runtime_health(component TEXT PRIMARY KEY,lastSeenAt INTEGER NOT NULL);

@@ -25,3 +25,12 @@
 LOCAL_RESEARCH必须使用独立profile（research）、独立installation/D1、5274/8789和独立cookie；旧5173与DEMO5273各自保留。既有DEMO数据库mode不可转换；0001仅对新空库允许两种mode，既有窄DEMO约束保留。0002只追加来源表，schemaVersion升2，不重建原票或旧表。研究模式当前只允许采集写入，不允许财务命令。
 
 采集只允许固定OpenLigaDB HTTPS路径、拒绝重定向；完整原文和UTF8字节hash先原子持久化，再规范化。失败保留原证据。没有时区的来源更新时间保留null。仅After90Minutes可作为常规赛果，AET/PEN不能替代。ESPN备用入口返回陈旧日期且无报价，不能因HTTP200判成功；football-data说明其赛前赔率按周收集，不能冒充实时十分钟内报价。
+
+## 本轮新增决定
+- 历史导入只发布到 archive_records。旧 portfolio/原票/多腿/未知金额保留，历史报价 CSV 以精确原文件作为档案，不重新包装成新鲜报价。
+- USER_REPORTED 是用户声明事件，不是客户端指定 PAPER 输赢的入口；更正追加且币种不可变。
+- 评估以固定 asOf 和原始 predictionId 集合先定样本后分页；之后的赛果更正不能修改已发布报告。
+- 导出创建时原子固定不可变事实表的高水位；Python领取后台分页步骤，逐块哈希和链哈希，下载按流输出。导出不是数据库恢复备份。
+- 只对新 v2 的 dependency lock 升级。Miniflare维持稳定4系列，对其同主版本undici与sharp安全修复作显式override；不自动改成5 alpha。完整回归将验证兼容性。
+- 首轮负载脚本仅检查总时间，遗漏睡眠/调度停顿。保留原 exit 0 日志，同时用 acceptance-review.json 推翻 A82 PASS，新增样本间隔和最少样本守卫后重跑。
+- 纸面确认框显示冻结赔率、方向、predictionId和25 PAPER投入；取消与Esc归还焦点。该确认属于产品内手工记票，不是请求用户授权继续开发。

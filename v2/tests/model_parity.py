@@ -20,6 +20,8 @@ from research_adapters import v6, v7, validate_context, digest, canonical, load_
 ASSETS = ROOT / '.models-local/research'
 PINS = json.loads((ROOT / 'model-runner/research-assets.json').read_text())
 EVIDENCE = dict(startedAt=datetime.now(timezone.utc).isoformat(), python=platform.python_version(),
+                adapterHash=digest((ROOT/'model-runner/research_adapters.py').read_bytes()),
+                runtimeLockHash=digest((ROOT/'model-runner/requirements-research.txt').read_bytes()),
                 mode='HISTORICAL_REPLAY', counts={}, maxErrors={}, exclusions={}, sourceHashes=PINS,
                 limitations=['No original quote capture times; not prospective validation',
                              'Archived feature parity does not validate raw-history live feature construction',

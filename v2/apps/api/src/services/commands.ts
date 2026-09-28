@@ -170,7 +170,32 @@ export async function settle(
     p.ticketId,
     p.adjudicationId,
   ).first<any>();
-  if (duplicate) return { id: duplicate.id };
+  if (duplicate) {
+    // A business no-op still consumes its request key. Otherwise that same key
+    // could later be reused with a different adjudication and move money.
+    try {
+      await atomic(
+        c.db,
+        [
+          stmt(
+            c.db,
+            "INSERT INTO command_receipts VALUES(?,?,?,?,1,?,?)",
+            uid(),
+            r.scope,
+            key,
+            r.hash,
+            duplicate.id,
+            c.now,
+          ),
+        ],
+        c.failAt,
+      );
+    } catch (error) {
+      const replay = await receipt(c, "settle", key, p);
+      if (!replay.old) throw error;
+    }
+    return { id: duplicate.id };
+  }
   const terminal = ["ACCEPTED_REGULATION", "VOID_BY_RULE"].includes(a.state);
   const was = t.currentStatus === "SETTLED";
   const nextGross = terminal

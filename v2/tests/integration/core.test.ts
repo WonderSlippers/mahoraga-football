@@ -516,3 +516,23 @@ test("A48 meta queue query stays bounded with 100000 synthetic tickets", async (
   assert.equal(after.meta.rows_read, before.meta.rows_read);
   assert.ok(JSON.stringify(after.results).length < 16384);
 });
+
+test("A31 duplicate-business settlement consumes idempotency key before any later correction", async () => {
+  const t = await ticket();
+  const win = await adjudicate(t, "WIN");
+  const original = await apply(t, win);
+  const payload = {
+    ticketId: t.ticketId,
+    adjudicationId: win.id,
+    expectedRevision: (await summary(db, "demo")).revision,
+  };
+  assert.deepEqual(await settle(c, "duplicate-key", payload), original);
+  assert.deepEqual(await settle(c, "duplicate-key", payload), original);
+  const loss = await adjudicate(t, "LOSS");
+  await assert.rejects(
+    settle(c, "duplicate-key", { ...payload, adjudicationId: loss.id }),
+    /IDEMPOTENCY_CONFLICT/,
+  );
+  assert.equal((await rows(db, "SELECT * FROM settlement_events")).length, 1);
+  assert.equal((await summary(db, "demo")).available, "125000000");
+});

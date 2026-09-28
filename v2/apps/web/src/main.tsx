@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
@@ -7,6 +7,7 @@ import {
   Route,
   Link,
   useParams,
+  useLocation,
 } from "react-router-dom";
 import "./style.css";
 let csrf = "";
@@ -33,11 +34,21 @@ const percent = (n: number | null) =>
 const date = (n: number) =>
   new Date(n).toLocaleString("zh-CN", { hour12: false });
 function App() {
+  const location = useLocation();
   const [logged, setLogged] = useState(false),
     [error, setError] = useState("");
-  const [mode, setMode] = useState('DEMO');
-  const research = mode === 'LOCAL_RESEARCH';
-  useEffect(() => { document.title = '魔虚罗 2.0 · ' + (research ? '真实研究' : 'DEMO'); }, [research]);
+  const [mode, setMode] = useState("DEMO");
+  const [theme, setTheme] = useState(
+    localStorage.getItem("v2-theme") || "dark",
+  );
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("v2-theme", theme);
+  }, [theme]);
+  const research = mode === "LOCAL_RESEARCH";
+  useEffect(() => {
+    document.title = "魔虚罗 2.0 · " + (research ? "真实研究" : "DEMO");
+  }, [research]);
   const connect = () => {
     setError("");
     api("/session")
@@ -56,7 +67,7 @@ function App() {
       })
       .then(async (s) => {
         csrf = s.csrf;
-        setMode((await api('/meta')).mode);
+        setMode((await api("/meta")).mode);
         setLogged(true);
       })
       .catch((e) => setError(String(e)));
@@ -68,8 +79,22 @@ function App() {
         <div className="brand">
           魔虚罗 <span>2.0</span>
         </div>
-        <span className="badge">{research ? 'LOCAL RESEARCH · 真实只读来源' : 'DEMO · 合成数据'}</span>
+        <span className="badge">
+          {location.pathname === "/archives"
+            ? "LEGACY_IMPORT · 原始历史档案"
+            : location.pathname === "/reported"
+              ? "USER_REPORTED · 手工声明"
+              : research
+                ? "LOCAL RESEARCH · 真实只读来源"
+                : "DEMO · 合成数据"}
+        </span>
         <small>本地研究工作台 / 不连接真实投注账户</small>
+        <button
+          className="secondary"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        >
+          {theme === "dark" ? "浅色" : "深色"}
+        </button>
       </header>
       {!logged ? (
         <main className="login">
@@ -85,50 +110,118 @@ function App() {
             {!research && <NavLink to="/ledger">02 纸面账本</NavLink>}
             <NavLink to="/models">03 模型状态</NavLink>
             <NavLink to="/system">04 系统信息</NavLink>
+            <NavLink to="/archives">05 历史档案</NavLink>
+            <NavLink to="/reported">06 手工成交声明</NavLink>
             <div className="navnote">
-              {research ? '真实研究独立数据库' : 'DEMO 专用数据库'}
+              {research ? "真实研究独立数据库" : "DEMO 专用数据库"}
               <br />
               自动出票：关闭
               <br />
-              {research ? '来源白名单：OpenLigaDB' : '真实网络：禁用'}
+              {research ? "来源白名单：OpenLigaDB" : "真实网络：禁用"}
               <br />
-              <a href={research ? 'http://127.0.0.1:5273/workbench' : 'http://127.0.0.1:5274/workbench'}>{research ? '打开离线 DEMO' : '打开真实研究'}</a>
+              <a
+                href={
+                  research
+                    ? "http://127.0.0.1:5273/workbench"
+                    : "http://127.0.0.1:5274/workbench"
+                }
+              >
+                {research ? "打开离线 DEMO" : "打开真实研究"}
+              </a>
             </div>
           </nav>
           <main>
             <Routes>
-              <Route path="/fixtures/:id" element={research ? <ResearchDetail /> : <Detail />} />
-              <Route path="/ledger" element={research ? <Sources /> : <Ledger />} />
+              <Route
+                path="/fixtures/:id"
+                element={research ? <ResearchDetail /> : <Detail />}
+              />
+              <Route
+                path="/ledger"
+                element={research ? <Sources /> : <Ledger />}
+              />
               <Route path="/models" element={<Models />} />
               <Route path="/system" element={<System />} />
-              <Route path="*" element={research ? <Sources /> : <Workbench />} />
+              <Route path="/archives" element={<Archives />} />
+              <Route path="/reported" element={<Reported />} />
+              <Route
+                path="*"
+                element={research ? <Sources /> : <Workbench />}
+              />
             </Routes>
           </main>
         </div>
       )}
       <footer>
-        预测冻结 · 原票不可改写 · 更正追加记录　/　所有金额均为虚拟 PAPER
+        预测冻结 · 原票不可改写 · 更正追加记录　/　不执行真实投注或付款
       </footer>
     </>
   );
 }
-function useLoad<T>(load: () => Promise<T>) {
+function useLoad<T>(load: () => Promise<T>, dependencies: unknown[] = []) {
   const [data, setData] = useState<T>(),
-    [error, setError] = useState("");
-  const refresh = () =>
-    load()
-      .then(setData)
-      .catch((e) => setError(String(e)));
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true),
+    [lastRead, setLastRead] = useState<number | null>(null);
+  const serial = useRef(0);
+  const refresh = async () => {
+    const current = ++serial.current;
+    setLoading(true);
+    setError("");
+    try {
+      const value = await load();
+      if (current === serial.current) {
+        setData(value);
+        setLastRead(Date.now());
+      }
+    } catch (e) {
+      if (current === serial.current) setError(String(e));
+    } finally {
+      if (current === serial.current) setLoading(false);
+    }
+  };
   useEffect(() => {
+    setData(undefined);
+    setLastRead(null);
     void refresh();
-  }, []);
-  return { data, error, refresh, setError };
+    return () => {
+      serial.current++;
+    };
+  }, dependencies);
+  const loadStatus = (
+    <p
+      className="muted"
+      data-testid="load-status"
+      data-loaded={data !== undefined}
+      aria-live="polite"
+    >
+      {loading
+        ? "正在读取本地记录…"
+        : error
+          ? "读取失败；保留上一次显示内容"
+          : lastRead
+            ? "本地记录读取于 " + date(lastRead)
+            : "尚未读取"}
+    </p>
+  );
+  return { data, error, refresh, setError, loadStatus };
 }
 function Workbench() {
-  const { data, error, refresh, setError } = useLoad(async () => ({
-    fixtures: await api("/fixtures"),
-    decisions: await api("/decisions"),
-  }));
+  const [cursor, setCursor] = useState<any>(null),
+    [status, setStatus] = useState("ALL");
+  const { data, error, refresh, setError, loadStatus } = useLoad(async () => {
+    const page = await api(
+      "/fixture-page?status=" +
+        status +
+        (cursor
+          ? "&afterAt=" +
+            encodeURIComponent(new Date(cursor.at).toISOString()) +
+            "&afterId=" +
+            encodeURIComponent(cursor.id)
+          : ""),
+    );
+    return { fixtures: page.items, nextCursor: page.nextCursor };
+  }, [cursor, status]);
   const [busy, setBusy] = useState(false);
   return (
     <>
@@ -136,6 +229,7 @@ function Workbench() {
         <div>
           <p className="eyebrow">OBSERVATION / DEMO T−60</p>
           <h1>今日观察</h1>
+          {loadStatus}
           <p>每次观察冻结一组报价与输入。候选不等于已经记录票据。</p>
         </div>
         <button
@@ -168,6 +262,36 @@ function Workbench() {
         </button>
       </div>
       <p role="alert">{error}</p>
+      <div className="toolbar">
+        <label>
+          比赛状态{" "}
+          <select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setCursor(null);
+            }}
+          >
+            <option value="ALL">全部观察</option>
+            <option value="SCHEDULED">未开赛</option>
+            <option value="FINISHED">已结束</option>
+          </select>
+        </label>
+        <button
+          className="secondary"
+          onClick={() => setCursor(null)}
+          disabled={!cursor}
+        >
+          回到第一页
+        </button>
+        <button
+          className="secondary"
+          disabled={!data?.nextCursor}
+          onClick={() => setCursor(data?.nextCursor)}
+        >
+          下一页
+        </button>
+      </div>
       {!data ? (
         <p>正在读取本地数据库…</p>
       ) : data.fixtures.length === 0 ? (
@@ -186,9 +310,7 @@ function Workbench() {
               <span className="badge">{f.status}</span>
             </div>
             <p>
-              开球 {date(f.kickoffAt)} ·{" "}
-              {data.decisions.filter((d: any) => d.fixtureId === f.id).length}{" "}
-              项冻结决策
+              开球 {date(f.kickoffAt)} · {f.decisionCount} 项冻结决策
             </p>
             <Link className="textlink" to={"/fixtures/" + f.id}>
               查看证据与纸面决策 →
@@ -201,11 +323,20 @@ function Workbench() {
 }
 function Detail() {
   const { id } = useParams();
-  const { data, error, refresh, setError } = useLoad(async () => ({
-    fixture: await api("/fixtures/" + id),
-    decisions: (await api("/decisions")).filter((d: any) => d.fixtureId === id),
-    portfolio: await api("/portfolios/demo/summary"),
-  }));
+  const confirmDialog = useRef<HTMLDialogElement>(null);
+  const [selected, setSelected] = useState<any>(null);
+  useEffect(() => {
+    if (selected) confirmDialog.current?.showModal();
+    else if (confirmDialog.current?.open) confirmDialog.current.close();
+  }, [selected]);
+  const { data, error, refresh, setError, loadStatus } = useLoad(
+    async () => ({
+      fixture: await api("/fixtures/" + id),
+      decisions: await api("/decisions?fixtureId=" + encodeURIComponent(id!)),
+      portfolio: await api("/portfolios/demo/summary"),
+    }),
+    [id],
+  );
   const [busy, setBusy] = useState(false),
     [notice, setNotice] = useState("");
   if (!data) return <p>{error || "读取冻结记录…"}</p>;
@@ -215,6 +346,7 @@ function Detail() {
       <h1>
         {data.fixture.home} vs {data.fixture.away}
       </h1>
+      {loadStatus}
       <p>当时预测始终保留。赛果及更正不会改变下面的概率与 EV。</p>
       <div className="toolbar">
         <span className="badge">{data.fixture.status}</span>
@@ -290,23 +422,13 @@ function Detail() {
             {!!d.accepted && (
               <button
                 disabled={busy || data.fixture.status !== "SCHEDULED"}
-                onClick={async () => {
-                  setBusy(true);
-                  try {
-                    await api("/paper-tickets", {
-                      decisionId: d.id,
-                      portfolioId: "demo",
-                      stakeAtoms: "25000000",
-                      expectedRevision: data.portfolio.revision,
-                    });
-                    setNotice("纸面票已持久化：25.00 PAPER");
-                    await refresh();
-                  } catch (e) {
-                    setError(String(e));
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
+                onClick={() =>
+                  setSelected({
+                    ...d,
+                    expectedRevision: data.portfolio.revision,
+                    commandKey: crypto.randomUUID(),
+                  })
+                }
               >
                 记录纸面票 · 25 PAPER
               </button>
@@ -314,6 +436,56 @@ function Detail() {
           </article>
         ))
       )}
+      <dialog
+        ref={confirmDialog}
+        aria-labelledby="paper-confirm-title"
+        onCancel={() => setSelected(null)}
+      >
+        <h2 id="paper-confirm-title">确认 DEMO 纸面记录</h2>
+        <p>
+          投入 25 PAPER · {selected?.selection} @{selected?.decimalOdds}
+        </p>
+        <p>合成数据，记录到本地纸面账本。</p>
+        <p className="mono">predictionId: {selected?.predictionId}</p>
+        <div className="actions">
+          <button
+            autoFocus
+            className="secondary"
+            disabled={busy}
+            onClick={() => setSelected(null)}
+          >
+            取消
+          </button>
+          <button
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await api(
+                  "/paper-tickets",
+                  {
+                    decisionId: selected.id,
+                    portfolioId: "demo",
+                    stakeAtoms: "25000000",
+                    expectedRevision: selected.expectedRevision,
+                  },
+                  selected.commandKey,
+                );
+                setNotice("纸面票已持久化：25.00 PAPER");
+                setSelected(null);
+                await refresh();
+              } catch (e) {
+                setError(String(e));
+                setSelected(null);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            确认记录 25 PAPER
+          </button>
+        </div>
+      </dialog>
       <Link to="/ledger" className="textlink">
         打开纸面账本 →
       </Link>
@@ -321,23 +493,33 @@ function Detail() {
   );
 }
 function Ledger() {
-  const { data, error, refresh, setError } = useLoad(async () => ({
-    tickets: await api("/tickets"),
-    portfolio: await api("/portfolios/demo/summary"),
-  }));
+  const [cursor, setCursor] = useState<any>(null);
+  const { data, error, refresh, setError, loadStatus } = useLoad(async () => {
+    const page = await api(
+      "/ticket-page" +
+        (cursor
+          ? "?afterAt=" +
+            encodeURIComponent(cursor.at) +
+            "&afterId=" +
+            encodeURIComponent(cursor.id)
+          : ""),
+    );
+    return {
+      tickets: page.items,
+      nextCursor: page.nextCursor,
+      portfolio: await api("/portfolios/demo/summary"),
+    };
+  }, [cursor]);
   const [busy, setBusy] = useState(false),
     [detail, setDetail] = useState<any>();
   async function result(t: any, scenario: string) {
     setBusy(true);
     try {
       const original = await api("/tickets/" + t.id);
-      const fixtures = await api("/fixtures");
-      const f = fixtures.find(
-        (x: any) => x.revisionId === original.original.fixtureRevisionId,
-      );
-      const full = await api("/fixtures/" + f.id);
+      const fixtureId = original.original.fixtureId;
+      const full = await api("/fixtures/" + fixtureId);
       const a = await api("/demo/results", {
-        fixtureId: f.id,
+        fixtureId,
         scenario,
         expectedRevision: full.adjudications.at(-1)?.revision || 0,
         reason: "用户触发 DEMO " + scenario + " 合成证据",
@@ -360,6 +542,7 @@ function Ledger() {
     <>
       <p className="eyebrow">PAPER LEDGER / DEMO ONLY</p>
       <h1>纸面账本</h1>
+      {loadStatus}
       <p>收益率 = 已结算净收益 ÷ 已结算原始投入；没有结算时显示 —。</p>
       {data && (
         <>
@@ -438,94 +621,838 @@ function Ledger() {
       {data?.tickets.length === 0 && (
         <div className="empty">暂无纸面票。请先在观察详情中手工记录。</div>
       )}
+      <div className="toolbar">
+        <p>每页最多 50 张，账户汇总包含全部票据。</p>
+        <button
+          className="secondary"
+          disabled={!cursor}
+          onClick={() => setCursor(null)}
+        >
+          回到第一页
+        </button>
+        <button
+          className="secondary"
+          disabled={!data?.nextCursor}
+          onClick={() => setCursor(data?.nextCursor)}
+        >
+          下一页
+        </button>
+      </div>
       {detail && (
         <article>
           <h2>不可变原票与追加事件</h2>
           <pre>{JSON.stringify(detail, null, 2)}</pre>
         </article>
       )}
-      <button
-        className="secondary"
-        onClick={async () => {
-          const j = await api("/export");
-          const a = document.createElement("a");
-          a.href = URL.createObjectURL(
-            new Blob([JSON.stringify(j, null, 2)], {
-              type: "application/json",
-            }),
-          );
-          a.download = "mahoraga-DEMO.json";
-          a.click();
-          URL.revokeObjectURL(a.href);
-        }}
-      >
-        导出 DEMO 记录
-      </button>
+      <Exports />
     </>
   );
 }
+function Exports() {
+  const { data, error, refresh, setError, loadStatus } = useLoad(() =>
+    api("/export-jobs"),
+  );
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!data?.some((j: any) => ["RUNNING", "QUEUED"].includes(j.state)))
+      return;
+    const timer = setInterval(refresh, 2000);
+    return () => clearInterval(timer);
+  }, [data]);
+  return (
+    <article>
+      <h2>完整事实导出</h2>
+      <p>
+        先固定全部原票、预测和事件的水位，再由后台分批生成
+        JSONL；包括全部页面。用于审计，数据库恢复请用本地备份命令。
+      </p>
+      <p role="alert">{error}</p>
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          try {
+            await api("/export-jobs", {});
+            await refresh();
+          } catch (e) {
+            setError(String(e));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        创建完整导出
+      </button>
+      {data?.map((j: any) => (
+        <div key={j.id}>
+          <p>
+            {date(j.createdAt)} · {j.mode} · {j.state} · {j.rowsExported} 条事实{" "}
+            {j.reason || ""}
+          </p>
+          {j.state === "COMPLETE" && (
+            <a
+              className="textlink"
+              href={"/api/v2/export-jobs/" + j.id + "/download"}
+            >
+              下载完整 JSONL
+            </a>
+          )}
+        </div>
+      ))}
+    </article>
+  );
+}
 function Models() {
-  const { data, error } = useLoad(() => api("/models"));
+  const { data, error, refresh, setError, loadStatus } = useLoad(async () => ({
+    models: await api("/models"),
+    evaluations: await api("/evaluations"),
+  }));
+  const [busy, setBusy] = useState(false),
+    [evaluation, setEvaluation] = useState<any>(null);
   return (
     <>
       <p className="eyebrow">MODEL REGISTRY</p>
       <h1>模型状态</h1>
+      {loadStatus}
       <p>历史研究成绩不代表实盘资格。没有自动晋升。</p>
       <p>{error}</p>
-      {data?.map((m: any) => (
+      {data?.models.map((m: any) => (
         <article key={m.id}>
           <h2>{m.id}</h2>
           <span className="badge">{m.status}</span>
           <p>{m.outputKind}</p>
           <p className="mono">manifest hash: {m.manifestHash}</p>
           {m.status === "BLOCKED" && (
-            <p>研究包已登记；特征准备、原模型对照与适配接入尚未验收。</p>
+            <p>
+              {JSON.parse(m.manifestJson).parity
+                ? "历史软件对照已通过；实时原始特征、精确训练时间与训练清单尚不具备，保持 BLOCKED。"
+                : "早期登记占位；完整研究登记见对应带版本哈希的条目。"}
+            </p>
           )}
+          <details>
+            <summary>变体、概率含义、训练范围与特征契约</summary>
+            <pre>{JSON.stringify(JSON.parse(m.manifestJson), null, 2)}</pre>
+          </details>
         </article>
       ))}
+      <h2>固定协议评估</h2>
+      <p>
+        按比赛、协议、模型选取第一份冻结预测。V6
+        压力输出不参与三分类损失；无已结投入时 ROI
+        为空。历史档案不进入当前模型样本。
+      </p>
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError("");
+          try {
+            const run = await api("/evaluations", {
+              asOf: new Date().toISOString(),
+            });
+            setEvaluation(await api("/evaluations/" + run.id));
+            await refresh();
+          } catch (e) {
+            setError(String(e));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        冻结当前评估样本
+      </button>
+      {data?.evaluations.map((e: any) => (
+        <article key={e.id}>
+          <p>
+            {e.mode} · asOf {date(e.asOf)}
+          </p>
+          <p className="mono">样本 hash：{e.manifestHash}</p>
+          <button
+            className="secondary"
+            onClick={async () =>
+              setEvaluation(await api("/evaluations/" + e.id))
+            }
+          >
+            查看已冻结指标
+          </button>{" "}
+          <a href={"/api/v2/evaluations/" + e.id + "/csv"}>下载指标 CSV</a>
+        </article>
+      ))}
+      {evaluation && (
+        <article>
+          <h3>固定样本结果 · {evaluation.mode}</h3>
+          <pre>{JSON.stringify(evaluation.metrics, null, 2)}</pre>
+          <details>
+            <summary>样本与排除原因（分页不改变指标）</summary>
+            <pre>{JSON.stringify(evaluation.samples, null, 2)}</pre>
+            {evaluation.nextOffset !== null && (
+              <button
+                onClick={async () =>
+                  setEvaluation(
+                    await api(
+                      `/evaluations/${evaluation.id}?offset=${evaluation.nextOffset}`,
+                    ),
+                  )
+                }
+              >
+                下一页样本
+              </button>
+            )}
+          </details>
+        </article>
+      )}
     </>
   );
 }
 function Sources() {
-  const { data, error, refresh, setError } = useLoad(async () => ({ sources: await api('/sources'), fixtures: await api('/fixtures') }));
+  const { data, error, refresh, setError, loadStatus } = useLoad(async () => ({
+    sources: await api("/sources"),
+    page: await api("/fixture-page"),
+  }));
+  const [filter, setFilter] = useState("SCHEDULED"),
+    [page, setPage] = useState<any>(null);
+  const shown = page || data?.page;
+  const nextPage = async (cursor: any = null, status = filter) => {
+    setError("");
+    try {
+      setPage(
+        await api(
+          "/fixture-page?status=" +
+            status +
+            (cursor
+              ? "&afterAt=" +
+                encodeURIComponent(cursor.at) +
+                "&afterId=" +
+                encodeURIComponent(cursor.id)
+              : ""),
+        ),
+      );
+    } catch (e) {
+      setError(String(e));
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [season, setSeason] = useState(2026);
-  return <>
-    <p className="eyebrow">LOCAL RESEARCH / READ ONLY</p><h1>真实来源观察</h1>
-    <div className="callout">赛程与赛果来自真实公开来源。当前来源不提供报价和 xG，研究模型受阻；没有报价就不会生成预测或纸面票。</div>
-    <div className="toolbar"><label>起始赛季年份 <input aria-label="赛季年份" type="number" min="2020" max="2099" value={season} onChange={e => setSeason(Number(e.target.value))}/></label>
-      <button disabled={busy} onClick={async () => { setBusy(true); setError(''); try { await api('/source-captures', {season}); await refresh(); } catch(e) { setError(String(e)); } finally { setBusy(false); } }}>{busy ? '正在采集与保存证据…' : '采集德甲公开赛程'}</button>
-      <button className="secondary" onClick={refresh}>刷新本地记录</button></div>
-    <p role="alert">{error}</p>
-    <h2>最近采集</h2>
-    {data?.sources.runs.length === 0 && <p>尚未采集。采集不会连接真实投注账户，也不会写入旧站。</p>}
-    {data?.sources.runs.map((r: any) => <article key={r.id}><div className="row"><h3>OpenLigaDB · 德甲 {r.season}/{r.season+1}</h3><span className="badge">{r.state}</span></div>
-      <p>实际完成时间：{r.finishedAt ? date(r.finishedAt) : '进行中'} · 规范化比赛：{r.normalizedCount}</p>
-      <p>状态原因：{r.reason === 'QUOTE_AND_XG_NOT_PROVIDED' ? '赛程已保存；来源不提供报价和 xG' : r.reason || '等待完成'}</p>
-      <p className="mono">原始证据：{r.snapshotId || '尚无完整证据'}</p></article>)}
-    <details><summary>五联赛能力与观察覆盖</summary><pre>{JSON.stringify({capabilities:data?.sources.capabilities, coverage:data?.sources.coverage,slots:data?.sources.slots},null,2)}</pre></details>
-    <h2>已保存赛程（当前最多显示50条）</h2>
-    {data?.fixtures.map((f:any) => <article key={f.id}><h3><Link to={'/fixtures/'+f.id}>{f.home} vs {f.away}</Link></h3><p>开球：{date(f.kickoffAt)} · {f.status} · 报价缺失</p></article>)}
-  </>;
+  return (
+    <>
+      <p className="eyebrow">LOCAL RESEARCH / READ ONLY</p>
+      <h1>真实来源观察</h1>
+      {loadStatus}
+      <div className="callout">
+        赛程与赛果来自真实公开来源。当前来源不提供报价和
+        xG，研究模型受阻；没有报价就不会生成预测或纸面票。
+      </div>
+      <div className="toolbar">
+        <label>
+          起始赛季年份{" "}
+          <input
+            aria-label="赛季年份"
+            type="number"
+            min="2020"
+            max="2099"
+            value={season}
+            onChange={(e) => setSeason(Number(e.target.value))}
+          />
+        </label>
+        <button
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            setError("");
+            try {
+              await api("/source-captures", { season });
+              await refresh();
+            } catch (e) {
+              setError(String(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {busy ? "正在采集与保存证据…" : "采集德甲公开赛程"}
+        </button>
+        <button className="secondary" onClick={refresh}>
+          刷新本地记录
+        </button>
+      </div>
+      <p role="alert">{error}</p>
+      <h2>最近采集</h2>
+      {data?.sources.runs.length === 0 && (
+        <p>尚未采集。采集不会连接真实投注账户，也不会写入旧站。</p>
+      )}
+      {data?.sources.runs.map((r: any) => (
+        <article key={r.id}>
+          <div className="row">
+            <h3>
+              OpenLigaDB · 德甲 {r.season}/{r.season + 1}
+            </h3>
+            <span className="badge">{r.state}</span>
+          </div>
+          <p>
+            实际完成时间：{r.finishedAt ? date(r.finishedAt) : "进行中"} ·
+            规范化比赛：{r.normalizedCount}
+          </p>
+          <p>
+            状态原因：
+            {r.reason === "QUOTE_AND_XG_NOT_PROVIDED"
+              ? "赛程已保存；来源不提供报价和 xG"
+              : r.reason || "等待完成"}
+          </p>
+          <p className="mono">原始证据：{r.snapshotId || "尚无完整证据"}</p>
+        </article>
+      ))}
+      <details>
+        <summary>五联赛能力与观察覆盖</summary>
+        <pre>
+          {JSON.stringify(
+            {
+              capabilities: data?.sources.capabilities,
+              coverage: data?.sources.coverage,
+              slots: data?.sources.slots,
+            },
+            null,
+            2,
+          )}
+        </pre>
+      </details>
+      <div className="toolbar">
+        <h2>已保存赛程（每页50条）</h2>
+        <select
+          aria-label="赛程状态"
+          value={filter}
+          onChange={(e) => {
+            setFilter(e.target.value);
+            void nextPage(null, e.target.value);
+          }}
+        >
+          <option value="SCHEDULED">待赛（最近在前）</option>
+          <option value="FINISHED">已完赛（最近在前）</option>
+          <option value="ALL">全部（最近在前）</option>
+        </select>
+        <button className="secondary" onClick={() => nextPage()}>
+          第一页
+        </button>
+      </div>
+      {shown?.items.map((f: any) => (
+        <article key={f.id}>
+          <h3>
+            <Link to={"/fixtures/" + f.id}>
+              {f.home} vs {f.away}
+            </Link>
+          </h3>
+          <p>
+            开球：{date(f.kickoffAt)} · {f.status} · 报价缺失
+          </p>
+        </article>
+      ))}
+      {shown?.nextCursor && (
+        <button onClick={() => nextPage(shown.nextCursor)}>下一页赛程</button>
+      )}
+    </>
+  );
 }
 function ResearchDetail() {
-  const {id} = useParams();
-  const {data,error} = useLoad(() => api('/fixtures/'+id));
-  return <><p className="eyebrow">LOCAL RESEARCH / EVIDENCE</p><h1>{data ? `${data.home} vs ${data.away}` : '读取比赛证据…'}</h1><p role="alert">{error}</p>
-    <div className="callout">没有可用报价，未生成预测。来源更新时间未知时保留 null；页面时间为实际捕获时间。</div>
-    {data && <><h2>开球版本</h2><pre>{JSON.stringify(data.revisions,null,2)}</pre><h2>原始证据时间线</h2>{data.evidence.map((e:any,i:number) => <article key={e.id+':'+i}><p>捕获：{date(e.observedAt)} · 入库：{date(e.ingestedAt)}</p><p className="mono">SHA256 {e.payloadHash}</p><details><summary>原始响应分块（完整响应由多个块组成）</summary><pre>{e.content}</pre></details></article>)}</>}
-  </>;
+  const { id } = useParams();
+  const { data, error, refresh, setError, loadStatus } = useLoad(
+    () => api("/fixtures/" + id),
+    [id],
+  );
+  const [selected, setSelected] = useState(""),
+    [reason, setReason] = useState(""),
+    [busy, setBusy] = useState(false);
+  return (
+    <>
+      <p className="eyebrow">LOCAL RESEARCH / EVIDENCE</p>
+      <h1>{data ? `${data.home} vs ${data.away}` : "读取比赛证据…"}</h1>
+      {loadStatus}
+      <p role="alert">{error}</p>
+      <div className="callout">
+        没有可用报价，未生成预测。来源更新时间未知时保留
+        null；页面时间为实际捕获时间。
+      </div>
+      {data && (
+        <>
+          <h2>开球版本</h2>
+          <pre>{JSON.stringify(data.revisions, null, 2)}</pre>
+          <h2>90 分钟赛果与复核</h2>
+          <pre>{JSON.stringify(data.resultObservations, null, 2)}</pre>
+          <label>
+            采用规则或选择已有证据
+            <select
+              aria-label="赛果证据"
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+            >
+              <option value="">全部已知证据一致才接受；冲突进入复核</option>
+              {data.resultObservations.map((o: any) => (
+                <option key={o.id} value={o.id}>
+                  {o.regulationJson || "缺常规时间比分"} · {date(o.observedAt)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            裁定或更正原因
+            <input
+              aria-label="裁定原因"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </label>
+          <button
+            disabled={
+              busy ||
+              reason.trim().length < 3 ||
+              !data.resultObservations.length
+            }
+            onClick={async () => {
+              setBusy(true);
+              try {
+                await api("/result-adjudications", {
+                  fixtureId: id,
+                  expectedRevision: data.adjudications.at(-1)?.revision || 0,
+                  selectedEvidenceId: selected || null,
+                  reason,
+                });
+                await refresh();
+              } catch (e) {
+                setError(String(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            追加裁定记录
+          </button>
+          <details>
+            <summary>历史裁定与更正（原证据保留）</summary>
+            <pre>{JSON.stringify(data.adjudications, null, 2)}</pre>
+          </details>
+          <h2>原始证据时间线</h2>
+          {data.evidence.map((e: any, i: number) => (
+            <article key={e.id + ":" + i}>
+              <p>
+                捕获：{date(e.observedAt)} · 入库：{date(e.ingestedAt)}
+              </p>
+              <p className="mono">SHA256 {e.payloadHash}</p>
+              <details>
+                <summary>原始响应分块（完整响应由多个块组成）</summary>
+                <pre>{e.content}</pre>
+              </details>
+            </article>
+          ))}
+        </>
+      )}
+    </>
+  );
+}
+function Reported() {
+  const { data, error, refresh, setError, loadStatus } = useLoad(() =>
+    api("/reported-trades"),
+  );
+  const empty = {
+    account: "个人手工记录",
+    externalKey: "",
+    stake: "",
+    gross: "",
+    currency: "EUR",
+    description: "",
+    evidenceNote: "",
+    reason: "",
+    expectedRevision: 0,
+  };
+  const [form, setForm] = useState(empty),
+    [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState<any>(null);
+  const toAtoms = (s: string) => {
+    if (!/^\d+(?:\.\d{1,6})?$/.test(s)) throw Error("金额格式无效");
+    const [a, b = ""] = s.split(".");
+    return (BigInt(a) * 1000000n + BigInt(b.padEnd(6, "0"))).toString();
+  };
+  const toUnits = (s: string) => {
+    const n = BigInt(s);
+    return `${n / 1000000n}.${(n % 1000000n).toString().padStart(6, "0")}`.replace(
+      /\.?0+$/,
+      "",
+    );
+  };
+  const fields = [
+    ["account", "独立账户名称"],
+    ["externalKey", "原票编号"],
+    ["stake", "声明投入"],
+    ["gross", "声明实际返还（未结留空）"],
+    ["currency", "币种"],
+    ["description", "成交说明"],
+    ["evidenceNote", "成交凭据说明"],
+    ["reason", "登记或更正原因"],
+  ] as const;
+  return (
+    <>
+      <p className="eyebrow">USER REPORTED / SEPARATE RECORDS</p>
+      <h1>手工成交声明</h1>
+      {loadStatus}
+      <div className="callout">
+        记录由你提供的成交与返还声明，不执行投注或付款。不写纸面余额，不参与模型验证；与历史模拟账本分开。更正只追加版本。
+      </div>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError("");
+          try {
+            await api("/reported-trades", {
+              account: form.account,
+              externalKey: form.externalKey,
+              expectedRevision: form.expectedRevision,
+              stakeAtoms: toAtoms(form.stake),
+              grossClaimAtoms: form.gross === "" ? null : toAtoms(form.gross),
+              currency: form.currency,
+              description: form.description,
+              evidenceNote: form.evidenceNote,
+              reason: form.reason,
+            });
+            setForm(empty);
+            await refresh();
+          } catch (e) {
+            setError(String(e));
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {fields.map(([key, label]) => (
+          <label key={key}>
+            {label}
+            <input
+              aria-label={label}
+              value={form[key]}
+              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+            />
+          </label>
+        ))}
+        <p>服务器版本：{form.expectedRevision}</p>
+        <button disabled={busy}>保存独立声明</button>
+      </form>
+      <p role="alert">{error}</p>
+      {data?.map((r: any) => (
+        <article key={r.id}>
+          <h2>
+            {r.account} · {r.externalKey}
+          </h2>
+          <span className="badge">USER_REPORTED · revision {r.revision}</span>
+          <p>
+            声明投入 {toUnits(r.stakeAtoms)} {r.currency} · 声明返还{" "}
+            {r.grossClaimAtoms === null
+              ? "未结/未知"
+              : toUnits(r.grossClaimAtoms) + " " + r.currency}
+          </p>
+          <p>{r.description}</p>
+          <p>凭据：{r.evidenceNote}</p>
+          <button
+            className="secondary"
+            onClick={() => {
+              setForm({
+                account: r.account,
+                externalKey: r.externalKey,
+                stake: toUnits(r.stakeAtoms),
+                gross:
+                  r.grossClaimAtoms === null ? "" : toUnits(r.grossClaimAtoms),
+                currency: r.currency,
+                description: r.description,
+                evidenceNote: r.evidenceNote,
+                reason: "",
+                expectedRevision: r.revision,
+              });
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
+            追加更正
+          </button>
+        </article>
+      ))}
+      {data?.map((r: any) => (
+        <button
+          className="secondary"
+          key={r.id}
+          onClick={async () =>
+            setHistory(await api("/reported-trades/" + r.id + "/history"))
+          }
+        >
+          查看声明历史：{r.externalKey}
+        </button>
+      ))}
+      {history && <pre>{JSON.stringify(history, null, 2)}</pre>}
+      {data?.length === 0 && <p>尚无用户声明记录。</p>}
+    </>
+  );
+}
+function Archives() {
+  const { data, error, refresh, setError, loadStatus } = useLoad(async () => ({
+    batches: await api("/imports"),
+    page: await api("/archives"),
+  }));
+  const [selected, setSelected] = useState<File[]>([]),
+    [namespace, setNamespace] = useState("legacy-local"),
+    [preview, setPreview] = useState<any>(null),
+    [busy, setBusy] = useState(false),
+    [detail, setDetail] = useState<any>(null);
+  const [page, setPage] = useState<any>(null),
+    [portfolio, setPortfolio] = useState("");
+  const shown = page || data?.page;
+  const readFiles = async () =>
+    Promise.all(
+      selected.map(async (f) => ({
+        name: f.name,
+        content: new TextDecoder("utf-8", {
+          fatal: true,
+          ignoreBOM: true,
+        }).decode(await f.arrayBuffer()),
+      })),
+    );
+  const loadPage = async (after = "") =>
+    setPage(
+      await api(
+        "/archives?after=" +
+          encodeURIComponent(after) +
+          (portfolio ? "&portfolio=" + encodeURIComponent(portfolio) : ""),
+      ),
+    );
+  const download = async (batch: any, index: number) => {
+    setError("");
+    try {
+      let cursor: any = -1;
+      const parts: string[] = [];
+      do {
+        const r = await api(
+          `/imports/${batch.id}/files/${index}/chunks?after=${cursor}`,
+        );
+        parts.push(...r.chunks.map((c: any) => c.content));
+        cursor = r.nextCursor;
+      } while (cursor !== null);
+      const bytes = new TextEncoder().encode(parts.join(""));
+      const digest = [
+        ...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      ]
+        .map((n) => n.toString(16).padStart(2, "0"))
+        .join("");
+      if (digest !== batch.manifest.files[index].sha256)
+        throw Error("SOURCE_HASH_MISMATCH");
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([bytes]));
+      link.download = batch.manifest.files[index].name;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+  const action = async (commit: boolean) => {
+    setBusy(true);
+    setError("");
+    try {
+      const files = await readFiles();
+      const result = await api(
+        commit ? "/imports/commit" : "/imports/preview",
+        commit
+          ? { previewId: preview.id, previewHash: preview.previewHash, files }
+          : { namespace, files },
+      );
+      setPreview(result);
+      setPage(null);
+      await refresh();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <p className="eyebrow">LEGACY IMPORT / READ ONLY</p>
+      <h1>历史档案与对账</h1>
+      {loadStatus}
+      <div className="callout">
+        这里保存原始历史记录与缺失字段。历史票只读，不补写预测，不自动结算开放票，不把旧余额转成可用纸面资金。
+      </div>
+      <article>
+        <h2>导入预览</h2>
+        <label>
+          原系统标识（同一旧账本持续使用相同标识）
+          <input
+            aria-label="原系统标识"
+            value={namespace}
+            onChange={(e) => {
+              setNamespace(e.target.value);
+              setPreview(null);
+            }}
+          />
+        </label>
+        <input
+          aria-label="历史导出文件"
+          type="file"
+          accept=".json,.csv,.txt"
+          multiple
+          onChange={(e) => {
+            setSelected(Array.from(e.target.files || []));
+            setPreview(null);
+          }}
+        />
+        <p>
+          JSON / CSV / TXT / app_state 分片；总文件不超过 8
+          MiB。先预览，再按文件 hash 提交到新档案。
+        </p>
+        <div className="actions">
+          <button
+            disabled={busy || !selected.length}
+            onClick={() => action(false)}
+          >
+            预览并对账
+          </button>
+          <button
+            disabled={busy || !preview || preview.state !== "PREVIEW"}
+            onClick={() => action(true)}
+          >
+            提交到新只读档案
+          </button>
+        </div>
+        {preview && (
+          <>
+            <p role="status">
+              状态：{preview.state} · 原记录 {preview.report.records} 条
+            </p>
+            <pre>
+              {JSON.stringify(
+                {
+                  report: preview.report,
+                  warnings: preview.warnings,
+                  claims: preview.claims,
+                },
+                null,
+                2,
+              )}
+            </pre>
+          </>
+        )}
+      </article>
+      <p role="alert">{error}</p>
+      <details>
+        <summary>导入批次与原文件 SHA256</summary>
+        <pre>{JSON.stringify(data?.batches, null, 2)}</pre>
+        {data?.batches.map((b: any) => (
+          <div key={b.id}>
+            <p>
+              {b.namespace} · {b.state}
+            </p>
+            {b.manifest.files.map((f: any, i: number) => (
+              <button
+                className="secondary"
+                key={f.name}
+                onClick={() => download(b, i)}
+              >
+                下载原文件：{f.name}
+              </button>
+            ))}
+          </div>
+        ))}
+      </details>
+      <div className="toolbar">
+        <h2>只读历史记录</h2>
+        <label>
+          组合标识
+          <input
+            aria-label="档案组合筛选"
+            value={portfolio}
+            onChange={(e) => setPortfolio(e.target.value)}
+          />
+        </label>
+        <button className="secondary" onClick={() => loadPage()}>
+          筛选 / 第一页
+        </button>
+      </div>
+      {shown?.items.map((r: any) => (
+        <article key={r.id}>
+          <div className="row">
+            <h3>
+              {r.portfolio} · {r.originalId}
+            </h3>
+            <span className="badge">LEGACY_IMPORT</span>
+          </div>
+          <p>
+            原状态 {r.status || "缺失"} · 腿数 {r.legCount ?? "未知"} · 币种{" "}
+            {r.currency || "未记录"}
+          </p>
+          <p>
+            原投入 {r.stakeAtoms === null ? "缺失" : money(r.stakeAtoms)} ·
+            原盈亏声明 {r.pnlAtoms === null ? "缺失" : money(r.pnlAtoms)}
+          </p>
+          <button
+            className="secondary"
+            onClick={async () => setDetail(await api("/archives/" + r.id))}
+          >
+            查看原记录 / 多腿详情
+          </button>
+        </article>
+      ))}
+      {shown?.nextCursor && (
+        <button onClick={() => loadPage(shown.nextCursor)}>下一页</button>
+      )}
+      {detail && (
+        <article>
+          <h2>原始记录（只读）</h2>
+          <p>
+            缺失项：
+            {JSON.parse(detail.warningsJson).join(" / ") || "无额外提示"}
+          </p>
+          <pre>{JSON.stringify(JSON.parse(detail.rawJson), null, 2)}</pre>
+          <button className="secondary" onClick={() => setDetail(null)}>
+            关闭详情
+          </button>
+        </article>
+      )}
+    </>
+  );
 }
 function System() {
-  const { data, error } = useLoad(() => api("/meta"));
+  const { data, error, refresh, loadStatus } = useLoad(() => api("/meta"));
   return (
     <>
       <p className="eyebrow">LOCAL RUNTIME</p>
       <h1>系统信息</h1>
+      {loadStatus}
       <div className="callout">
-        只写新的 DEMO 数据库。旧站入口、数据库与启动任务均未接管。
+        只写本次新建的隔离数据库。旧站入口、数据库与启动任务均未接管。
       </div>
       <p>{error}</p>
+      <button className="secondary" onClick={refresh}>
+        刷新系统状态
+      </button>
+      {data && (
+        <div className="metrics">
+          <div>
+            <small>运行模式</small>
+            <strong>{data.mode}</strong>
+          </div>
+          <div>
+            <small>自动纸面出票</small>
+            <strong>关闭</strong>
+          </div>
+          <div>
+            <small>Python 领取器</small>
+            <strong>
+              {data.health?.some(
+                (h: any) => Date.now() - Date.parse(h.lastSeenAt) < 90000,
+              )
+                ? "在线"
+                : "未收到近期心跳"}
+            </strong>
+          </div>
+        </div>
+      )}
+      <p>
+        BLOCKED 表示缺必要输入或资格；NO_ACTION
+        表示模型已计算但没有可执行优势；FAILED
+        表示采集或任务失败。三者不会混成“无机会”。
+      </p>
       <pre>{JSON.stringify(data, null, 2)}</pre>
     </>
   );

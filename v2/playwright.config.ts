@@ -4,10 +4,14 @@ export default defineConfig({
   workers: 1,
   timeout: 120000,
   use: {
-    baseURL: "http://127.0.0.1:5273",
+    baseURL: "http://127.0.0.1:5293",
     headless: true,
     launchOptions: {
-      executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      executablePath:
+        process.env.CHROME_PATH ||
+        (process.platform === "win32"
+          ? "C:/Program Files/Google/Chrome/Application/chrome.exe"
+          : undefined),
     },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
