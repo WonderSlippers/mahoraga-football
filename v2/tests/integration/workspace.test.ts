@@ -24,6 +24,7 @@ import {
   complete,
 } from "../../apps/api/src/services/observations";
 import { place, summary } from "../../apps/api/src/services/commands";
+import { adjudicate } from "../../apps/api/src/services/adjudications";
 import {
   importPreview,
   importCommit,
@@ -328,6 +329,54 @@ test("automatic unambiguous result settlement reuses the existing atomic ledger 
     assert.equal(
       (await rows(db, "SELECT * FROM ledger_entries")).length,
       count,
+    );
+    const correctedId = crypto.randomUUID();
+    await stmt(
+      db,
+      "INSERT INTO result_observations VALUES(?,?,?,?,?,?)",
+      correctedId,
+      f.id,
+      snap.id,
+      JSON.stringify({ home: 0, away: 1 }),
+      "FINISHED",
+      c.now + 4000,
+    ).run();
+    await autoSettle({ ...c, now: c.now + 5000 });
+    assert.equal(
+      (
+        await rows(
+          db,
+          "SELECT state FROM result_adjudications ORDER BY revision DESC LIMIT 1",
+        )
+      )[0].state,
+      "REVIEW",
+    );
+    const latest = (
+      await rows(
+        db,
+        "SELECT revision FROM result_adjudications ORDER BY revision DESC LIMIT 1",
+      )
+    )[0];
+    await adjudicate({ ...c, now: c.now + 6000 }, "manual-correction", {
+      fixtureId: f.id,
+      expectedRevision: latest.revision,
+      selectedEvidenceId: correctedId,
+      reason: "CONTRACT TEST ONLY: resolve contradictory observation",
+    });
+    await autoSettle({ ...c, now: c.now + 7000 });
+    const corrected = await summary(db, "demo");
+    assert.equal(
+      corrected.available,
+      "75000000",
+      "Automatic settlement must use latest manual adjudication, never an old auto receipt",
+    );
+    const correctedEntries = (await rows(db, "SELECT id FROM ledger_entries"))
+      .length;
+    await autoSettle({ ...c, now: c.now + 8000 });
+    assert.deepEqual(await summary(db, "demo"), corrected);
+    assert.equal(
+      (await rows(db, "SELECT id FROM ledger_entries")).length,
+      correctedEntries,
     );
   } finally {
     await mf.dispose();

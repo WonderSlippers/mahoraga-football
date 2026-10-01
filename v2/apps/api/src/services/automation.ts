@@ -76,6 +76,13 @@ export function normalizeESPN(j: any, league: string, day: string) {
                   ? "LIVE"
                   : "SCHEDULED",
         regulation: finished && scores.every((v) => v !== null) ? scores : null,
+        score: ["in", "post"].includes(state) ? scores : null,
+        clock:
+          state === "in" &&
+          typeof st.displayClock === "string" &&
+          st.displayClock.trim()
+            ? st.displayClock
+            : null,
         sourceEventId: String(e.id),
         requestedDay: day,
         providerOdds: Array.isArray(co.odds)
@@ -168,6 +175,7 @@ export async function captureESPN(
       : normalizeESPN(JSON.parse(text.replace(/^\uFEFF/, "")), league, day);
     let detailBudget = 4;
     for (const f of data) {
+      if ((f as any).score) (f as any).scoreObservedAt = observed;
       const old = await stmt(
         c.db,
         "SELECT f.*,r.id revisionId,r.kickoffAt FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision WHERE f.id=?",
@@ -177,12 +185,25 @@ export async function captureESPN(
         throw Error("SOURCE_IDENTITY_REVIEW");
       const previousCatalog = await stmt(
         c.db,
-        "SELECT dataJson FROM fixture_catalog WHERE fixtureId=?",
+        "SELECT dataJson,lastCapturedAt FROM fixture_catalog WHERE fixtureId=?",
         f.id,
       ).first<any>();
-      const previousDetail = previousCatalog
-        ? JSON.parse(previousCatalog.dataJson)?.detail
+      const previousData = previousCatalog
+        ? JSON.parse(previousCatalog.dataJson)
         : null;
+      const previousDetail = previousData?.detail ?? null;
+      (f as any).progressObservedAt =
+        f.status === "LIVE" && (f as any).clock
+          ? previousData?.status === "LIVE" &&
+            previousData.clock === (f as any).clock &&
+            canonical(previousData.score ?? null) ===
+              canonical((f as any).score ?? null) &&
+            previousData.providerStatus?.type?.name ===
+              (f as any).providerStatus?.type?.name
+            ? (previousData.progressObservedAt ??
+              previousCatalog.lastCapturedAt)
+            : observed
+          : null;
       if (previousDetail) (f as any).detail = previousDetail;
       if (
         !official &&
@@ -267,7 +288,7 @@ export async function captureESPN(
         queries.push(
           stmt(
             c.db,
-            "INSERT INTO result_observations VALUES(?,?,?,?,?,?)",
+            "INSERT INTO result_observations SELECT ?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM (SELECT o.status,o.regulationJson FROM result_observations o JOIN source_snapshots s ON s.id=o.sourceSnapshotId WHERE o.fixtureId=? AND s.providerId=? ORDER BY o.observedAt DESC,o.rowid DESC LIMIT 1) WHERE status=? AND regulationJson IS ?)",
             uid(),
             f.id,
             snapshot,
@@ -276,6 +297,12 @@ export async function captureESPN(
               : null,
             f.status,
             observed,
+            f.id,
+            provider,
+            f.status,
+            f.regulation
+              ? canonical({ home: f.regulation[0], away: f.regulation[1] })
+              : null,
           ),
         );
       await atomic(c.db, queries);
@@ -315,7 +342,7 @@ export async function captureESPN(
 export async function autoSettle(c: Context) {
   const fixtures = await rows(
     c.db,
-    "SELECT f.id,COALESCE((SELECT MAX(revision) FROM result_adjudications a WHERE a.fixtureId=f.id),0) revision FROM fixtures f WHERE EXISTS(SELECT 1 FROM result_observations o WHERE o.fixtureId=f.id) LIMIT 1000",
+    "SELECT f.id,a.id adjudicationId,json_array_length(a.evidenceRefs) evidenceCount,COALESCE(a.revision,0) revision FROM fixtures f LEFT JOIN result_adjudications a ON a.fixtureId=f.id AND a.revision=(SELECT MAX(b.revision) FROM result_adjudications b WHERE b.fixtureId=f.id) WHERE EXISTS(SELECT 1 FROM result_observations o WHERE o.fixtureId=f.id) AND (a.id IS NULL OR json_array_length(a.evidenceRefs)<>(SELECT COUNT(*) FROM result_observations o WHERE o.fixtureId=f.id) OR a.state='ACCEPTED_REGULATION' AND EXISTS(SELECT 1 FROM ticket_legs l JOIN fixture_revisions r ON r.id=l.fixtureRevisionId WHERE r.fixtureId=f.id AND NOT EXISTS(SELECT 1 FROM settlement_events e WHERE e.ticketId=l.ticketId AND e.adjudicationId=a.id))) ORDER BY f.id LIMIT 1000",
   );
   let reviewed = 0,
     settled = 0;
@@ -334,14 +361,18 @@ export async function autoSettle(c: Context) {
         c.installationId + ":source-adjudication",
         key,
       ).first<any>();
-      const a = prior
-        ? { id: prior.resultRef }
-        : await adjudicate(c, key, {
-            fixtureId: f.id,
-            expectedRevision: f.revision,
-            selectedEvidenceId: null,
-            reason: "自动流程：仅在已知90分钟结果无冲突时接受；否则保留review",
-          });
+      const a =
+        f.adjudicationId && f.evidenceCount === obs.length
+          ? { id: f.adjudicationId }
+          : prior
+            ? { id: prior.resultRef }
+            : await adjudicate(c, key, {
+                fixtureId: f.id,
+                expectedRevision: f.revision,
+                selectedEvidenceId: null,
+                reason:
+                  "自动流程：仅在已知90分钟结果无冲突时接受；否则保留review",
+              });
       const adjud = await stmt(
         c.db,
         "SELECT * FROM result_adjudications WHERE id=?",
@@ -451,6 +482,14 @@ export async function automationTick(
       c.now - 180000,
       c.now - 180000,
     ).first<any>();
+    const liveRefresh = await stmt(
+      c.db,
+      "SELECT cat.competition,cat.sourceUrl,r.kickoffAt FROM fixture_catalog cat JOIN fixtures f ON f.id=cat.fixtureId JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision WHERE (f.status='LIVE' OR f.status='SCHEDULED' AND r.kickoffAt<=?) AND r.kickoffAt>? AND cat.lastCapturedAt<? AND cat.sourceUrl LIKE 'https://site.api.espn.com/%' AND NOT EXISTS(SELECT 1 FROM source_runs sr WHERE sr.sourceUrl=cat.sourceUrl AND sr.startedAt>?) ORDER BY COALESCE((SELECT MAX(sr.startedAt) FROM source_runs sr WHERE sr.sourceUrl=cat.sourceUrl),cat.lastCapturedAt),r.kickoffAt LIMIT 1",
+      c.now,
+      c.now - 2 * 86400000,
+      c.now - 60000,
+      c.now - 60000,
+    ).first<any>();
     let initialDiscovery = false;
 
     let advanceCursor = 0;
@@ -460,12 +499,38 @@ export async function automationTick(
     ).first<any>();
     let wasUrgent = false;
     let wasWide = false;
+    let wasLive = false;
     try {
       wasUrgent = JSON.parse(state.reason)?.capture?.priority === "URGENT";
       wasWide =
         JSON.parse(state.reason)?.capture?.state === "WIDE_MODEL_DISCOVERY";
+      wasLive = JSON.parse(state.reason)?.capture?.priority === "LIVE";
     } catch {}
-    if (urgent && checked.has(urgent.competition) && !wasUrgent) {
+    if (liveRefresh && !wasLive) {
+      initialDiscovery = true;
+      const providerDay = new URL(liveRefresh.sourceUrl).searchParams.get(
+        "dates",
+      );
+      try {
+        if (!providerDay || !/^\d{8}$/.test(providerDay))
+          throw Error("SOURCE_DAY_UNKNOWN");
+        capture = {
+          ...(await captureESPN(
+            c,
+            liveRefresh.competition,
+            `${providerDay.slice(0, 4)}-${providerDay.slice(4, 6)}-${providerDay.slice(6, 8)}`,
+            fetcher,
+          )),
+          priority: "LIVE",
+        };
+      } catch (e) {
+        capture = {
+          state: "SOURCE_FAILED",
+          reason: String(e),
+          priority: "LIVE",
+        };
+      }
+    } else if (urgent && checked.has(urgent.competition) && !wasUrgent) {
       initialDiscovery = true;
       try {
         capture = {

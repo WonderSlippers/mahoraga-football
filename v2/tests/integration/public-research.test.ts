@@ -10,6 +10,7 @@ import { workerBuild } from "../../scripts/build.mjs";
 import {
   captureESPN,
   automationTick,
+  autoSettle,
 } from "../../apps/api/src/services/automation";
 import { claim, complete } from "../../apps/api/src/services/observations";
 import {
@@ -165,6 +166,24 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       "Unsupported shadow jobs must not poison a valid schedule",
     );
     assert.notEqual(active.items[0].state, "MODEL_FAILED");
+    await stmt(
+      db,
+      "UPDATE jobs SET state='FAILED' WHERE modelId='RECENT_FORM_MARKET80_RESEARCH_V1'",
+    ).run();
+    const failedPrimary = await workspaceSchedule(
+      { ...c, now: Date.now() },
+      new URLSearchParams("view=ACTIVE"),
+    );
+    assert.equal(failedPrimary.items[0].state, "MODEL_FAILED");
+    await stmt(
+      db,
+      "UPDATE jobs SET state='DONE' WHERE modelId='RECENT_FORM_MARKET80_RESEARCH_V1'",
+    ).run();
+    const recoveredPrimary = await workspaceSchedule(
+      { ...c, now: Date.now() },
+      new URLSearchParams("view=ACTIVE"),
+    );
+    assert.equal(recoveredPrimary.items[0].failedJobs, 0);
     assert.equal(active.items[0].dataJson, undefined);
     assert.equal(active.items[0].referenceMarket.raw, undefined);
     await assert.rejects(
@@ -174,6 +193,12 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
     assert.equal(detail.quotes[0].providerUpdatedAt, null);
     assert.equal(detail.models[0].status, "UNSUPPORTED_COMPETITION");
     const hashes = detail.predictions.map((p) => p.predictionHash);
+    const originalQuoteAt = detail.quotes[0].observedAt;
+    const originalTracking = active.items[0].tracking;
+    assert.ok(
+      originalTracking,
+      "Test research direction is actually selected before kickoff",
+    );
     await assert.rejects(
       stmt(
         db,
@@ -192,6 +217,118 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       new URLSearchParams("upcoming=1"),
     );
     assert.equal(schedule.total, 0);
+    const startedClock = { ...c, now: kickoff + 1 };
+    const pending = await workspaceSchedule(
+      startedClock,
+      new URLSearchParams("view=LIVE"),
+    );
+    assert.equal(pending.total, 1);
+    assert.equal(pending.items[0].label, "开赛待确认");
+    assert.equal(pending.items[0].scoreboard.score, null);
+    assert.equal(
+      (
+        await workspaceSchedule(
+          startedClock,
+          new URLSearchParams("status=STARTED&upcoming=1"),
+        )
+      ).total,
+      1,
+    );
+    const numberJobs = (await rows(db, "SELECT id FROM jobs")).length;
+    const liveEvent = structuredClone(event) as any;
+    liveEvent.competitions[0].status = {
+      type: { state: "in", name: "STATUS_IN_PROGRESS" },
+      displayClock: "67:32",
+      period: 2,
+    };
+    liveEvent.competitions[0].competitors[0].score = "2";
+    liveEvent.competitions[0].competitors[1].score = "1";
+    await captureESPN(startedClock, "fifa.friendly", day, async () =>
+      Response.json({ events: [liveEvent] }),
+    );
+    const live = await workspaceSchedule(
+      startedClock,
+      new URLSearchParams("view=LIVE"),
+    );
+    assert.equal(live.total, 1);
+    assert.deepEqual(live.items[0].scoreboard.score, [2, 1]);
+    assert.equal(live.items[0].scoreboard.clock, "67:32");
+    assert.equal(live.items[0].scoreboard.kind, "LIVE_OBSERVATION");
+    assert.equal(
+      live.items[0].tracking.predictionId,
+      originalTracking.predictionId,
+    );
+    assert.equal(live.items[0].tracking.quoteAt, originalTracking.quoteAt);
+    assert.equal(
+      live.items[0].tracking.probability,
+      originalTracking.probability,
+    );
+    assert.equal(live.candidateCounts.research, 0);
+    assert.equal(
+      (await rows(db, "SELECT id FROM jobs")).length,
+      numberJobs,
+      "Live capture must not create late pre-match predictions",
+    );
+    const retained = await comparisonReport(startedClock);
+    assert.equal(retained.currentDirections.length, 0);
+    assert.ok(retained.trackedDirections.length > 0);
+    liveEvent.competitions[0].status = {
+      type: { state: "post", name: "STATUS_FULL_TIME" },
+      period: 2,
+    };
+    const finalClock = { ...c, now: kickoff + 3 * 3600000 };
+    await captureESPN(finalClock, "fifa.friendly", day, async () =>
+      Response.json({ events: [liveEvent] }),
+    );
+    await autoSettle(finalClock);
+    const resultCount = (await rows(db, "SELECT id FROM result_observations"))
+      .length;
+    const adjudicationCount = (
+      await rows(db, "SELECT id FROM result_adjudications")
+    ).length;
+    await captureESPN(finalClock, "fifa.friendly", day, async () =>
+      Response.json({ events: [liveEvent] }),
+    );
+    await autoSettle(finalClock);
+    assert.equal(
+      (await rows(db, "SELECT id FROM result_observations")).length,
+      resultCount,
+      "Unchanged same-provider final scores must not create endless new adjudications",
+    );
+    assert.equal(
+      (await rows(db, "SELECT id FROM result_adjudications")).length,
+      adjudicationCount,
+    );
+    const results = await workspaceSchedule(
+      finalClock,
+      new URLSearchParams("view=RESULTS"),
+    );
+    assert.equal(results.total, 1);
+    assert.equal(
+      (await workspaceSchedule(finalClock, new URLSearchParams("view=ACTIVE")))
+        .total,
+      0,
+    );
+    const followed = await workspaceSchedule(
+      finalClock,
+      new URLSearchParams("view=TRACKED"),
+    );
+    assert.equal(followed.total, 1);
+    assert.equal(followed.items[0].scoreboard.kind, "ACCEPTED_REGULATION");
+    assert.equal(
+      followed.items[0].tracking.predictionId,
+      originalTracking.predictionId,
+    );
+    const finalDetail = await workspaceFixture(
+      finalClock,
+      "espn:fifa.friendly:123456",
+    );
+    assert.equal(finalDetail.quotes[0].observedAt, originalQuoteAt);
+    assert.equal(finalDetail.scoreboard.label, "90分钟已核验");
+    assert.deepEqual(
+      finalDetail.predictions.map((p) => p.predictionHash),
+      hashes,
+    );
     assert.deepEqual(
       (
         await workspaceFixture(

@@ -281,7 +281,7 @@ export async function comparisonReport(
   for (let offset = 0; ; offset += 100) {
     const page = await rows(
       c.db,
-      "SELECT o.*,b.cutoffAt,b.quoteSetId,q.observedAt quoteObservedAt,q.providerUpdatedAt quoteProviderUpdatedAt,q.providerId quoteProviderId,r.fixtureId,r.kickoffAt,f.home,f.away,cat.competition,(SELECT a.state FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) resultState,(SELECT a.regulationJson FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) regulationJson,(SELECT a.id FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) adjudicationId FROM comparison_observations o JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE o.calculatedAt<=? AND o.rowid<=? ORDER BY b.cutoffAt,o.calculatedAt,o.id LIMIT 100 OFFSET ?",
+      "SELECT o.*,b.cutoffAt,b.quoteSetId,q.observedAt quoteObservedAt,q.providerUpdatedAt quoteProviderUpdatedAt,q.providerId quoteProviderId,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,(SELECT a.state FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) resultState,(SELECT a.regulationJson FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) regulationJson,(SELECT a.id FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) adjudicationId FROM comparison_observations o JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE o.calculatedAt<=? AND o.rowid<=? ORDER BY b.cutoffAt,o.calculatedAt,o.id LIMIT 100 OFFSET ?",
       adjudicationSequence,
       adjudicationSequence,
       adjudicationSequence,
@@ -303,7 +303,12 @@ export async function comparisonReport(
     .map((r) => ({ ...r, output: JSON.parse(r.outputJson) }));
   const first = new Map<string, any>();
   const latest = new Map<string, any>();
+  const trackedDirections = new Map<string, any>();
   for (const r of filtered) latest.set(r.fixtureId + "|" + r.methodId, r);
+  for (const r of filtered.filter(
+    (r) => r.state === "DONE" && r.output.actions.length,
+  ))
+    trackedDirections.set(r.fixtureId + "|" + r.methodId, r);
   for (const r of filtered.filter((r) => r.state === "DONE")) {
     const k = r.fixtureId + "|" + r.methodId;
     if (!first.has(k)) first.set(k, r);
@@ -547,7 +552,10 @@ export async function comparisonReport(
     currentDirections: [...latest.values()]
       .filter(
         (r) =>
-          r.kickoffAt > c.now && r.state === "DONE" && r.output.actions.length,
+          r.kickoffAt > c.now &&
+          r.fixtureStatus === "SCHEDULED" &&
+          r.state === "DONE" &&
+          r.output.actions.length,
       )
       .sort(
         (a, b) =>
@@ -556,6 +564,9 @@ export async function comparisonReport(
           +b.methodId.startsWith("V6") - +a.methodId.startsWith("V6") ||
           b.cutoffAt - a.cutoffAt,
       ),
+    trackedDirections: [...trackedDirections.values()].sort(
+      (a, b) => b.kickoffAt - a.kickoffAt,
+    ),
     totalRecords: filtered.length,
     limitations: [
       "公开参考报价；未计手续费和滑点",

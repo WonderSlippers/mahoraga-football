@@ -1,7 +1,37 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { teamName, formatTime, calendarDay } from "../../../packages/display";
+import {
+  teamName,
+  formatTime,
+  calendarDay,
+  formatDate,
+} from "../../../packages/display";
 const pct = (v: any) => (v == null ? "—" : (v * 100).toFixed(1) + "%");
+export function Scoreboard({ value, compact = false }: any) {
+  if (!value?.score && !value?.clock) return null;
+  return (
+    <div className={"fixture-score " + (value.stale ? "stale" : "")}>
+      {!compact && (
+        <b aria-label="来源比分">
+          {value.score?.map((n: any) => n ?? "—").join(" : ") ?? "— : —"}
+        </b>
+      )}
+      <span>
+        {value.clock ? `${value.clock} · ` : ""}
+        {value.label}
+        {value.stale ? " · 上次快照" : ""}
+      </span>
+      <small>
+        采集 {value.observedAt ? formatDate(value.observedAt) : "时间未提供"}
+      </small>
+      {value.stalled && <small>比分与分钟连续未变 · 进展待确认</small>}
+    </div>
+  );
+}
+const directionName = (a: any) =>
+  (({ HOME: "主", DRAW: "平", AWAY: "客", OVER: "大", UNDER: "小" }) as any)[
+    a.selection
+  ] ?? a.selection;
 export function TeamBadge({ name, logo }: any) {
   const [failed, setFailed] = React.useState(false);
   const safe =
@@ -146,7 +176,13 @@ export function FixtureList({ data, onSelect }: any) {
             </div>
           </div>
           <div className="fixture-prices">
-            {f.referenceMarket ? (
+            {f.state === "STARTED" || f.state === "FINISHED" ? (
+              <>
+                <Scoreboard value={f.scoreboard} />
+                {!f.scoreboard?.score && <span>比分尚未取得 · 不填0</span>}
+                <small>赛前报价与预测在详情中继续保留</small>
+              </>
+            ) : f.referenceMarket ? (
               <>
                 <span>主 / 平 / 客 · 公开参考</span>
                 <b>
@@ -185,6 +221,38 @@ export function FixtureList({ data, onSelect }: any) {
             ) : (
               <small>{f.reason}</small>
             )}
+            {f.state !== "CANDIDATE" && f.tracking && (
+              <div className="saved-direction">
+                <b>
+                  赛前研究 · {f.tracking.selectionName} @{" "}
+                  {Number(f.tracking.decimalOdds).toFixed(2)}
+                </b>
+                <small>
+                  冻结概率 {pct(f.tracking.probability)} · EV{" "}
+                  {pct(f.tracking.ev)}
+                </small>
+                <small>首次入选 {formatDate(f.tracking.cutoffAt)}</small>
+              </div>
+            )}
+            {f.parallelDirections?.map((r: any) => (
+              <div className="saved-direction" key={r.id}>
+                <b>
+                  {r.methodId.startsWith("V6") ? "V6赛前" : "旧V2赛前"} ·{" "}
+                  {r.actions
+                    .map(
+                      (a: any) =>
+                        `${({ BROAD_1X2: "广覆盖", FEATURED_BEST_MARKET: "最优玩法", V6_NATIVE: "原生规则" } as any)[a.strategy] ?? a.strategy}：${directionName(a)}${a.lineQ == null ? "" : a.lineQ / 4} @ ${a.odds}`,
+                    )
+                    .join(" / ")}
+                </b>
+                <small>
+                  冻结 {formatDate(r.cutoffAt)} ·{" "}
+                  {r.actions
+                    .map((a: any) => `EV ${pct(a.estimatedEV)}`)
+                    .join(" / ")}
+                </small>
+              </div>
+            ))}
             <small>
               证据完整度 {pct(f.completeness)}
               {f.validation === "LEGACY_NON_PROSPECTIVE" ? " · 历史档案" : ""}

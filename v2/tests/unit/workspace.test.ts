@@ -5,6 +5,7 @@ import {
   rangeStart,
   rowMatches,
   fixtureStatus,
+  fixtureScore,
 } from "../../apps/api/src/services/workspace";
 import { normalizeESPN, espnUrl } from "../../apps/api/src/services/automation";
 import { normalizeJFA } from "../../apps/api/src/services/official";
@@ -200,5 +201,164 @@ test("official cup announcement supplies fixtures without fabricating score or p
   assert.throws(
     () => normalizeJFA(html.replaceAll("2026", "2025")),
     /SOURCE_SEASON_MISMATCH/,
+  );
+});
+
+test("live source scores and minutes are observations; scheduled, missing and AET never become regulation results", () => {
+  const event: any = {
+    id: "123456",
+    date: "2026-10-01T18:00:00Z",
+    competitions: [
+      {
+        status: {
+          type: { state: "in", name: "STATUS_IN_PROGRESS" },
+          displayClock: "63:18",
+          period: 2,
+        },
+        competitors: [
+          {
+            homeAway: "home",
+            score: "0",
+            team: { id: "1", displayName: "Home" },
+          },
+          {
+            homeAway: "away",
+            score: null,
+            team: { id: "2", displayName: "Away" },
+          },
+        ],
+      },
+    ],
+  };
+  const live = normalizeESPN({ events: [event] }, "eng.1", "2026-10-01")[0];
+  assert.equal(live.status, "LIVE");
+  assert.deepEqual(live.score, [0, null]);
+  assert.equal(live.clock, "63:18");
+  assert.equal(live.regulation, null);
+  event.competitions[0].status.type = {
+    state: "pre",
+    name: "STATUS_SCHEDULED",
+  };
+  const pre = normalizeESPN({ events: [event] }, "eng.1", "2026-10-01")[0];
+  assert.equal(pre.score, null);
+  assert.equal(pre.clock, null);
+  event.competitions[0].status.type = {
+    state: "post",
+    name: "STATUS_FINAL_AET",
+  };
+  event.competitions[0].competitors[1].score = "1";
+  const aet = normalizeESPN({ events: [event] }, "eng.1", "2026-10-01")[0];
+  assert.deepEqual(aet.score, [0, 1]);
+  assert.equal(aet.regulation, null);
+});
+
+test("kickoff does not prove a live status; stale live and halftime remain visible with honest labels", () => {
+  const now = Date.parse("2026-10-01T20:00:00Z");
+  const f = { status: "SCHEDULED", kickoffAt: now - 60000 };
+  assert.equal(fixtureStatus(f, now).label, "开赛待确认");
+  assert.equal(
+    fixtureStatus({ ...f, kickoffAt: now - 7 * 3600000 }, now).label,
+    "赛果待确认",
+  );
+  assert.equal(
+    fixtureStatus({ ...f, status: "LIVE", lastCapturedAt: now - 1000 }, now)
+      .label,
+    "进行中",
+  );
+  assert.equal(
+    fixtureStatus({ ...f, status: "LIVE", lastCapturedAt: now - 181000 }, now)
+      .label,
+    "直播待更新",
+  );
+  assert.equal(
+    fixtureStatus(
+      {
+        ...f,
+        status: "LIVE",
+        lastCapturedAt: now - 1000,
+        providerStatus: { type: { name: "STATUS_HALFTIME" } },
+      },
+      now,
+    ).label,
+    "中场",
+  );
+});
+
+test("score projections distinguish source observation, accepted regulation and review without filling missing sides", () => {
+  const now = Date.now();
+  const base = {
+    status: "LIVE",
+    lastCapturedAt: now - 200000,
+    publicData: {
+      score: [0, null],
+      clock: "45:00",
+      scoreObservedAt: now - 200000,
+    },
+  };
+  const live = fixtureScore(base, now);
+  assert.deepEqual(live.score, [0, null]);
+  assert.equal(live.stale, true);
+  assert.equal(live.kind, "LIVE_OBSERVATION");
+  const accepted = fixtureScore(
+    {
+      ...base,
+      status: "FINISHED",
+      resultState: "ACCEPTED_REGULATION",
+      regulationJson: '{"home":2,"away":1}',
+    },
+    now,
+  );
+  assert.deepEqual(accepted.score, [2, 1]);
+  assert.equal(accepted.clock, null);
+  assert.equal(accepted.kind, "ACCEPTED_REGULATION");
+  const review = fixtureScore(
+    { ...base, status: "FINISHED", resultState: "REVIEW" },
+    now,
+  );
+  assert.equal(review.label, "赛果待复核");
+  assert.equal(review.kind, "REVIEW");
+  assert.equal(
+    fixtureScore({ status: "SCHEDULED", publicData: {} }, now).score,
+    null,
+  );
+});
+
+test("a fresh fetch cannot renew a stalled source clock; normal halftime gets its own observation tolerance", () => {
+  const now = Date.now();
+  const live = {
+    status: "LIVE",
+    kickoffAt: now - 3600000,
+    lastCapturedAt: now,
+    publicData: {
+      score: [0, 1],
+      clock: "63:00",
+      progressObservedAt: now - 181000,
+    },
+  };
+  assert.equal(fixtureScore(live, now).stalled, true);
+  assert.equal(fixtureScore(live, now).stale, true);
+  assert.equal(fixtureStatus(live, now).label, "直播待更新");
+  const halftime = {
+    ...live,
+    publicData: {
+      ...live.publicData,
+      clock: "45:00",
+      progressObservedAt: now - 15 * 60000,
+      providerStatus: { type: { name: "STATUS_HALFTIME" } },
+    },
+  };
+  assert.equal(fixtureScore(halftime, now).stalled, false);
+  assert.equal(
+    fixtureScore(
+      {
+        ...halftime,
+        publicData: {
+          ...halftime.publicData,
+          progressObservedAt: now - 26 * 60000,
+        },
+      },
+      now,
+    ).stalled,
+    true,
   );
 });

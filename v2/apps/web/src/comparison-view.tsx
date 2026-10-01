@@ -28,6 +28,7 @@ export function ComparisonPanel({ api, fixture, compact = false }: Props) {
   const [data, setData] = useState<any>(),
     [error, setError] = useState(""),
     [population, setPopulation] = useState("common"),
+    [directionsView, setDirectionsView] = useState("current"),
     [league, setLeague] = useState("ALL");
   const query = new URLSearchParams({
     league,
@@ -98,7 +99,9 @@ export function ComparisonPanel({ api, fixture, compact = false }: Props) {
           (a: any, b: any) =>
             +(b.output.actions.length > 0) - +(a.output.actions.length > 0),
         )
-      : current;
+      : directionsView === "tracked"
+        ? (data?.trackedDirections ?? [])
+        : current;
   return (
     <section
       className="ws-panel comparison-panel"
@@ -300,6 +303,23 @@ export function ComparisonPanel({ api, fixture, compact = false }: Props) {
           </p>
         </>
       )}
+      {!fixture && (
+        <div className="ws-pills" aria-label="模型推荐记录">
+          <button
+            className={directionsView === "current" ? "selected" : "secondary"}
+            onClick={() => setDirectionsView("current")}
+          >
+            赛前方向
+          </button>
+          <button
+            className={directionsView === "tracked" ? "selected" : "secondary"}
+            onClick={() => setDirectionsView("tracked")}
+          >
+            跟踪已保存方向
+          </button>
+          <Link to="/workbench?view=TRACKED">全部推荐跟踪 →</Link>
+        </div>
+      )}
       <div
         className="comparison-records"
         id={!fixture && !compact ? "parallel-directions" : undefined}
@@ -318,10 +338,26 @@ export function ComparisonPanel({ api, fixture, compact = false }: Props) {
                 开赛 {formatDate(r.kickoffAt)} · {r.competition}
               </small>
               <small>
+                {r.fixtureStatus === "FINISHED"
+                  ? "已结束 · 原预测冻结"
+                  : new Date(r.kickoffAt).getTime() <= Date.now()
+                    ? "已到开球时间 · 继续跟踪"
+                    : "赛前研究方向"}
+                {r.resultState === "REVIEW"
+                  ? " · 赛果待复核"
+                  : r.resultState === "ACCEPTED_REGULATION"
+                    ? ` · 90分钟 ${JSON.parse(r.regulationJson).home} : ${JSON.parse(r.regulationJson).away}`
+                    : ""}
+              </small>
+              <small>
                 报价采集 {formatDate(r.quoteObservedAt)} · {r.quoteProviderId}
               </small>
               {Date.now() - new Date(r.quoteObservedAt).getTime() > 600000 && (
-                <small>报价已过10分钟 · 此处保留冻结记录，等待自动刷新</small>
+                <small>
+                  {new Date(r.kickoffAt).getTime() <= Date.now()
+                    ? "赛前报价永久冻结 · 赛后不刷新原预测"
+                    : "报价已过10分钟 · 此处保留冻结记录，等待自动刷新"}
+                </small>
               )}
             </div>
             <div>

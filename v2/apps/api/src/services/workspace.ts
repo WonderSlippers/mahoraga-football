@@ -621,11 +621,21 @@ export function fixtureStatus(f: any, now: number) {
     };
   if (f.status === "FINISHED")
     return { state: "FINISHED", label: "已结束", reason: "赛前预测保持冻结" };
+  if (f.status === "LIVE")
+    return {
+      state: "STARTED",
+      label: fixtureScore({ ...f, publicData: f.publicData ?? f }, now).stale
+        ? "直播待更新"
+        : f.providerStatus?.type?.name === "STATUS_HALFTIME"
+          ? "中场"
+          : "进行中",
+      reason: "来源报告进行中；保留赛前预测，只跟踪比赛进展",
+    };
   if (f.kickoffAt <= now)
     return {
       state: "STARTED",
-      label: "已开赛",
-      reason: "停止赛前候选，不补造预测",
+      label: now - f.kickoffAt > 6 * 3600000 ? "赛果待确认" : "开赛待确认",
+      reason: "已到计划开球时间，来源尚未确认现场状态；不猜比分或比赛分钟",
     };
   if (f.failedJobs > 0)
     return {
@@ -663,15 +673,104 @@ export function fixtureStatus(f: any, now: number) {
     reason: "已有来源观测，尚未形成有效决策",
   };
 }
+export function fixtureScore(f: any, now: number) {
+  const regulation = parse(f.regulationJson);
+  const score =
+    f.resultState === "ACCEPTED_REGULATION" && regulation
+      ? [regulation.home, regulation.away]
+      : (f.publicData?.score ?? f.publicData?.regulation ?? null);
+  const live = f.status === "LIVE";
+  const progressObservedAt = f.publicData?.progressObservedAt ?? null;
+  const progressLimit =
+    f.publicData?.providerStatus?.type?.name === "STATUS_HALFTIME"
+      ? 25 * 60000
+      : 180000;
+  const stalled =
+    live &&
+    progressObservedAt !== null &&
+    now - progressObservedAt > progressLimit;
+  return {
+    score: Array.isArray(score)
+      ? score.map((n: any) =>
+          Number.isInteger(n) && n >= 0 && n <= 99 ? n : null,
+        )
+      : null,
+    kind:
+      f.resultState === "REVIEW"
+        ? "REVIEW"
+        : f.resultState === "ACCEPTED_REGULATION"
+          ? "ACCEPTED_REGULATION"
+          : live
+            ? "LIVE_OBSERVATION"
+            : "REPORTED_RESULT",
+    label:
+      f.resultState === "REVIEW"
+        ? "赛果待复核"
+        : f.resultState === "ACCEPTED_REGULATION"
+          ? "90分钟已核验"
+          : live
+            ? "来源即时比分"
+            : "来源比分 · 未核验90分钟",
+    clock:
+      live && typeof f.publicData?.clock === "string"
+        ? f.publicData.clock
+        : null,
+    observedAt: f.publicData?.scoreObservedAt ?? f.lastCapturedAt ?? null,
+    progressObservedAt,
+    stalled,
+    stale: live && (now - (f.lastCapturedAt ?? 0) > 180000 || stalled),
+  };
+}
 export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   const all = await rows(
     c.db,
-    "SELECT f.*,r.id revisionId,r.kickoffAt,COALESCE(cat.competition,src.competition,'DEMO') competition,COALESCE(cat.season,src.season) season,cat.dataJson,cat.lastCapturedAt,cat.sourceUrl,(SELECT COUNT(*) FROM predictions pr WHERE pr.fixtureRevisionId=r.id) predictionCount,(SELECT COUNT(*) FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId WHERE pr.fixtureRevisionId=r.id AND d.accepted=1) accepted,(SELECT MAX(q.observedAt) FROM quote_sets q JOIN market_definitions m ON m.id=q.marketId WHERE m.fixtureId=f.id) quoteAt,(SELECT COUNT(*) FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId WHERE s.fixtureRevisionId=r.id AND j.state IN('FAILED','BLOCKED') AND j.modelId IN('MARKET_PROPORTIONAL_V1','RECENT_FORM_MARKET80_RESEARCH_V1','DEMO_FIXED_CENTRAL_V1') AND b.cutoffAt=(SELECT MAX(b2.cutoffAt) FROM input_bundles b2 JOIN jobs j2 ON j2.bundleId=b2.id JOIN observation_slots s2 ON s2.id=b2.slotId WHERE s2.fixtureRevisionId=r.id AND j2.modelId=j.modelId)) failedJobs FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id ORDER BY r.kickoffAt,f.id LIMIT 10001",
+    "SELECT f.*,r.id revisionId,r.kickoffAt,COALESCE(cat.competition,src.competition,'DEMO') competition,COALESCE(cat.season,src.season) season,cat.dataJson,cat.lastCapturedAt,cat.sourceUrl,0 predictionCount,0 accepted,NULL quoteAt,0 failedJobs FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id ORDER BY r.kickoffAt,f.id LIMIT 10001",
   );
   if (all.length > 10000) throw Error("SCHEDULE_CAPACITY_REQUIRES_PAGING");
   const frozen = await rows(
     c.db,
-    "SELECT pr.id predictionId,fr.fixtureId,pr.modelId,pr.centralJson,b.cutoffAt,qs.observedAt quoteAt,sel.selection,sel.decimalOdds,e.ev,e.probability,d.accepted,d.reason FROM predictions pr JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision JOIN feature_snapshots fs ON fs.id=pr.featureSnapshotId JOIN input_bundles b ON b.id=fs.bundleId JOIN quote_sets qs ON qs.id=b.quoteSetId JOIN market_expectations e ON e.predictionId=pr.id JOIN quote_selections sel ON sel.id=e.quoteSelectionId JOIN decisions d ON d.expectationId=e.id ORDER BY b.cutoffAt DESC,e.ev DESC LIMIT 6000",
+    "WITH latest AS (SELECT pr.fixtureRevisionId,MAX(b.cutoffAt) cutoffAt FROM predictions pr JOIN feature_snapshots fs INDEXED BY feature_bundle_lookup ON fs.id=pr.featureSnapshotId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=fs.bundleId GROUP BY pr.fixtureRevisionId) SELECT pr.id predictionId,fr.fixtureId,pr.modelId,pr.centralJson,b.cutoffAt,qs.observedAt quoteAt,sel.selection,sel.decimalOdds,e.ev,e.probability,d.accepted,d.reason FROM predictions pr JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN latest lp ON lp.fixtureRevisionId=pr.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision JOIN feature_snapshots fs INDEXED BY feature_bundle_lookup ON fs.id=pr.featureSnapshotId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=fs.bundleId JOIN quote_sets qs ON qs.id=b.quoteSetId JOIN market_expectations e ON e.predictionId=pr.id JOIN quote_selections sel ON sel.id=e.quoteSelectionId JOIN decisions d ON d.expectationId=e.id WHERE lp.cutoffAt=b.cutoffAt ORDER BY b.cutoffAt DESC,e.ev DESC",
+  );
+  const predictionCounts = await rows(
+    c.db,
+    "SELECT fixtureRevisionId,COUNT(*) predictionCount FROM predictions GROUP BY fixtureRevisionId",
+  );
+  const acceptedCounts = await rows(
+    c.db,
+    "SELECT pr.fixtureRevisionId,COUNT(*) accepted FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId WHERE d.accepted=1 GROUP BY pr.fixtureRevisionId",
+  );
+  const quoteTimes = await rows(
+    c.db,
+    "SELECT m.fixtureId,MAX(q.observedAt) quoteAt FROM market_definitions m JOIN quote_sets q ON q.marketId=m.id GROUP BY m.fixtureId",
+  );
+  const byRevision = new Map(
+      predictionCounts.map((r) => [r.fixtureRevisionId, r]),
+    ),
+    byFixtureQuote = new Map(quoteTimes.map((r) => [r.fixtureId, r.quoteAt]));
+  for (const f of all) {
+    Object.assign(f, byRevision.get(f.revisionId) ?? {});
+    f.accepted =
+      acceptedCounts.find((r) => r.fixtureRevisionId === f.revisionId)
+        ?.accepted ?? 0;
+    f.quoteAt = byFixtureQuote.get(f.id) ?? null;
+  }
+  const failures = await rows(
+    c.db,
+    "SELECT fixtureId,COUNT(*) failedJobs FROM (SELECT fr.fixtureId,j.state,b.cutoffAt,MAX(b.cutoffAt) OVER(PARTITION BY fr.fixtureId,j.modelId) latestCutoff FROM jobs j JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision WHERE j.modelId IN('MARKET_PROPORTIONAL_V1','RECENT_FORM_MARKET80_RESEARCH_V1','DEMO_FIXED_CENTRAL_V1')) WHERE cutoffAt=latestCutoff AND state IN('FAILED','BLOCKED') GROUP BY fixtureId",
+  );
+  for (const f of all)
+    f.failedJobs = failures.find((r) => r.fixtureId === f.id)?.failedJobs ?? 0;
+  const tracked = await rows(
+    c.db,
+    "SELECT * FROM (SELECT pr.id predictionId,fr.fixtureId,pr.modelId,b.cutoffAt,qs.observedAt quoteAt,sel.selection,sel.decimalOdds,e.ev,e.probability,ROW_NUMBER() OVER(PARTITION BY fr.fixtureId ORDER BY b.cutoffAt,e.ev DESC,e.id) n FROM predictions pr JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN feature_snapshots fs INDEXED BY feature_bundle_lookup ON fs.id=pr.featureSnapshotId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=fs.bundleId JOIN quote_sets qs ON qs.id=b.quoteSetId JOIN market_expectations e ON e.predictionId=pr.id JOIN quote_selections sel ON sel.id=e.quoteSelectionId JOIN decisions d ON d.expectationId=e.id WHERE pr.modelId='RECENT_FORM_MARKET80_RESEARCH_V1' AND d.accepted=1 AND pr.calculatedAt<fr.kickoffAt AND b.cutoffAt<fr.kickoffAt) WHERE n=1",
+  );
+  const parallel = await rows(
+    c.db,
+    "SELECT * FROM (SELECT o.id,o.methodId,o.outputJson,b.cutoffAt,q.observedAt quoteAt,r.fixtureId,ROW_NUMBER() OVER(PARTITION BY r.fixtureId,o.methodId ORDER BY o.calculatedAt DESC,o.id DESC) n FROM comparison_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE o.state='DONE' AND json_array_length(o.outputJson,'$.actions')>0 AND o.calculatedAt<r.kickoffAt) WHERE n=1",
+  );
+  const results = await rows(
+    c.db,
+    "SELECT a.* FROM result_adjudications a WHERE a.revision=(SELECT MAX(b.revision) FROM result_adjudications b WHERE b.fixtureId=a.fixtureId)",
   );
   const records: any[] = all.map((f) => ({
     ...f,
@@ -684,6 +783,30 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
     strictCandidate: false,
   }));
   for (const f of records) {
+    const adjudication = results.find((r) => r.fixtureId === f.id);
+    f.scoreboard = fixtureScore(
+      {
+        ...f,
+        resultState: adjudication?.state,
+        regulationJson: adjudication?.regulationJson,
+      },
+      c.now,
+    );
+    const original = tracked.find((r) => r.fixtureId === f.id);
+    f.tracking = original
+      ? {
+          ...original,
+          selectionName: ({ HOME: "主胜", DRAW: "平局", AWAY: "客胜" } as any)[
+            original.selection
+          ],
+        }
+      : null;
+    f.parallelDirections = parallel
+      .filter((r) => r.fixtureId === f.id)
+      .map((r) => {
+        const { outputJson, n, ...summary } = r;
+        return { ...summary, actions: parse(outputJson, {}).actions };
+      });
     const current = frozen.filter((r) => r.fixtureId === f.id);
     const latestCutoff = current[0]?.cutoffAt;
     const latest = current.filter((r) => r.cutoffAt === latestCutoff);
@@ -753,6 +876,15 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
       });
   }
   records.sort((a, b) => {
+    const liveA =
+      a.state === "STARTED" &&
+      (a.kickoffAt > c.now - 6 * 3600000 ||
+        (a.status === "LIVE" && a.lastCapturedAt > c.now - 6 * 3600000));
+    const liveB =
+      b.state === "STARTED" &&
+      (b.kickoffAt > c.now - 6 * 3600000 ||
+        (b.status === "LIVE" && b.lastCapturedAt > c.now - 6 * 3600000));
+    if (liveA !== liveB) return liveA ? -1 : 1;
     const af = a.kickoffAt >= c.now,
       bf = b.kickoffAt >= c.now;
     return af !== bf
@@ -768,10 +900,11 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
     league = p.get("league"),
     status = p.get("status"),
     q = p.get("q")?.toLowerCase();
-  const filtered = records.filter(
+  const base = records.filter(
     (f) =>
       f.competition !== "jfa.emperors" &&
       (p.get("upcoming") !== "1" ||
+        ["STARTED", "FINISHED"].includes(status ?? "") ||
         (f.kickoffAt > c.now &&
           !["FINISHED", "CANCELLED", "POSTPONED", "SUSPENDED"].includes(
             f.status,
@@ -799,6 +932,39 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
           .toLowerCase()
           .includes(q)),
   );
+  const live = (f: any) =>
+    f.state === "STARTED" &&
+    (f.kickoffAt > c.now - 6 * 3600000 ||
+      (f.status === "LIVE" && f.lastCapturedAt > c.now - 6 * 3600000));
+  const upcoming = (f: any) => f.kickoffAt > c.now && f.status === "SCHEDULED";
+  const ended = (f: any) =>
+    f.state === "FINISHED" || (f.state === "STARTED" && !live(f));
+  const followed = (f: any) => !!f.tracking || !!f.parallelDirections.length;
+  const view = p.get("view") ?? "ALL";
+  const trackingModel = p.get("trackingModel") ?? "ALL";
+  if (!["ALL", "RESEARCH", "V6", "V2"].includes(trackingModel))
+    throw Error("INVALID_TRACKING_MODEL");
+  const methodMatch = (f: any, method: string) =>
+    method === "ALL"
+      ? followed(f)
+      : method === "RESEARCH"
+        ? !!f.tracking
+        : f.parallelDirections.some((r: any) =>
+            r.methodId.startsWith(method === "V6" ? "V6" : "LEGACY"),
+          );
+  if (
+    !["ALL", "ACTIVE", "UPCOMING", "LIVE", "RESULTS", "TRACKED"].includes(view)
+  )
+    throw Error("INVALID_SCHEDULE_VIEW");
+  const filtered = base.filter(
+    (f) =>
+      view === "ALL" ||
+      (view === "ACTIVE" && (live(f) || upcoming(f))) ||
+      (view === "UPCOMING" && upcoming(f)) ||
+      (view === "LIVE" && live(f)) ||
+      (view === "RESULTS" && ended(f)) ||
+      (view === "TRACKED" && methodMatch(f, trackingModel)),
+  );
   const scheduleView = (f: any) => {
     const { dataJson, publicData, referenceMarket, ...summary } = f;
     const { raw, ...market } = referenceMarket ?? {};
@@ -822,6 +988,20 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
     items: filtered.slice(offset, offset + 40).map(scheduleView),
     total: filtered.length,
     totalKnown: all.length,
+    lifecycleCounts: {
+      ACTIVE: base.filter((f) => live(f) || upcoming(f)).length,
+      UPCOMING: base.filter(upcoming).length,
+      LIVE: base.filter(live).length,
+      RESULTS: base.filter(ended).length,
+      TRACKED: base.filter(followed).length,
+      ALL: base.length,
+    },
+    trackingModelCounts: Object.fromEntries(
+      ["ALL", "RESEARCH", "V6", "V2"].map((m) => [
+        m,
+        base.filter((f) => methodMatch(f, m)).length,
+      ]),
+    ),
     nextOffset: offset + 40 < filtered.length ? offset + 40 : null,
     states: filtered.reduce(
       (a: any, f: any) => ((a[f.state] = (a[f.state] || 0) + 1), a),
@@ -988,6 +1168,19 @@ export async function workspaceFixture(c: Context, id: string) {
     savedQuotes,
     sourceEvidence,
     publicData: parse(base.dataJson, {}),
+    displayState: fixtureStatus(
+      { ...base, ...parse(base.dataJson, {}) },
+      c.now,
+    ),
+    scoreboard: fixtureScore(
+      {
+        ...base,
+        publicData: parse(base.dataJson, {}),
+        resultState: adjudications[0]?.state,
+        regulationJson: adjudications[0]?.regulationJson,
+      },
+      c.now,
+    ),
     referenceMarkets: publicMarkets(parse(base.dataJson, {}).providerOdds),
     predictions,
     quotes,
@@ -1010,7 +1203,8 @@ export async function workspaceFixture(c: Context, id: string) {
         id: "V6_C388",
         label: "V6 configuration 388",
         status: "BLOCKED",
-        reason: "缺少同一实时特征构建、必要xG/历史与训练时间证据",
+        reason:
+          "固定研究已接通；配置388为事后筛选，公开参考报价与严格前瞻资格尚未晋升。具体本场运行结果见并行冻结记录。",
         probabilityKind: "逐方向压力概率，不归一化",
       },
       {

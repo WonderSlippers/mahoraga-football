@@ -9,7 +9,12 @@ import {
 } from "../../../packages/display";
 import { LedgerReview } from "./ledger-review";
 import { CurrentMarkets, MatchContext, QuoteHistory } from "./match-evidence";
-import { FixtureList, Recommendations, TeamBadge } from "./schedule-view";
+import {
+  FixtureList,
+  Recommendations,
+  TeamBadge,
+  Scoreboard,
+} from "./schedule-view";
 import { ComparisonPanel } from "./comparison-view";
 type Client = (path: string, body?: unknown, key?: string) => Promise<any>;
 type Props = { api: Client; mode?: string };
@@ -257,6 +262,12 @@ function CandidateGroup({ title, rows, empty }: any) {
   );
 }
 export function ScheduleWorkspace({ api, mode }: Props) {
+  const [view, setView] = useState(
+    new URLSearchParams(window.location.search).get("view") || "ACTIVE",
+  );
+  const [trackingModel, setTrackingModel] = useState(
+    new URLSearchParams(window.location.search).get("trackingModel") || "ALL",
+  );
   const [period, setPeriod] = useState(
       new URLSearchParams(window.location.search).get("period") || "RECENT",
     ),
@@ -281,7 +292,16 @@ export function ScheduleWorkspace({ api, mode }: Props) {
       ? ""
       : period === "CUSTOM"
         ? custom
-        : day(Date.now() + (period === "TOMORROW" ? 86400000 : 0));
+        : day(
+            Date.now() +
+              (period === "TOMORROW"
+                ? 86400000
+                : period === "YESTERDAY"
+                  ? -86400000
+                  : period === "RECENT"
+                    ? -6 * 86400000
+                    : 0),
+          );
   const to = period === "RECENT" ? day(Date.now() + 6 * 86400000) : from;
   const query = new URLSearchParams({
     from,
@@ -290,13 +310,17 @@ export function ScheduleWorkspace({ api, mode }: Props) {
     status,
     q,
     offset: String(offset),
-    upcoming: period === "ALL" || status === "FINISHED" ? "0" : "1",
+    upcoming: "0",
+    view,
+    trackingModel,
   });
   useEffect(() => {
     const url =
       "/workbench?" +
       new URLSearchParams({
         period,
+        view,
+        trackingModel,
         custom,
         league,
         status,
@@ -305,7 +329,7 @@ export function ScheduleWorkspace({ api, mode }: Props) {
       });
     window.history.replaceState(null, "", url);
     sessionStorage.setItem("v2-schedule-location", url);
-  }, [period, custom, league, status, q, offset]);
+  }, [period, view, trackingModel, custom, league, status, q, offset]);
   const state = useData(api, "/workspace/schedule?" + query);
   const { data, refresh } = state;
   const restoredScroll = useRef(false);
@@ -345,8 +369,8 @@ export function ScheduleWorkspace({ api, mode }: Props) {
     <div className="workspace-page">
       <Head
         n="01 / FIXTURES"
-        title="近期比赛与研究推荐"
-        text="研究推荐、完整赛程与赛前证据。"
+        title="比赛与推荐"
+        text="赛前看方向，开赛追比分，赛后查原预测。"
       >
         <button onClick={manual}>
           立即刷新 <span>↗</span>
@@ -367,27 +391,64 @@ export function ScheduleWorkspace({ api, mode }: Props) {
         <span>自动读取公开来源</span>
         <span>时间：柏林 / Europe/Berlin</span>
       </div>
-      <Recommendations
-        data={data}
-        onSelect={(filter?: string) => {
-          if (typeof filter === "string") change(setStatus)(filter);
-          else
-            sessionStorage.setItem(
-              "v2-schedule-scroll",
-              String(window.scrollY),
-            );
-        }}
-      />
+      <nav className="lifecycle-tabs" aria-label="比赛进程">
+        {[
+          ["ACTIVE", "比赛"],
+          ["UPCOMING", "未开赛"],
+          ["LIVE", "进行中"],
+          ["RESULTS", "近期赛果"],
+          ["TRACKED", "推荐跟踪"],
+          ["ALL", "全部赛事"],
+        ].map(([v, label]) => (
+          <button
+            key={v}
+            aria-pressed={view === v}
+            className={view === v ? "selected" : "secondary"}
+            onClick={() => {
+              setView(v);
+              if (v === "TRACKED" && period === "RECENT") setPeriod("ALL");
+              setStatus("ALL");
+              setOffset(0);
+            }}
+          >
+            {label}
+            <b>{data?.lifecycleCounts?.[v] ?? "—"}</b>
+          </button>
+        ))}
+      </nav>
+      {["ACTIVE", "UPCOMING", "ALL"].includes(view) && (
+        <Recommendations
+          data={data}
+          onSelect={(filter?: string) => {
+            if (typeof filter === "string") {
+              setView("UPCOMING");
+              change(setStatus)(filter);
+            } else
+              sessionStorage.setItem(
+                "v2-schedule-scroll",
+                String(window.scrollY),
+              );
+          }}
+        />
+      )}
       <section className="ws-panel">
         <div className="ws-section-head">
           <h2>
-            赛程目录 <span>{data?.total ?? "—"}</span>
+            {view === "LIVE"
+              ? "进行中与开赛待确认"
+              : view === "RESULTS"
+                ? "已结束与赛果待确认"
+                : view === "TRACKED"
+                  ? "保存的赛前推荐"
+                  : "赛程目录"}{" "}
+            <span>{data?.total ?? "—"}</span>
           </h2>
           <div className="ws-pills" aria-label="赛程日期范围">
             {[
               ["TODAY", "今日"],
+              ["YESTERDAY", "昨日"],
               ["TOMORROW", "明日"],
-              ["RECENT", "近七日"],
+              ["RECENT", "近期"],
               ["ALL", "所有已知"],
               ["CUSTOM", "指定日期"],
             ].map(([v, l]) => (
@@ -404,7 +465,44 @@ export function ScheduleWorkspace({ api, mode }: Props) {
             ))}
           </div>
         </div>
-        <details className="schedule-filters">
+        <p className="lifecycle-description">
+          {view === "TRACKED"
+            ? "市场/近期赛况首次入选，以及V6、旧V2保存的赛前方向；开赛和结束后继续保留。研究记录不是实际票据。"
+            : view === "LIVE"
+              ? "进行中比赛与已到开球时间、等待来源确认的比赛。比分和分钟来自来源，不按电脑时间推算。"
+              : view === "RESULTS"
+                ? "最近结束的比赛和仍待确认的赛果；只核验90分钟结果，不将加时或点球混入结算。"
+                : "进行中的比赛优先，接着是未开赛赛程。结束的比赛可在“近期赛果”查看。"}{" "}
+          {period === "RECENT" ? `${from} 至 ${to} · 柏林日期` : ""}
+        </p>
+        {view === "TRACKED" && (
+          <div className="tracking-model-tabs ws-pills" aria-label="推荐算法">
+            {[
+              ["ALL", "全部算法"],
+              ["V6", "V6 配置388"],
+              ["V2", "9月20日 V2"],
+              ["RESEARCH", "市场 / 近期赛况"],
+            ].map(([id, label]) => (
+              <button
+                key={id}
+                className={trackingModel === id ? "selected" : "secondary"}
+                aria-pressed={trackingModel === id}
+                onClick={() => {
+                  setTrackingModel(id);
+                  setOffset(0);
+                }}
+              >
+                {label} · {data?.trackingModelCounts?.[id] ?? "—"}
+              </button>
+            ))}
+          </div>
+        )}
+        <details
+          className="schedule-filters"
+          open={
+            period === "CUSTOM" || league !== "ALL" || status !== "ALL" || !!q
+          }
+        >
           <summary>
             筛选联赛、状态和球队{" "}
             {league !== "ALL" || status !== "ALL" || q ? "· 已筛选" : ""}
@@ -437,7 +535,10 @@ export function ScheduleWorkspace({ api, mode }: Props) {
             <Select
               label="赛程状态"
               value={status}
-              onChange={change(setStatus)}
+              onChange={(v: string) => {
+                setView("ALL");
+                change(setStatus)(v);
+              }}
               values={[
                 ["ALL", "全部状态"],
                 ["CANDIDATE", "候选"],
@@ -472,8 +573,21 @@ export function ScheduleWorkspace({ api, mode }: Props) {
           <div className="ws-empty">
             <strong>本筛选范围没有已载入比赛</strong>
             <p>
-              这仅说明当前来源/范围没有记录，不代表现实中没有比赛。可查看“所有已知”或来源读取状态。
+              这仅说明当前来源/范围没有记录，不代表现实中没有比赛。可清除筛选、查看所有已知日期或来源读取状态。
             </p>
+            <button
+              className="secondary"
+              onClick={() => {
+                setView("ALL");
+                setPeriod("ALL");
+                setLeague("ALL");
+                setStatus("ALL");
+                setQ("");
+                setOffset(0);
+              }}
+            >
+              显示全部已知比赛
+            </button>
             <Link to="/system">查看数据运行状态 →</Link>
           </div>
         )}
@@ -535,7 +649,7 @@ export function FixtureWorkspace({ api }: Props) {
       <Head
         n="MATCH / EVIDENCE"
         title="比赛研究"
-        text={`${data.competitionName || "赛事"} · ${fmt(f.kickoffAt)} · ${f.status === "FINISHED" ? "已结束" : f.status === "LIVE" ? "进行中" : f.status === "POSTPONED" ? "延期" : "赛程观察"}`}
+        text={`${data.competitionName || "赛事"} · ${fmt(f.kickoffAt)} · ${data.displayState?.label ?? "赛程观察"}`}
       />
       <LoadState {...state} />
       <section className="ws-match-hero">
@@ -544,13 +658,18 @@ export function FixtureWorkspace({ api }: Props) {
           <h2>{teamName(f.home, f.competition || f.leagueCode)}</h2>
         </div>
         <div className="ws-match-middle">
-          <span>REGULATION / 90′</span>
+          <span>
+            {data.scoreboard?.kind === "ACCEPTED_REGULATION"
+              ? "REGULATION / 90′"
+              : f.status === "LIVE"
+                ? "比赛进展"
+                : data.scoreboard?.score
+                  ? "来源终场比分"
+                  : "开球时间与比分"}
+          </span>
           <strong>
-            {data.adjudications[0]?.regulationJson
-              ? (() => {
-                  const s = JSON.parse(data.adjudications[0].regulationJson);
-                  return `${s.home} : ${s.away}`;
-                })()
+            {data.scoreboard?.score
+              ? data.scoreboard.score.map((n: any) => n ?? "—").join(" : ")
               : data.archivedScore?.length === 1
                 ? data.archivedScore[0]
                 : f.status === "FINISHED"
@@ -558,6 +677,9 @@ export function FixtureWorkspace({ api }: Props) {
                   : "VS"}
           </strong>
           <small>{fmt(f.kickoffAt)}</small>
+          {(data.scoreboard?.score || f.status === "LIVE") && (
+            <Scoreboard value={data.scoreboard} compact />
+          )}
           {!data.adjudications.length && data.archivedScore?.length > 0 && (
             <small>
               {data.archivedScore.length === 1

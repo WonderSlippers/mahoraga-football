@@ -131,3 +131,50 @@ V6配置388真实归档250行由原函数检查；V7固定融合真实共同115�
 旧HEAD、dirty diff、5173三层PID/命令均一致；本阶段五个旧任务文件修改时点和基线动作比较均一致。相对更早基线仍3同2异（两变更在本轮之前），不抹去此前纠错。证据 legacy-before/after.json、current-phase-task-protection.json。没开旧D1、没调用旧HTTP、没写旧代码/任务、没接管旧入口；不主张阻止旧站自身原有写入或完成系统级写审计。
 
 新证据包：聊天根 `outputs/parallel-models-20261001`，含5份持续文档、启动说明、固定清单、命令/失败历史、实际浏览器PNG与运行/保护JSON、SHA交付清单。不包含令牌、数据库或模型权重。未完成项见 BLOCKERS.md，不能声称完美、已验证盈利或自动切换完成。
+
+## 2026-10-01：开赛后不消失与推荐跟踪（最终验收）
+
+范围：实际旧前端/API对照、比赛生命周期导航、来源比分/分钟、冻结方向、直播优先刷新、重复赛果、人工更正后自动结算、直接阻塞页面的查询性能。保留既有核心、模型封存和旧站边界。命令在v2目录执行；本节覆盖此前本轮“验收进行中”的状态。
+
+|验证|实际命令|最终结果|证据（.runtime-v2/lifecycle）|
+|---|---|---|---|
+|类型/格式/边界|`node scripts/verify-lifecycle.mjs check`|退出0；边界字符串检查不是模型验证|check-check.json/.log|
+|单元|`node scripts/verify-lifecycle.mjs unit`|63/63，退出0，0跳过|check-unit.json/.log|
+|完整D1集成|`node scripts/verify-lifecycle.mjs integration`|52/52，退出0，0跳过；最后完成21:50:58 UTC|check-integration.json/.log|
+|最终变更专项|`node scripts/verify-lifecycle.mjs targeted`|9/9，退出0；已包含于完整D1，不重复计数|check-targeted.json/.log|
+|离线端到端|`node scripts/verify-lifecycle.mjs e2e`|3/3，退出0；真实Python领取/D1/票据/结算/更正/重启，数据明确DEMO|check-e2e.json/.log|
+|封存模型历史parity|`node scripts/verify-lifecycle.mjs model`|6/6，退出0；原V6 250行、V7原共同历史样本与篡改/缺输入/固定变体检查|check-model.json/.log|
+|构建|`node scripts/verify-lifecycle.mjs build`|退出0|check-build.json/.log|
+|实际研究网站浏览器|`node scripts/verify-lifecycle.mjs browser`|14项检查通过，六页面×1440/390共12页面检查，应用错误0，退出0|check-browser.json/.log、browser-report.json、真实PNG|
+|自有数据保留|`.venv/Scripts/python.exe .runtime-v2/lifecycle/preserve.py after`|退出0；原行hash不变、两库quick_check=ok、4封存执行文件不变|own-preservation.json|
+|旧站连续性|`pwsh -NoProfile -File .runtime-v2/lifecycle/protect.ps1`|退出1：原旧PID在机器重启后不存在；不得标PASS|legacy-before/after.json、resumed-environment.json、legacy-continuity-audit.json|
+
+共124项不同软件测试通过（63+52+3+6），专项9为重复验证。14项实际浏览器检查单列，12页面不是新增单元测试。新增集成实际运行D1和Python，不以源码字符串、跳过、合成收益充当原模型验证；封存模型历史一致性不等于实时输入充分或未来盈利。
+
+核心行为证据：开始时实际14场已开赛却被upcoming与STARTED相互过滤为0（before-live.json）；修复后显式进行中/赛果/已保存方向可达、刷新仍保留URL。D1控制时钟跨开赛/终场，原prediction id/概率/quoteAt和输出hash不变，后来的失败/无行动不抹去原方向。真实浏览器两尺寸亦核对同场冻结id；实际比分与分钟来自公开来源，不按计算时间推演。最终数量随比赛状态更新，不把截图的某一时刻数量当永久指标。
+
+比分缺失不填0；赛前来源0不显示成直播比分；终场加时不能冒充90分钟。重复来源原始证据继续追加但不反复制造相同规范赛果；已更正的人工裁定不会被旧自动receipt覆盖，未新增错误结算/余额。直播刷新保留未变比分/时钟的首次进展时间，新采集时间不能掩盖停滞，半场使用独立容忍时间。
+
+实际截图：schedule、match、history、ledger、models、runtime各1440/390；另有live、results、tracked及live-viewport两尺寸。全部来自实际独立研究站，无拦截模拟API或向生产库注入合成比赛。手机尺寸与本机LAN入口已测，实体手机、外网/公网、长期断网休眠恢复未验收。
+
+### 失败记录保留
+
+|失败|原因与处理|最终验证|
+|---|---|---|
+|专项首轮9项2失败|测试错误字段outputSha256，实际为outputHash；修正字段与多余投影|最终9/9；check-history保留原结果|
+|浏览器赛程超时|旧逐行相关查询拖慢真实大库；聚合读取、每场最新cutoff及覆盖索引直接修复|真实页面14检查通过；原slow-query证据保留|
+|浏览器动态数量比较失败|比赛在两次读取间终场，跨时刻数量断言错误；改为各快照状态条件和实际渲染核对|实际重跑通过，动态来源失败JSON保留|
+|浏览器导航load超时|外部队徽加载/运行器同时繁忙；等待DOM及实际页面数据，不等待无关外部资源|实际页面截图重拍，不沿用未渲染旧页面|
+|两次完整集成51/52|Windows workerd启动std::terminate、Socket other side closed；过程保留，未标全过|机器重启后完整52/52，最终专项9/9；长期运行稳定仍未证明|
+|新读取索引首次bootstrap退出1|D1.exec逐行执行，SQL注释造成失败；删除注释，不改模型或财务表|research及demo真实bootstrap退出0；只写独立两库|
+|旧保护检查退出1|21:21:52 UTC机器重启；旧站原任务恢复PID9036，原三层PID已消失|如实保留非连续结果；未操作旧进程/任务|
+
+失败/重跑命令、退出码、测试数量与时间在check-history逐项保存；部分初始过程只有原工具输出，不补造日志。查询原生SQLite耗时改善不冒充HTTP长期SLO。重复检查不增加测试总数。
+
+### 保留与交付
+
+原12559条研究预测、5997条并行模型记录、705条研究导入档案，以及DEMO原4预测和所有原票/账目/导入记录逐行hash均不变，允许正常后台追加。保存原行hash的私有大文件不对外打包；只交小型保留结论。两库quick_check=ok，4个封存执行文件字节不变。
+
+旧HEAD/diff/status未变；本轮前后五任务文件修改时间和相对早基线的动作比较结果未变（仍3同2异，两次动作变更早于本轮）。PID连续性明确为false，不能照搬上节PID全同的历史结论。此工作没有旧HTTP请求、旧D1连接、旧任务/进程修改、push、部署或切换。证据是源码/任务元信息比较和操作范围，没有声称系统级数据库写入审计或阻止旧站自主写入。
+
+最终可审查包在聊天根outputs/lifecycle-20261001：本阶段文档、真实截图、当前代码/运行身份、测试与失败历史、旧保护/自有记录保留、文件SHA清单；无令牌/数据库/权重。旧功能总34，22完整、9部分、3用户主动退役，新增生命周期跟踪。本轮解决开球后不可见；自动纸面策略、完整事件/动态统计、独立直播交叉核验、V7实时、亚洲盘/大小球独立EV和成熟公平样本仍见USABILITY-GAPS.md，未完成不得宣称完美。

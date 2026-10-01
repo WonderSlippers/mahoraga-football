@@ -1754,6 +1754,76 @@ button.secondary {
 .fixture-list {
   margin-top: 12px;
 }
+.lifecycle-tabs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+.lifecycle-tabs button {
+  min-height: 44px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+.lifecycle-tabs button b {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.72;
+}
+.lifecycle-tabs button[aria-pressed="true"] {
+  background: var(--ws-accent);
+  color: var(--ws-bg);
+}
+.lifecycle-description {
+  color: var(--ws-muted);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 8px 0 12px;
+}
+.fixture-score {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.fixture-score > b {
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 2px;
+}
+.fixture-score > span {
+  font-size: 12px;
+  color: var(--ws-muted);
+}
+.fixture-score.stale > b {
+  opacity: 0.65;
+}
+.saved-direction {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 8px;
+  border-left: 2px solid var(--ws-line);
+  margin: 5px 0;
+}
+.saved-direction > b {
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 700px) {
+  .lifecycle-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .lifecycle-tabs button {
+    padding: 8px 3px;
+    font-size: 12px;
+    gap: 5px;
+  }
+  .fixture-judgment .saved-direction small {
+    display: block;
+  }
+}
 .fixture-card {
   display: grid;
   grid-template-columns:
