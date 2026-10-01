@@ -339,6 +339,7 @@ export default {
           return ok(await workspaceMetadata(env.DB));
         if (path === "/api/v2/workspace/status")
           return ok({
+            leagues: (await workspaceMetadata(env.DB)).leagues,
             automation: await rows(env.DB, "SELECT * FROM automation_state"),
             sources: await rows(
               env.DB,

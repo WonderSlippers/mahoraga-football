@@ -56,6 +56,18 @@ function App() {
   }, [theme]);
   const research = mode === "LOCAL_RESEARCH";
   useEffect(() => {
+    if (
+      logged &&
+      !research &&
+      window.location.port === "5273" &&
+      ["/", "/workbench"].includes(location.pathname) &&
+      !new URLSearchParams(location.search).has("offline")
+    )
+      window.location.replace(
+        "http://127.0.0.1:5274" + location.pathname + location.search,
+      );
+  }, [logged, research, location.pathname, location.search]);
+  useEffect(() => {
     document.title = "魔虚罗 2.0 · " + (research ? "真实研究" : "DEMO");
   }, [research]);
   const connect = () => {
@@ -99,11 +111,11 @@ function App() {
           {location.pathname === "/archives" ||
           location.pathname === "/history" ||
           location.pathname === "/legacy"
-            ? "LEGACY_IMPORT · 原始历史档案"
+            ? "历史档案"
             : location.pathname === "/reported"
-              ? "USER_REPORTED · 手工声明"
+              ? "历史记录"
               : research
-                ? "LOCAL RESEARCH · 真实只读来源"
+                ? "真实研究"
                 : "DEMO · 合成数据"}
         </span>
         <small>本地研究工作台 / 不连接真实投注账户</small>
@@ -124,7 +136,7 @@ function App() {
         <div className="shell">
           <nav>
             <p className="navtitle">研究流程</p>
-            <NavLink to="/workbench">
+            <NavLink to={research ? "/workbench" : "/workbench?offline=1"}>
               01 完整赛程 <span>↗</span>
             </NavLink>
             <NavLink to="/history">
@@ -140,10 +152,7 @@ function App() {
               05 数据运行状态 <span>↗</span>
             </NavLink>
             <NavLink to="/legacy">
-              06 Legacy只读 <span>↗</span>
-            </NavLink>
-            <NavLink to="/reported">
-              手工成交声明 <span>↗</span>
+              06 旧档案与设置 <span>↗</span>
             </NavLink>
             <div className="navnote">
               {research ? "真实研究独立数据库" : "DEMO 专用数据库"}
@@ -155,7 +164,7 @@ function App() {
               <a
                 href={
                   research
-                    ? "http://127.0.0.1:5273/workbench"
+                    ? "http://127.0.0.1:5273/workbench?offline=1"
                     : "http://127.0.0.1:5274/workbench"
                 }
               >
@@ -202,7 +211,10 @@ function App() {
               <Route path="/sources" element={<Sources />} />
               <Route path="/system-details" element={<System />} />
               <Route path="/archives" element={<Archives />} />
-              <Route path="/reported" element={<Reported />} />
+              <Route
+                path="/reported"
+                element={<HistoryWorkspace api={api} mode={mode} ledger />}
+              />
               <Route
                 path="*"
                 element={<ScheduleWorkspace api={api} mode={mode} />}
@@ -1102,146 +1114,6 @@ function ResearchDetail() {
           ))}
         </>
       )}
-    </>
-  );
-}
-function Reported() {
-  const { data, error, refresh, setError, loadStatus } = useLoad(() =>
-    api("/reported-trades"),
-  );
-  const empty = {
-    account: "个人手工记录",
-    externalKey: "",
-    stake: "",
-    gross: "",
-    currency: "EUR",
-    description: "",
-    evidenceNote: "",
-    reason: "",
-    expectedRevision: 0,
-  };
-  const [form, setForm] = useState(empty),
-    [busy, setBusy] = useState(false);
-  const [history, setHistory] = useState<any>(null);
-  const toAtoms = (s: string) => {
-    if (!/^\d+(?:\.\d{1,6})?$/.test(s)) throw Error("金额格式无效");
-    const [a, b = ""] = s.split(".");
-    return (BigInt(a) * 1000000n + BigInt(b.padEnd(6, "0"))).toString();
-  };
-  const toUnits = (s: string) => {
-    const n = BigInt(s);
-    return `${n / 1000000n}.${(n % 1000000n).toString().padStart(6, "0")}`.replace(
-      /\.?0+$/,
-      "",
-    );
-  };
-  const fields = [
-    ["account", "独立账户名称"],
-    ["externalKey", "原票编号"],
-    ["stake", "声明投入"],
-    ["gross", "声明实际返还（未结留空）"],
-    ["currency", "币种"],
-    ["description", "成交说明"],
-    ["evidenceNote", "成交凭据说明"],
-    ["reason", "登记或更正原因"],
-  ] as const;
-  return (
-    <>
-      <p className="eyebrow">USER REPORTED / SEPARATE RECORDS</p>
-      <h1>手工成交声明</h1>
-      {loadStatus}
-      <div className="callout">
-        记录由你提供的成交与返还声明，不执行投注或付款。不写纸面余额，不参与模型验证；与历史模拟账本分开。更正只追加版本。
-      </div>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setBusy(true);
-          setError("");
-          try {
-            await api("/reported-trades", {
-              account: form.account,
-              externalKey: form.externalKey,
-              expectedRevision: form.expectedRevision,
-              stakeAtoms: toAtoms(form.stake),
-              grossClaimAtoms: form.gross === "" ? null : toAtoms(form.gross),
-              currency: form.currency,
-              description: form.description,
-              evidenceNote: form.evidenceNote,
-              reason: form.reason,
-            });
-            setForm(empty);
-            await refresh();
-          } catch (e) {
-            setError(String(e));
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {fields.map(([key, label]) => (
-          <label key={key}>
-            {label}
-            <input
-              aria-label={label}
-              value={form[key]}
-              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-            />
-          </label>
-        ))}
-        <p>服务器版本：{form.expectedRevision}</p>
-        <button disabled={busy}>保存独立声明</button>
-      </form>
-      <p role="alert">{error}</p>
-      {data?.map((r: any) => (
-        <article key={r.id}>
-          <h2>
-            {r.account} · {r.externalKey}
-          </h2>
-          <span className="badge">USER_REPORTED · revision {r.revision}</span>
-          <p>
-            声明投入 {toUnits(r.stakeAtoms)} {r.currency} · 声明返还{" "}
-            {r.grossClaimAtoms === null
-              ? "未结/未知"
-              : toUnits(r.grossClaimAtoms) + " " + r.currency}
-          </p>
-          <p>{r.description}</p>
-          <p>凭据：{r.evidenceNote}</p>
-          <button
-            className="secondary"
-            onClick={() => {
-              setForm({
-                account: r.account,
-                externalKey: r.externalKey,
-                stake: toUnits(r.stakeAtoms),
-                gross:
-                  r.grossClaimAtoms === null ? "" : toUnits(r.grossClaimAtoms),
-                currency: r.currency,
-                description: r.description,
-                evidenceNote: r.evidenceNote,
-                reason: "",
-                expectedRevision: r.revision,
-              });
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          >
-            追加更正
-          </button>
-        </article>
-      ))}
-      {data?.map((r: any) => (
-        <button
-          className="secondary"
-          key={r.id}
-          onClick={async () =>
-            setHistory(await api("/reported-trades/" + r.id + "/history"))
-          }
-        >
-          查看声明历史：{r.externalKey}
-        </button>
-      ))}
-      {history && <pre>{JSON.stringify(history, null, 2)}</pre>}
-      {data?.length === 0 && <p>尚无用户声明记录。</p>}
     </>
   );
 }

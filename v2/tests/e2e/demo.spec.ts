@@ -59,7 +59,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   await stop();
 });
-test("A63 A65 A71 A74 A75 browser import, manual claim, evaluation and mobile routes", async ({
+test("A65 A71 A74 A75 browser import, retired manual UI, evaluation and mobile routes", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -112,31 +112,14 @@ test("A63 A65 A71 A74 A75 browser import, manual claim, evaluation and mobile ro
   });
   await page.goto("/reported");
   await expect(
-    page.getByRole("heading", { name: "手工成交声明", exact: true }),
+    page.getByRole("heading", { name: "账本与复盘.", exact: true }),
   ).toBeVisible();
-  for (const [label, value] of [
-    ["独立账户名称", "DEMO ONLY"],
-    ["原票编号", "DEMO-claim"],
-    ["声明投入", "20.000001"],
-    ["声明实际返还（未结留空）", "30.000002"],
-    ["币种", "EUR"],
-    ["成交说明", "DEMO acceptance only, no actual trade"],
-    ["成交凭据说明", "SYNTHETIC TEST"],
-    ["登记或更正原因", "Initial DEMO test"],
-  ])
-    await page.getByLabel(label, { exact: true }).fill(value);
-  await page.getByRole("button", { name: "保存独立声明" }).click();
-  await expect(page.getByText("USER_REPORTED · revision 1")).toBeVisible();
-  await page.getByRole("button", { name: "追加更正", exact: true }).click();
-  await expect(page.getByLabel("声明投入", { exact: true })).toHaveValue(
-    "20.000001",
+  await expect(
+    page.getByRole("heading", { name: "手工成交声明", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "保存独立声明" })).toHaveCount(
+    0,
   );
-  await page.getByLabel("声明实际返还（未结留空）", { exact: true }).fill("0");
-  await page
-    .getByLabel("登记或更正原因", { exact: true })
-    .fill("Correct synthetic test claim");
-  await page.getByRole("button", { name: "保存独立声明" }).click();
-  await expect(page.getByText("USER_REPORTED · revision 2")).toBeVisible();
   await page.goto("/registry");
   await page.getByRole("button", { name: "冻结当前评估样本" }).click();
   await expect(

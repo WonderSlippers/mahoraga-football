@@ -54,7 +54,12 @@ export function engine(
             /^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9_.]{3,50}\/scoreboard$/.test(
               u.pathname,
             ) &&
-            /^\?dates=20\d{6}&limit=100$/.test(u.search))
+            /^\?dates=20\d{6}&limit=100$/.test(u.search)) ||
+          (u.host === "site.api.espn.com" &&
+            /^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9_.]{3,50}\/summary$/.test(
+              u.pathname,
+            ) &&
+            /^\?event=\d{3,30}$/.test(u.search))
         )
       )
         return new Response("NETWORK_DISABLED", { status: 403 });

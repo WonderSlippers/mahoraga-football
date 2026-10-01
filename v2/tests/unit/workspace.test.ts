@@ -68,7 +68,7 @@ test("mixed currencies disable aggregate money; reopened tickets remain open", (
     1,
   );
 });
-test("date and multidimensional filters keep unknown score distinct and use Shanghai calendar", () => {
+test("date and multidimensional filters keep unknown score distinct and use displayed Berlin calendar", () => {
   const now = Date.parse("2026-10-01T12:00:00+08:00");
   assert.equal(
     rowMatches(
@@ -88,11 +88,11 @@ test("date and multidimensional filters keep unknown score distinct and use Shan
   );
   assert.equal(
     new Date(rangeStart("MONTH", now)).toISOString(),
-    "2026-09-30T16:00:00.000Z",
+    "2026-09-30T22:00:00.000Z",
   );
   assert.equal(
     new Date(rangeStart("SEASON", now)).toISOString(),
-    "2026-06-30T16:00:00.000Z",
+    "2026-06-30T22:00:00.000Z",
   );
   assert.equal(
     rowMatches(
@@ -121,7 +121,7 @@ test("all fixture states include rejected, stale, failed and post-match without 
   assert.equal(fixtureStatus({ ...f, quoteAt: 9000 }, now).state, "OBSERVING");
   assert.equal(
     fixtureStatus({ ...f, predictionCount: 1 }, now).state,
-    "NO_EDGE",
+    "OBSERVING",
   );
   assert.equal(fixtureStatus({ ...f, accepted: 1 }, now).state, "CANDIDATE");
   assert.equal(fixtureStatus({ ...f, quoteAt: 1 }, 900000).state, "STARTED");

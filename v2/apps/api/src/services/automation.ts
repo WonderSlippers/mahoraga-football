@@ -10,6 +10,7 @@ import {
   evidenceChunks,
 } from "../../../../packages/sources/index";
 import { canonical, sha } from "../../../../packages/contracts/index";
+import { captureSummary, freezePublicResearch } from "./public-research";
 
 export function espnUrl(league: string, day: string) {
   if (!/^[a-z0-9_.]{3,50}$/.test(league) || !/^\d{4}-\d{2}-\d{2}$/.test(day))
@@ -63,11 +64,25 @@ export function normalizeESPN(j: any, league: string, day: string) {
         homeId: String(home.team.id),
         awayId: String(away.team.id),
         kickoffAt,
-        status: state === "post" ? "FINISHED" : "SCHEDULED",
+        status: /POSTPONED|DELAYED/.test(name)
+          ? "POSTPONED"
+          : /CANCEL/.test(name)
+            ? "CANCELLED"
+            : /SUSPEND|ABANDON/.test(name)
+              ? "SUSPENDED"
+              : state === "post"
+                ? "FINISHED"
+                : state === "in"
+                  ? "LIVE"
+                  : "SCHEDULED",
         regulation: finished && scores.every((v) => v !== null) ? scores : null,
         sourceEventId: String(e.id),
         requestedDay: day,
-        providerOdds: co.odds ?? [],
+        providerOdds: Array.isArray(co.odds)
+          ? co.odds.filter((o: any) => o && typeof o === "object")
+          : [],
+        providerStatus: st ?? null,
+        venue: co.venue ?? null,
         statistics: {
           home: home.statistics ?? [],
           away: away.statistics ?? [],
@@ -103,6 +118,14 @@ export async function captureESPN(
     provider = official ? "JFA_OFFICIAL_FIXTURE_V1" : "ESPN_PUBLIC_V1";
   const source = official ? EMPERORS_CUP_SOURCE : espnUrl(league, day),
     run = uid();
+  const retry = await stmt(
+    c.db,
+    "SELECT state,reason,nextAttemptAt FROM source_runs WHERE providerId=? AND (sourceUrl=? OR reason LIKE '%SOURCE_HTTP_429%') ORDER BY startedAt DESC LIMIT 1",
+    provider,
+    source,
+  ).first<any>();
+  if (retry?.state === "FAILED" && retry.nextAttemptAt > c.now)
+    return { state: "BACKOFF", reason: retry.reason, count: 0 };
   await stmt(
     c.db,
     "INSERT INTO source_runs VALUES(?,?,?,?,?,?,NULL,'CAPTURING',NULL,NULL,0,?)",
@@ -143,6 +166,7 @@ export async function captureESPN(
     const data = official
       ? normalizeJFA(text)
       : normalizeESPN(JSON.parse(text.replace(/^\uFEFF/, "")), league, day);
+    let detailBudget = 4;
     for (const f of data) {
       const old = await stmt(
         c.db,
@@ -151,6 +175,32 @@ export async function captureESPN(
       ).first<any>();
       if (old && (old.home !== f.home || old.away !== f.away))
         throw Error("SOURCE_IDENTITY_REVIEW");
+      const previousCatalog = await stmt(
+        c.db,
+        "SELECT dataJson FROM fixture_catalog WHERE fixtureId=?",
+        f.id,
+      ).first<any>();
+      const previousDetail = previousCatalog
+        ? JSON.parse(previousCatalog.dataJson)?.detail
+        : null;
+      if (previousDetail) (f as any).detail = previousDetail;
+      if (
+        !official &&
+        f.status === "SCHEDULED" &&
+        f.kickoffAt > observed &&
+        f.kickoffAt - observed < 7 * 86400000 &&
+        detailBudget > 0 &&
+        (!previousDetail || observed - previousDetail.observedAt > 1800000)
+      ) {
+        detailBudget--;
+        try {
+          (f as any).detail = await captureSummary(c, f, fetcher);
+          if (!(f as any).providerOdds.length)
+            (f as any).providerOdds = (f as any).detail.summaryOdds;
+        } catch (e) {
+          (f as any).detailError = String(e).slice(0, 160);
+        }
+      }
       const queries: D1PreparedStatement[] = [];
       if (!old) {
         queries.push(
@@ -229,6 +279,7 @@ export async function captureESPN(
           ),
         );
       await atomic(c.db, queries);
+      if (!official) await freezePublicResearch(c, f, snapshot, observed);
     }
     await stmt(
       c.db,
@@ -369,25 +420,71 @@ export async function automationTick(
     );
     const checked = new Set(attempted.map((r) => r.competition));
     const missing = leagues.filter((l: any) => !checked.has(l.code));
+    const urgent = await stmt(
+      c.db,
+      "SELECT c.competition,c.sourceUrl,r.kickoffAt FROM fixture_catalog c JOIN fixtures f ON f.id=c.fixtureId JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision WHERE f.status='SCHEDULED' AND r.kickoffAt>? AND r.kickoffAt<? AND c.lastCapturedAt<? AND c.sourceUrl LIKE 'https://site.api.espn.com/%' AND NOT EXISTS(SELECT 1 FROM source_runs sr WHERE sr.providerId='ESPN_PUBLIC_V1' AND sr.sourceUrl=c.sourceUrl AND sr.startedAt>?) ORDER BY c.lastCapturedAt,r.kickoffAt LIMIT 1",
+      c.now,
+      c.now + 36 * 3600000,
+      c.now - 180000,
+      c.now - 180000,
+    ).first<any>();
     let initialDiscovery = false;
 
-    if (state.cursor % 10 === 0) {
+    let advanceCursor = 0;
+    const lastOpenLiga = await stmt(
+      c.db,
+      "SELECT MAX(startedAt) at FROM source_runs WHERE providerId='OPENLIGADB_V1'",
+    ).first<any>();
+    let wasUrgent = false;
+    try {
+      wasUrgent = JSON.parse(state.reason)?.capture?.priority === "URGENT";
+    } catch {}
+    if (urgent && checked.has(urgent.competition) && !wasUrgent) {
+      initialDiscovery = true;
+      try {
+        capture = {
+          ...(await captureESPN(
+            c,
+            urgent.competition,
+            // Reuse the date that actually contained this event: ESPN's
+            // provider-day need not equal the kickoff's UTC calendar date.
+            (() => {
+              const date = new URL(urgent.sourceUrl).searchParams.get("dates");
+              return date && /^\d{8}$/.test(date)
+                ? `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`
+                : new Date(urgent.kickoffAt).toISOString().slice(0, 10);
+            })(),
+            fetcher,
+          )),
+          priority: "URGENT",
+        };
+      } catch (e) {
+        capture = {
+          state: "SOURCE_FAILED",
+          reason: String(e),
+          priority: "URGENT",
+        };
+      }
+    } else if (
+      !missing.length &&
+      (!lastOpenLiga?.at || c.now - lastOpenLiga.at >= 3600000)
+    ) {
       const year = Number(localDay(c.now).slice(0, 4)),
         season = Number(localDay(c.now).slice(5, 7)) < 7 ? year - 1 : year;
-      capture = await captureSource(
-        c,
-        "auto-openliga:" + Math.floor(c.now / 300000),
-        season,
-        fetcher,
-      );
-    } else if (
-      state.cursor % 30 === 15 ||
-      !(await stmt(
-        c.db,
-        "SELECT id FROM source_runs WHERE providerId='JFA_OFFICIAL_FIXTURE_V1' LIMIT 1",
-      ).first())
-    ) {
-      capture = await captureESPN(c, "jfa.emperors", localDay(c.now), fetcher);
+      try {
+        capture = await captureSource(
+          c,
+          "auto-openliga-" + Math.floor(c.now / 300000),
+          season,
+          fetcher,
+        );
+      } catch (e) {
+        capture = {
+          state: "SOURCE_FAILED",
+          reason: String(e),
+          priority: "OPENLIGA",
+        };
+      }
     } else if (missing.length) {
       initialDiscovery = true;
       const batch = missing.slice(0, 2);
@@ -406,23 +503,43 @@ export async function automationTick(
         })),
       };
     } else if (leagues.length) {
-      const league = leagues[(state.cursor - 1) % leagues.length],
-        offset = [-1, 0, 1, 2, 3, 4, 5, 6][
-          Math.floor(state.cursor / leagues.length) % 8
-        ];
-      capture = await captureESPN(
-        c,
-        league.code,
-        localDay(c.now + offset * 86400000),
-        fetcher,
+      advanceCursor = Math.min(4, leagues.length);
+      initialDiscovery = true;
+      const result = await Promise.allSettled(
+        Array.from({ length: advanceCursor }, (_, i) => {
+          const sequence = state.cursor + i,
+            league = leagues[sequence % leagues.length],
+            offset = [-1, 0, 1, 2, 3, 4, 5, 6][
+              Math.floor(sequence / leagues.length) % 8
+            ];
+          return captureESPN(
+            c,
+            league.code,
+            localDay(c.now + offset * 86400000),
+            fetcher,
+          );
+        }),
       );
+      capture = {
+        state: "ROTATION_BATCH",
+        results: result.map((r) =>
+          r.status === "fulfilled"
+            ? r.value
+            : { state: "FAILED", reason: String(r.reason) },
+        ),
+      };
     }
-    if (["FAILED", "NORMALIZATION_FAILED"].includes(capture?.state))
-      throw Error(capture.reason || "SOURCE_UNAVAILABLE");
+    const sourceSuccess =
+      ["EMPTY", "DEGRADED", "CAPTURED"].includes(capture?.state) ||
+      capture?.results?.some((r: any) =>
+        ["EMPTY", "DEGRADED", "CAPTURED"].includes(r.state),
+      );
     const settled = await autoSettle(c);
     await stmt(
       c.db,
-      "UPDATE automation_state SET cursor=cursor+1,lastSuccessAt=?,nextRunAt=?,stage='IDLE',reason=? WHERE id='LOCAL_PIPELINE'",
+      "UPDATE automation_state SET cursor=cursor+?,lastSuccessAt=CASE WHEN ?=1 THEN ? ELSE lastSuccessAt END,nextRunAt=?,stage='IDLE',reason=? WHERE id='LOCAL_PIPELINE'",
+      advanceCursor,
+      sourceSuccess ? 1 : 0,
       Date.now(),
       Date.now() + (initialDiscovery ? 5000 : 30000),
       canonical({
@@ -438,7 +555,7 @@ export async function automationTick(
   } catch (e) {
     await stmt(
       c.db,
-      "UPDATE automation_state SET cursor=cursor+1,nextRunAt=?,stage='FAILED',reason=? WHERE id='LOCAL_PIPELINE'",
+      "UPDATE automation_state SET nextRunAt=?,stage='FAILED',reason=? WHERE id='LOCAL_PIPELINE'",
       Date.now() + 60000,
       String(e).slice(0, 1000),
     ).run();

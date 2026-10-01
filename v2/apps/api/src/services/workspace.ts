@@ -1,6 +1,15 @@
+import { calendarDay, teamName } from "../../../../packages/display";
 import { rows, stmt, uid } from "../repositories/db";
 import type { Context } from "./commands";
 import { canonical, sha } from "../../../../packages/contracts/index";
+import {
+  studyMetrics,
+  referenceOdds,
+  oddsBand,
+  matchesStudySample,
+} from "./study-metrics";
+import { reviewLedger, savedCounterfactuals } from "./ledger-review";
+import { publicMarkets } from "./public-research";
 
 const parse = (s: any, fallback: any = null) => {
   try {
@@ -16,30 +25,72 @@ const stamp = (x: any): number | null => {
 };
 const finite = (x: any): number | null =>
   typeof x === "number" && Number.isFinite(x) ? x : null;
-export const localDay = (at: number) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(at);
+export const localDay = calendarDay;
 export function rangeStart(period: string, now: number) {
   const day = localDay(now),
-    start = Date.parse(day + "T00:00:00+08:00");
+    start = zonedStart(day);
   if (period === "TODAY") return start;
   if (period === "WEEK")
-    return (
-      start - ((new Date(start + 28800000).getUTCDay() + 6) % 7) * 86400000
+    return zonedStart(
+      new Date(
+        Date.parse(day + "T00:00:00Z") -
+          ((new Date(day + "T00:00:00Z").getUTCDay() + 6) % 7) * 86400000,
+      )
+        .toISOString()
+        .slice(0, 10),
     );
-  if (period === "MONTH")
-    return Date.parse(day.slice(0, 7) + "-01T00:00:00+08:00");
+  if (period === "MONTH") return zonedStart(day.slice(0, 7) + "-01");
   if (period === "SEASON")
-    return Date.parse(
-      `${Number(day.slice(0, 4)) - (Number(day.slice(5, 7)) < 7 ? 1 : 0)}-07-01T00:00:00+08:00`,
+    return zonedStart(
+      `${Number(day.slice(0, 4)) - (Number(day.slice(5, 7)) < 7 ? 1 : 0)}-07-01`,
     );
   return 0;
 }
+export function zonedStart(day: string, zone = "Europe/Berlin") {
+  const target = Date.parse(day + "T00:00:00Z");
+  let at = target;
+  for (let i = 0; i < 3; i++) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(at);
+    const value = (key: string) => parts.find((p) => p.type === key)!.value;
+    const local = Date.parse(
+      `${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}:${value("second")}Z`,
+    );
+    at += target - local;
+  }
+  return at;
+}
 export function rowMatches(r: any, p: URLSearchParams, now: number) {
+  const status = p.get("status");
+  if (
+    status &&
+    status !== "ALL" &&
+    (status === "CLOSED"
+      ? ![
+          "WIN",
+          "LOSS",
+          "WON",
+          "LOST",
+          "VOID",
+          "PUSH",
+          "CANCELLED",
+          "SETTLED",
+        ].includes(String(r.status).toUpperCase())
+      : status === "OPEN"
+        ? !["OPEN", "REVIEW", "REOPENED", "PENDING", "UNSETTLED"].includes(
+            String(r.status).toUpperCase(),
+          )
+        : String(r.status).toUpperCase() !== status)
+  )
+    return false;
   if (
     p.get("period") &&
     p.get("period") !== "ALL" &&
@@ -139,7 +190,14 @@ export function summarizeRecords(records: any[]) {
       continue;
     }
     settled++;
-    if (r.stakeAtoms !== null) settledStake += BigInt(r.stakeAtoms);
+    if (
+      r.stakeAtoms !== null &&
+      !(
+        r.mode === "LEGACY_IMPORT" &&
+        ["VOID", "PUSH", "CANCELLED"].includes(r.status.toUpperCase())
+      )
+    )
+      settledStake += BigInt(r.stakeAtoms);
     if (r.pnlAtoms === null) {
       missingProfit++;
       continue;
@@ -151,7 +209,13 @@ export function summarizeRecords(records: any[]) {
     if (peak - curve > drawdown) drawdown = peak - curve;
     if (pnl > 0n) wins++;
     if (pnl < 0n) losses++;
-    points.push({ at: r.settledAt ?? r.at, profitAtoms: String(curve) });
+    points.push({
+      id: r.id,
+      at: r.settledAt ?? r.at,
+      profitAtoms: String(curve),
+      peakAtoms: String(peak),
+      drawdownAtoms: String(peak - curve),
+    });
   }
   const comparable = currencies.length <= 1;
   return {
@@ -177,7 +241,9 @@ export function summarizeRecords(records: any[]) {
         records.filter((r) => r.odds !== null).length
       : null,
     curve: comparable && !missingProfit ? points : [],
-    roiDenominator: "KNOWN_SETTLED_STAKE",
+    roiDenominator: records.every((r) => r.mode === "LEGACY_IMPORT")
+      ? "LEGACY_RESOLVED_STAKE_EXCLUDING_VOID"
+      : "KNOWN_SETTLED_STAKE",
     incomplete: !!(missingStake || missingProfit),
     currencyMixed: !comparable,
   };
@@ -228,7 +294,11 @@ export async function historyRows(db: D1Database) {
         fixtureLinks: [],
         kind: "RESEARCH_OBSERVATION",
         mode: "LEGACY_IMPORT",
-        title: [l.home, l.away].filter(Boolean).join(" — ") || "原研究观测",
+        title:
+          [l.home, l.away]
+            .filter(Boolean)
+            .map((n) => teamName(n, l.leagueCode))
+            .join(" — ") || "原研究观测",
         portfolio: "旧研究观测",
         strategy: "旧研究观测",
         leagues: l.leagueCode ? [l.leagueCode] : [],
@@ -269,6 +339,7 @@ export async function historyRows(db: D1Database) {
             .map(
               (l: any) =>
                 l.evidence?.modelVersion ??
+                l.goalEvidence?.modelVersion ??
                 l.modelVersion ??
                 raw.model_version ??
                 raw.modelVersion,
@@ -305,7 +376,12 @@ export async function historyRows(db: D1Database) {
         mode: "LEGACY_IMPORT",
         title:
           legs
-            .map((l: any) => [l.home, l.away].filter(Boolean).join(" — "))
+            .map((l: any) =>
+              [l.home, l.away]
+                .filter(Boolean)
+                .map((n) => teamName(n, l.leagueCode))
+                .join(" — "),
+            )
             .filter(Boolean)
             .join(" / ") ||
           raw.match_id ||
@@ -320,7 +396,18 @@ export async function historyRows(db: D1Database) {
         at,
         settledAt: stamp(raw.settledAt),
         odds: finite(raw.odds),
-        score: finite(raw.score ?? raw.gradeScore ?? legs[0]?.score),
+        score: legs.some((l: any) =>
+          [
+            "read-time-recomputed",
+            "unscorable-missing-at-bet-probability",
+          ].includes(l.scoreOrigin),
+        )
+          ? null
+          : legs.length > 1
+            ? legs.every((l: any) => finite(l.score) !== null)
+              ? Math.min(...legs.map((l: any) => l.score))
+              : null
+            : finite(raw.score ?? raw.gradeScore ?? legs[0]?.score),
         stakeAtoms: a.stakeAtoms ?? null,
         pnlAtoms: a.pnlAtoms ?? null,
         status: a.status ?? raw.status ?? "UNKNOWN",
@@ -403,7 +490,65 @@ export async function workspaceReport(
     throw Error("INVALID_FILTER");
   const all =
     type === "history" ? await historyRows(c.db) : await ledgerRows(c.db, mode);
-  const filtered = all.filter((r) => rowMatches(r, p, c.now));
+  const ledgerMode = type === "ledger";
+  const dateMatch = (r: any, at: number | null) => {
+    if (!ledgerMode || mode !== "LEGACY_IMPORT")
+      return rowMatches({ ...r, at }, p, c.now);
+    const currentDay = new Date(c.now).toISOString().slice(0, 10);
+    const sourceDay = at ? new Date(at).toISOString().slice(0, 10) : null;
+    const period = p.get("period") || "ALL";
+    let from = p.get("from") || "";
+    if (period !== "ALL") {
+      const calendar = new Date(currentDay + "T00:00:00Z");
+      const first =
+        period === "TODAY"
+          ? currentDay
+          : period === "WEEK"
+            ? new Date(
+                calendar.getTime() -
+                  ((calendar.getUTCDay() + 6) % 7) * 86400000,
+              )
+                .toISOString()
+                .slice(0, 10)
+            : period === "MONTH"
+              ? currentDay.slice(0, 7) + "-01"
+              : `${calendar.getUTCFullYear() - (calendar.getUTCMonth() < 6 ? 1 : 0)}-07-01`;
+      if (first > from) from = first;
+    }
+    const dimensions = new URLSearchParams(p);
+    dimensions.delete("period");
+    dimensions.delete("from");
+    dimensions.delete("to");
+    return (
+      rowMatches(r, dimensions, c.now) &&
+      (!from || (!!sourceDay && sourceDay >= from)) &&
+      (!p.get("to") || (!!sourceDay && sourceDay <= p.get("to")!))
+    );
+  };
+  const openStates = ["OPEN", "REVIEW", "REOPENED", "PENDING", "UNSETTLED"];
+  const placed = all.filter((r) => dateMatch(r, r.at));
+  const filtered = all.filter((r) =>
+    dateMatch(
+      r,
+      ledgerMode && !openStates.includes(String(r.status).toUpperCase())
+        ? r.settledAt
+        : r.at,
+    ),
+  );
+  const summary = summarizeRecords(filtered);
+  const exposureFilters = new URLSearchParams(p);
+  for (const key of ["period", "from", "to"]) exposureFilters.delete(key);
+  const exposure = summarizeRecords(
+    all.filter(
+      (r) =>
+        openStates.includes(String(r.status).toUpperCase()) &&
+        rowMatches(r, exposureFilters, c.now),
+    ),
+  );
+  if (ledgerMode) {
+    summary.stakeAtoms = summarizeRecords(placed).stakeAtoms;
+    (summary as any).placedCount = placed.length;
+  }
   const offset = Number(p.get("offset") || 0);
   if (!Number.isSafeInteger(offset) || offset < 0)
     throw Error("INVALID_CURSOR");
@@ -427,10 +572,38 @@ export async function workspaceReport(
       ),
     ].sort();
   return {
-    items: sorted.slice(offset, offset + 40),
+    items: (p.get("export") === "1"
+      ? sorted
+      : sorted.slice(offset, offset + 40)
+    ).map((r) => ({ ...r, counterfactuals: savedCounterfactuals(r.raw) })),
     total: sorted.length,
     nextOffset: offset + 40 < sorted.length ? offset + 40 : null,
-    summary: summarizeRecords(filtered),
+    summary,
+    exposure,
+    review:
+      ledgerMode && mode === "LEGACY_IMPORT"
+        ? reviewLedger(
+            filtered,
+            c.now,
+            (await workspaceMetadata(c.db)).strategies,
+          )
+        : null,
+    accounting:
+      ledgerMode && mode === "LEGACY_IMPORT"
+        ? {
+            timeZone: "Asia/Shanghai",
+            cutoff: "08:00",
+            basis: "投入按出票账日；净收益/ROI按结算账日；VOID不计ROI分母",
+            attribution:
+              "模型/市场筛选表示含该项的整票，串关盈亏不分摊到单腿模型",
+          }
+        : {
+            timeZone: "Europe/Berlin",
+            cutoff: "00:00",
+            basis: ledgerMode
+              ? "投入按出票日；收益按结算日"
+              : "按历史原记录日期",
+          },
     dimensions,
     asOf: c.now,
     sourceCutoffAt: (await workspaceMetadata(c.db)).sourceCutoffAt,
@@ -438,6 +611,14 @@ export async function workspaceReport(
   };
 }
 export function fixtureStatus(f: any, now: number) {
+  if (["POSTPONED", "CANCELLED", "SUSPENDED"].includes(f.status))
+    return {
+      state: f.status,
+      label: (
+        { POSTPONED: "延期", CANCELLED: "取消", SUSPENDED: "中断" } as any
+      )[f.status],
+      reason: "遵循来源实际状态，不根据开球时间推断开赛",
+    };
   if (f.status === "FINISHED")
     return { state: "FINISHED", label: "已结束", reason: "赛前预测保持冻结" };
   if (f.kickoffAt <= now)
@@ -466,15 +647,15 @@ export function fixtureStatus(f: any, now: number) {
     };
   if (f.predictionCount > 0)
     return {
-      state: "NO_EDGE",
-      label: "无优势",
-      reason: "已计算；未达到策略门槛",
+      state: "OBSERVING",
+      label: "观察",
+      reason: "已有冻结预测，查看报价和决策原因",
     };
   if (!f.quoteAt)
     return {
       state: "MISSING_DATA",
       label: "缺数据",
-      reason: "完整新鲜报价或实时模型特征缺失",
+      reason: "此来源未返回完整报价，后台正在补取；必要模型输入另行显示",
     };
   return {
     state: "OBSERVING",
@@ -485,12 +666,16 @@ export function fixtureStatus(f: any, now: number) {
 export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   const all = await rows(
     c.db,
-    "SELECT f.*,r.id revisionId,r.kickoffAt,COALESCE(cat.competition,src.competition,'DEMO') competition,COALESCE(cat.season,src.season) season,cat.dataJson,cat.lastCapturedAt,cat.sourceUrl,(SELECT COUNT(*) FROM predictions pr WHERE pr.fixtureRevisionId=r.id) predictionCount,(SELECT COUNT(*) FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId WHERE pr.fixtureRevisionId=r.id AND d.accepted=1) accepted,(SELECT MAX(q.observedAt) FROM quote_sets q JOIN market_definitions m ON m.id=q.marketId WHERE m.fixtureId=f.id) quoteAt,(SELECT COUNT(*) FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId WHERE s.fixtureRevisionId=r.id AND j.state='FAILED') failedJobs FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id ORDER BY r.kickoffAt,f.id LIMIT 10001",
+    "SELECT f.*,r.id revisionId,r.kickoffAt,COALESCE(cat.competition,src.competition,'DEMO') competition,COALESCE(cat.season,src.season) season,cat.dataJson,cat.lastCapturedAt,cat.sourceUrl,(SELECT COUNT(*) FROM predictions pr WHERE pr.fixtureRevisionId=r.id) predictionCount,(SELECT COUNT(*) FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId WHERE pr.fixtureRevisionId=r.id AND d.accepted=1) accepted,(SELECT MAX(q.observedAt) FROM quote_sets q JOIN market_definitions m ON m.id=q.marketId WHERE m.fixtureId=f.id) quoteAt,(SELECT COUNT(*) FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId WHERE s.fixtureRevisionId=r.id AND j.state IN('FAILED','BLOCKED') AND b.cutoffAt=(SELECT MAX(b2.cutoffAt) FROM input_bundles b2 JOIN jobs j2 ON j2.bundleId=b2.id JOIN observation_slots s2 ON s2.id=b2.slotId WHERE s2.fixtureRevisionId=r.id AND j2.modelId=j.modelId)) failedJobs FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id ORDER BY r.kickoffAt,f.id LIMIT 10001",
   );
   if (all.length > 10000) throw Error("SCHEDULE_CAPACITY_REQUIRES_PAGING");
+  const frozen = await rows(
+    c.db,
+    "SELECT pr.id predictionId,fr.fixtureId,pr.modelId,pr.centralJson,b.cutoffAt,qs.observedAt quoteAt,sel.selection,sel.decimalOdds,e.ev,e.probability,d.accepted,d.reason FROM predictions pr JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision JOIN feature_snapshots fs ON fs.id=pr.featureSnapshotId JOIN input_bundles b ON b.id=fs.bundleId JOIN quote_sets qs ON qs.id=b.quoteSetId JOIN market_expectations e ON e.predictionId=pr.id JOIN quote_selections sel ON sel.id=e.quoteSelectionId JOIN decisions d ON d.expectationId=e.id ORDER BY b.cutoffAt DESC,e.ev DESC LIMIT 6000",
+  );
   const records: any[] = all.map((f) => ({
     ...f,
-    ...fixtureStatus(f, c.now),
+    ...fixtureStatus({ ...f, ...parse(f.dataJson, {}) }, c.now),
     publicData: parse(f.dataJson, {}),
     day: localDay(f.kickoffAt),
     validation:
@@ -498,6 +683,75 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
       (f.competition === "DEMO" ? "DEMO_ONLY" : "LIVE_FEATURES_BLOCKED"),
     strictCandidate: false,
   }));
+  for (const f of records) {
+    const current = frozen.filter((r) => r.fixtureId === f.id);
+    const latestCutoff = current[0]?.cutoffAt;
+    const latest = current.filter((r) => r.cutoffAt === latestCutoff);
+    const chosen = latest.find(
+      (r) => r.modelId === "RECENT_FORM_MARKET80_RESEARCH_V1" && r.accepted,
+    );
+    f.referenceMarket =
+      publicMarkets(f.publicData.providerOdds).find((q) => q.probabilities) ??
+      null;
+    f.research = chosen
+      ? {
+          ...chosen,
+          selectionName: ({ HOME: "主胜", DRAW: "平局", AWAY: "客胜" } as any)[
+            chosen.selection
+          ],
+          modelLabel: "市场80% / 近期赛况20% · 研究",
+          validation: "UNVALIDATED_RESEARCH",
+          rankScore: Math.min(99, Math.round(50 + chosen.ev * 60)),
+        }
+      : null;
+    f.evidence = {
+      schedule: true,
+      prices: !!f.referenceMarket,
+      recentForm:
+        !!f.publicData.detail?.homeRecent?.length &&
+        !!f.publicData.detail?.awayRecent?.length,
+      lineup: !!f.publicData.detail?.rosters?.some(
+        (r: any) =>
+          Array.isArray(r.roster) && r.roster.some((p: any) => p.starter),
+      ),
+      injuries: false,
+    };
+    f.completeness = Object.values(f.evidence).filter(Boolean).length / 5;
+    if (
+      f.kickoffAt > c.now &&
+      f.status === "SCHEDULED" &&
+      chosen &&
+      !f.failedJobs &&
+      c.now - chosen.quoteAt <= 600000
+    )
+      Object.assign(f, {
+        state: "CANDIDATE",
+        label: "研究推荐",
+        reason: `${f.research.selectionName} · ${f.research.modelLabel} · 尚未验证收益优势`,
+        validation: "UNVALIDATED_RESEARCH",
+      });
+    else if (
+      f.kickoffAt > c.now &&
+      f.status === "SCHEDULED" &&
+      !f.failedJobs &&
+      f.referenceMarket
+    )
+      Object.assign(f, {
+        state:
+          current.length && c.now - current[0].quoteAt > 600000
+            ? "STALE_QUOTE"
+            : "OBSERVING",
+        label:
+          current.length && c.now - current[0].quoteAt > 600000
+            ? "报价待刷新"
+            : "观察",
+        reason: latest.length
+          ? latest.some((r) => r.modelId === "RECENT_FORM_MARKET80_RESEARCH_V1")
+            ? "已完成报价与研究预测；本轮没有符合研究门槛的方向"
+            : "已计算市场基准；必要近期资料不足，尚不能判断独立优势"
+          : "已取得公开盘口，自动补取战绩并计算研究判断",
+      });
+  }
   records.sort((a, b) => {
     const af = a.kickoffAt >= c.now,
       bf = b.kickoffAt >= c.now;
@@ -516,11 +770,34 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
     q = p.get("q")?.toLowerCase();
   const filtered = records.filter(
     (f) =>
+      f.competition !== "jfa.emperors" &&
+      (p.get("upcoming") !== "1" ||
+        (f.kickoffAt > c.now &&
+          !["FINISHED", "CANCELLED", "POSTPONED", "SUSPENDED"].includes(
+            f.status,
+          ))) &&
       (!from || f.day >= from) &&
       (!to || f.day <= to) &&
       (!league || league === "ALL" || f.competition === league) &&
-      (!status || status === "ALL" || f.state === status) &&
-      (!q || (f.home + " " + f.away).toLowerCase().includes(q)),
+      (!status ||
+        status === "ALL" ||
+        (status === "WATCH"
+          ? f.kickoffAt > c.now &&
+            f.status === "SCHEDULED" &&
+            f.state !== "CANDIDATE"
+          : f.state === status)) &&
+      (!q ||
+        (
+          f.home +
+          " " +
+          f.away +
+          " " +
+          teamName(f.home) +
+          " " +
+          teamName(f.away)
+        )
+          .toLowerCase()
+          .includes(q)),
   );
   const offset = Number(p.get("offset") || 0);
   if (!Number.isSafeInteger(offset) || offset < 0)
@@ -535,8 +812,18 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
       {},
     ),
     leagues: [...new Set(records.map((f) => f.competition))],
+    candidateCounts: {
+      research: filtered.filter((f) => f.state === "CANDIDATE").length,
+      strict: 0,
+      observations: filtered.filter(
+        (f) => !["FINISHED", "STARTED", "CANDIDATE"].includes(f.state),
+      ).length,
+    },
     researchCandidates: filtered
       .filter((f) => f.state === "CANDIDATE")
+      .sort(
+        (a, b) => (b.research?.rankScore ?? 0) - (a.research?.rankScore ?? 0),
+      )
       .slice(0, 12),
     strictCandidates: [],
     observations: filtered
@@ -586,7 +873,7 @@ export async function workspaceFixture(c: Context, id: string) {
   }
   const predictions = await rows(
     c.db,
-    "SELECT p.*,b.cutoffAt,b.manifestHash,b.quoteSetId FROM predictions p JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN observation_slots s ON s.id=p.slotId JOIN input_bundles b ON b.slotId=s.id WHERE r.fixtureId=? ORDER BY p.calculatedAt",
+    "SELECT p.*,b.cutoffAt,b.manifestHash,b.quoteSetId,b.canonical featureCanonical FROM predictions p JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN observation_slots s ON s.id=p.slotId JOIN input_bundles b ON b.slotId=s.id WHERE r.fixtureId=? ORDER BY p.calculatedAt DESC",
     id,
   );
   for (const pr of predictions) {
@@ -637,16 +924,69 @@ export async function workspaceFixture(c: Context, id: string) {
         r.raw?.legs?.some((l: any) => l.matchId === id.split(":").at(-1)),
     )
     .slice(0, 30);
+  const importedStudy = parse(
+    (
+      await stmt(
+        c.db,
+        "SELECT studyJson FROM workspace_imports ORDER BY importedAt DESC LIMIT 1",
+      ).first<any>()
+    )?.studyJson,
+    {},
+  );
+  const historicalModelSamples = (importedStudy.models ?? []).flatMap(
+    (m: any) =>
+      (m.samples ?? [])
+        .filter((s: any) => String(s.fixtureId) === String(legacySource))
+        .map((s: any) => ({
+          ...s,
+          modelId: m.id,
+          label: m.label,
+          kind: m.kind,
+          validation: m.validation,
+          sampleManifestHash: m.sampleManifestHash,
+          artifactHash: m.artifactHash ?? null,
+        })),
+  );
   return {
     fixture: base,
+    sourceAliases: (
+      await rows(
+        c.db,
+        "SELECT f.id,f.home,f.away,c.competition,r.kickoffAt FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision JOIN fixture_catalog c ON c.fixtureId=f.id WHERE c.competition=? AND r.kickoffAt BETWEEN ? AND ? AND f.id<>?",
+        base.competition,
+        base.kickoffAt - 60000,
+        base.kickoffAt + 60000,
+        id,
+      )
+    ).filter(
+      (f) =>
+        teamName(f.home) === teamName(base.home) &&
+        teamName(f.away) === teamName(base.away),
+    ),
+    competitionName:
+      (await workspaceMetadata(c.db)).leagues?.find(
+        (l: any) => l.code === base.competition,
+      )?.name ?? base.competition,
     savedQuotes,
     sourceEvidence,
     publicData: parse(base.dataJson, {}),
+    referenceMarkets: publicMarkets(parse(base.dataJson, {}).providerOdds),
     predictions,
     quotes,
     observations,
     adjudications,
     archives,
+    historicalModelSamples,
+    archivedScore: [
+      ...new Set(
+        archives.flatMap((a) =>
+          (a.raw?.legs ?? [])
+            .filter((l: any) => l.matchId === legacySource)
+            .map((l: any) => l.finalScore)
+            .filter(Boolean),
+        ),
+      ),
+    ],
     models: [
       {
         id: "V6_C388",
@@ -662,7 +1002,18 @@ export async function workspaceFixture(c: Context, id: string) {
         reason: "固定融合历史研究已单独登记；缺少实时特征与训练时间证据",
         probabilityKind: "固定融合中心概率；未自动晋升",
       },
-    ],
+    ].map((m) =>
+      ["eng.1", "ger.1", "ita.1", "esp.1", "fra.1"].includes(
+        base.competition,
+      ) || base.competition === "DEMO"
+        ? m
+        : {
+            ...m,
+            status: "UNSUPPORTED_COMPETITION",
+            reason:
+              "原包与特征契约只支持英、德、意、西、法顶级联赛；国家队及其他赛事不能冒用V6/V7，需要单独验证的研究方法。",
+          },
+    ),
     asOf: c.now,
   };
 }
@@ -870,66 +1221,23 @@ export async function modelLaboratory(c: Context, p: URLSearchParams) {
     models: [],
     limitations: ["尚无研究档案"],
   });
+  const offset = Number(p.get("offset") || 0);
+  if (!Number.isSafeInteger(offset) || offset < 0)
+    throw Error("INVALID_CURSOR");
   const models = study.models.map((m: any) => {
     const samples = m.samples || [],
-      filtered = samples.filter(
-        (r: any) =>
-          (!p.get("season") ||
-            p.get("season") === "ALL" ||
-            String(r.season) === p.get("season")) &&
-          (!p.get("league") ||
-            p.get("league") === "ALL" ||
-            r.competition === p.get("league")) &&
-          (!p.get("odds") ||
-            p.get("odds") === "ALL" ||
-            (r.odds !== null &&
-              (p.get("odds") === "LOW"
-                ? r.odds < 1.8
-                : p.get("odds") === "MID"
-                  ? r.odds >= 1.8 && r.odds < 2.5
-                  : r.odds >= 2.5))),
-      );
-    let brier = 0,
-      ll = 0,
-      n = 0;
-    const bins = Array.from({ length: 10 }, (_, i) => ({
-      lower: i / 10,
-      n: 0,
-      predicted: 0,
-      observed: 0,
-    }));
-    for (const r of filtered) {
-      if (!Array.isArray(r.central) || ![0, 1, 2].includes(r.outcome)) continue;
-      n++;
-      brier += r.central.reduce(
-        (s: number, v: number, i: number) =>
-          s + (v - (i === r.outcome ? 1 : 0)) ** 2,
-        0,
-      );
-      ll -= Math.log(Math.max(r.central[r.outcome], 1e-15));
-      for (let i = 0; i < 3; i++) {
-        const b = bins[Math.min(9, Math.floor(r.central[i] * 10))];
-        b.n++;
-        b.predicted += r.central[i];
-        b.observed += +(i === r.outcome);
-      }
-    }
-    const actions = filtered
-      .filter((r: any) => r.action !== "NO_ACTION")
-      .map((r: any) => ({
-        ...r,
-        id: r.fixtureId,
-        at: Date.parse(r.date),
-        settledAt: Date.parse(r.date),
-        status: "SETTLED",
-        currency: "RESEARCH_UNIT",
-        stakeAtoms: "1000000",
-        pnlAtoms: String(Math.round(r.pnl * 1000000)),
-      }));
+      filtered = samples.filter((r: any) => matchesStudySample(r, p));
+    const originalFiltered = (study.population?.originalRows ?? samples).filter(
+      (r: any) => matchesStudySample(r, p),
+    );
+    const groupValue = (r: any, key: string) =>
+      key === "oddsBand" ? oddsBand(referenceOdds(r)) : r[key];
     return {
       ...m,
-      samples: undefined,
-      samplePreview: filtered.slice(0, 20),
+      samples: p.get("export") === "1" ? filtered : undefined,
+      samplePreview: filtered.slice(offset, offset + 20),
+      sampleTotal: filtered.length,
+      nextOffset: offset + 20 < filtered.length ? offset + 20 : null,
       sampleRange: {
         from: filtered.map((r: any) => r.date).sort()[0] ?? null,
         to:
@@ -938,73 +1246,75 @@ export async function modelLaboratory(c: Context, p: URLSearchParams) {
             .sort()
             .at(-1) ?? null,
       },
-      metrics: {
-        ...summarizeRecords(actions),
-        eligibleN: filtered.length,
-        probabilityN: n,
-        logLoss: n ? ll / n : null,
-        brier: n ? brier / n : null,
-        coverage: filtered.length ? actions.length / filtered.length : null,
-        calibration: bins
-          .filter((b) => b.n)
-          .map((b) => ({
-            ...b,
-            predicted: b.predicted / b.n,
-            observed: b.observed / b.n,
-          })),
-      },
+      metrics: studyMetrics(filtered, originalFiltered.length),
       groups: ["season", "competition", "oddsBand"].map((key) => ({
         key,
-        rows: [
-          ...new Set(
-            filtered.map((r: any) =>
-              key === "oddsBand"
-                ? r.odds === null
-                  ? "NO_ACTION"
-                  : r.odds < 1.8
-                    ? "<1.8"
-                    : r.odds < 2.5
-                      ? "1.8–2.5"
-                      : "≥2.5"
-                : r[key],
-            ),
-          ),
-        ].map((value) => {
-          const group = filtered.filter(
-            (r: any) =>
-              (key === "oddsBand"
-                ? r.odds === null
-                  ? "NO_ACTION"
-                  : r.odds < 1.8
-                    ? "<1.8"
-                    : r.odds < 2.5
-                      ? "1.8–2.5"
-                      : "≥2.5"
-                : r[key]) === value,
-          );
-          const a = group.filter((r: any) => r.action !== "NO_ACTION");
-          return {
+        rows: [...new Set(filtered.map((r: any) => groupValue(r, key)))].map(
+          (value) => ({
             value,
-            eligibleN: group.length,
-            n: a.length,
-            wins: a.filter((r: any) => r.pnl > 0).length,
-            losses: a.filter((r: any) => r.pnl < 0).length,
-            roi: a.length
-              ? a.reduce((s: number, r: any) => s + r.pnl, 0) / a.length
-              : null,
-          };
-        }),
+            ...studyMetrics(
+              filtered.filter((r: any) => groupValue(r, key) === value),
+              originalFiltered.filter((r: any) => groupValue(r, key) === value)
+                .length,
+            ),
+            n: filtered.filter(
+              (r: any) =>
+                groupValue(r, key) === value && r.action !== "NO_ACTION",
+            ).length,
+          }),
+        ),
       })),
     };
   });
+  const captures = await rows(
+    c.db,
+    "SELECT p.id,p.modelId,p.calculatedAt,r.fixtureId,r.kickoffAt,q.observedAt,q.providerUpdatedAt,q.phase,src.mode captureMode,b.cutoffAt,m.manifestJson,(SELECT status FROM model_registry_events e WHERE e.modelId=p.modelId AND e.at<=p.calculatedAt ORDER BY e.at DESC LIMIT 1) registryStatus,a.regulationJson FROM predictions p JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN feature_snapshots f ON f.id=p.featureSnapshotId JOIN input_bundles b ON b.id=f.bundleId JOIN quote_sets q ON q.id=b.quoteSetId JOIN source_snapshots src ON src.id=q.sourceSnapshotId JOIN model_manifests m ON m.id=p.modelId LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(revision) FROM result_adjudications WHERE fixtureId=r.fixtureId) WHERE p.calculatedAt<r.kickoffAt AND p.calculatedAt<=? ORDER BY b.cutoffAt DESC",
+    c.now,
+  );
+  const strict = captures.filter(
+    (r) =>
+      r.registryStatus === "SHADOW" &&
+      r.captureMode === "LOCAL_RESEARCH" &&
+      !JSON.stringify(parse(r.manifestJson, {})).includes("RETROSPECTIVE") &&
+      r.phase === "PREMATCH_OBSERVED" &&
+      r.providerUpdatedAt !== null &&
+      stamp(parse(r.manifestJson, {}).trainCutoffAt) !== null &&
+      stamp(parse(r.manifestJson, {}).trainCutoffAt)! < r.cutoffAt &&
+      r.providerUpdatedAt <= r.cutoffAt &&
+      r.observedAt <= r.cutoffAt &&
+      r.cutoffAt <= r.calculatedAt &&
+      r.kickoffAt >= rangeStart("SEASON", c.now) &&
+      r.kickoffAt <
+        rangeStart("SEASON", rangeStart("SEASON", c.now) + 370 * 86400000),
+  );
   return {
     models,
+    population: study.population ?? null,
     originalSeasonReports: study.originalSeasonReports ?? [],
     asOf: c.now,
     sourceCutoffAt: x?.sourceCutoffAt ?? null,
     scope: study.scope ?? "HISTORICAL_REPLAY_NON_PROSPECTIVE",
     limitations: study.limitations ?? [],
-    prospective: { n: 0, roi: null, reason: "REALTIME_V6_V7_INPUTS_BLOCKED" },
+    prospective: {
+      n: new Set(strict.map((r) => r.fixtureId)).size,
+      settledN: new Set(
+        strict.filter((r) => r.regulationJson).map((r) => r.fixtureId),
+      ).size,
+      roi: null,
+      reason: strict.length
+        ? "PROSPECTIVE_NO_PAPER_ACTIONS"
+        : "STRICT_INPUT_AND_MODEL_GATES_NOT_MET",
+      researchCapturedN: new Set(
+        captures
+          .filter((r) => r.modelId === "RECENT_FORM_MARKET80_RESEARCH_V1")
+          .map((r) => r.fixtureId),
+      ).size,
+      marketCapturedN: new Set(
+        captures
+          .filter((r) => r.modelId === "MARKET_PROPORTIONAL_V1")
+          .map((r) => r.fixtureId),
+      ).size,
+    },
     seasons: [
       ...new Set(
         study.models.flatMap((m: any) =>

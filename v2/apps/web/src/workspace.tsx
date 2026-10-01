@@ -1,5 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import {
+  teamName,
+  calendarDay,
+  formatDate,
+  formatTime,
+  DISPLAY_TIME_ZONE,
+} from "../../../packages/display";
+import { LedgerReview } from "./ledger-review";
+import { CurrentMarkets, MatchContext, QuoteHistory } from "./match-evidence";
+import { FixtureList, Recommendations, TeamBadge } from "./schedule-view";
 type Client = (path: string, body?: unknown, key?: string) => Promise<any>;
 type Props = { api: Client; mode?: string };
 const pct = (x: any) =>
@@ -11,25 +21,11 @@ const amount = (x: any) =>
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-const fmt = (x: any) =>
-  x === null || x === undefined
-    ? "未记录"
-    : new Date(x).toLocaleString("zh-CN", { hour12: false });
-const day = (x: number) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(x);
+const fmt = (x: any) => (x == null ? "未记录" : formatDate(x));
+const day = (x: number | string) => calendarDay(x);
 const leagueName = (code: string, leagues: any[] = []) =>
   leagues.find((l) => l.code === code)?.name || code;
-const time = (x: any) =>
-  new Date(x).toLocaleTimeString("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+const time = (x: any) => formatTime(x);
 function useData(api: Client, path: string, poll = 30000) {
   const [data, setData] = useState<any>(),
     [error, setError] = useState(""),
@@ -51,10 +47,10 @@ function useData(api: Client, path: string, poll = 30000) {
     }
   };
   useEffect(() => {
-    setData(undefined);
-    void refresh();
+    const debounce = setTimeout(refresh, 180);
     const timer = setInterval(refresh, poll);
     return () => {
+      clearTimeout(debounce);
       clearInterval(timer);
       serial.current++;
     };
@@ -132,6 +128,7 @@ function Json({ value, label = "原始数据 / 审计详情" }: any) {
   );
 }
 function Curve({ points, label }: any) {
+  const [selected, setSelected] = useState(0);
   const values = points.map((p: any) => Number(p.profitAtoms));
   if (!values.length)
     return (
@@ -148,28 +145,93 @@ function Curve({ points, label }: any) {
         `${i ? "L" : "M"}${20 + (i * 700) / Math.max(1, a.length - 1)},${150 - ((n - lo) / range) * 125}`,
     )
     .join(" ");
+  const index = Math.min(selected, points.length - 1),
+    chosen = points[index];
   return (
-    <svg
-      className="ws-curve"
-      viewBox="0 0 740 180"
-      role="img"
-      aria-label={label}
-    >
-      <path d="M20,155H720" stroke="currentColor" opacity=".15" />
-      <path
-        d={path}
-        stroke="currentColor"
-        strokeWidth="2.5"
-        fill="none"
-        vectorEffect="non-scaling-stroke"
-      />
-      <text x="20" y="176">
-        最早结算
-      </text>
-      <text x="648" y="176">
-        最新结算
-      </text>
-    </svg>
+    <div>
+      <svg
+        className="ws-curve"
+        viewBox="0 0 740 180"
+        role="img"
+        aria-label={label}
+        onPointerMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setSelected(
+            Math.max(
+              0,
+              Math.min(
+                points.length - 1,
+                Math.round(
+                  ((e.clientX - rect.left) / rect.width) * points.length,
+                ) - 1,
+              ),
+            ),
+          );
+        }}
+      >
+        <path d="M20,155H720" stroke="currentColor" opacity=".15" />
+        <path
+          d={path}
+          stroke="currentColor"
+          strokeWidth="2.5"
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+        />
+        <text x="20" y="176">
+          结算顺序（逐票）
+        </text>
+        <text x="648" y="176">
+          最新结算
+        </text>
+        <text x="24" y="20">
+          {amount(String(hi))}
+        </text>
+        <text x="24" y="147">
+          {amount(String(lo))}
+        </text>
+      </svg>
+      <label className="curve-selector">
+        查看结算点
+        <input
+          aria-label="选择结算记录"
+          type="range"
+          min="0"
+          max={points.length - 1}
+          value={index}
+          onChange={(e) => setSelected(Number(e.target.value))}
+        />
+      </label>
+      <p className="ws-caption" aria-live="polite">
+        第 {index + 1} 笔 · {fmt(chosen?.at)} · 累计净收益{" "}
+        {amount(chosen?.profitAtoms)} · 当时回撤 {amount(chosen?.drawdownAtoms)}{" "}
+        · {chosen?.id}
+      </p>
+      <details className="ws-audit">
+        <summary>曲线原始数据与回撤区间</summary>
+        <div className="ws-table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>结算时间</th>
+                <th>累计净收益</th>
+                <th>峰值</th>
+                <th>回撤</th>
+              </tr>
+            </thead>
+            <tbody>
+              {points.map((p: any, i: number) => (
+                <tr key={i}>
+                  <td>{fmt(p.at)}</td>
+                  <td>{amount(p.profitAtoms)}</td>
+                  <td>{amount(p.peakAtoms)}</td>
+                  <td>{amount(p.drawdownAtoms)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
   );
 }
 function CandidateGroup({ title, rows, empty }: any) {
@@ -182,7 +244,8 @@ function CandidateGroup({ title, rows, empty }: any) {
       {rows.length ? (
         rows.slice(0, 3).map((r: any) => (
           <Link key={r.id} to={"/match/" + encodeURIComponent(r.id)}>
-            {r.home} <span>vs</span> {r.away}
+            {teamName(r.home, r.competition || r.leagueCode)} <span>vs</span>{" "}
+            {teamName(r.away, r.competition || r.leagueCode)}
             <small>{r.reason}</small>
           </Link>
         ))
@@ -193,14 +256,25 @@ function CandidateGroup({ title, rows, empty }: any) {
   );
 }
 export function ScheduleWorkspace({ api, mode }: Props) {
-  const [period, setPeriod] = useState("ALL"),
-    [custom, setCustom] = useState(day(Date.now())),
+  const [period, setPeriod] = useState(
+      new URLSearchParams(window.location.search).get("period") || "RECENT",
+    ),
+    [custom, setCustom] = useState(
+      new URLSearchParams(window.location.search).get("custom") ||
+        day(Date.now()),
+    ),
     [league, setLeague] = useState(
       new URLSearchParams(window.location.search).get("league") || "ALL",
     ),
-    [status, setStatus] = useState("ALL"),
-    [q, setQ] = useState(""),
-    [offset, setOffset] = useState(0);
+    [status, setStatus] = useState(
+      new URLSearchParams(window.location.search).get("status") || "ALL",
+    ),
+    [q, setQ] = useState(
+      new URLSearchParams(window.location.search).get("q") || "",
+    ),
+    [offset, setOffset] = useState(
+      Number(new URLSearchParams(window.location.search).get("offset") || 0),
+    );
   const from =
     period === "ALL"
       ? ""
@@ -215,9 +289,32 @@ export function ScheduleWorkspace({ api, mode }: Props) {
     status,
     q,
     offset: String(offset),
+    upcoming: period === "ALL" || status === "FINISHED" ? "0" : "1",
   });
+  useEffect(() => {
+    const url =
+      "/workbench?" +
+      new URLSearchParams({
+        period,
+        custom,
+        league,
+        status,
+        q,
+        offset: String(offset),
+      });
+    window.history.replaceState(null, "", url);
+    sessionStorage.setItem("v2-schedule-location", url);
+  }, [period, custom, league, status, q, offset]);
   const state = useData(api, "/workspace/schedule?" + query);
   const { data, refresh } = state;
+  const restoredScroll = useRef(false);
+  useEffect(() => {
+    if (!data || restoredScroll.current) return;
+    restoredScroll.current = true;
+    const at = sessionStorage.getItem("v2-schedule-scroll");
+    if (at) requestAnimationFrame(() => window.scrollTo(0, Number(at)));
+    sessionStorage.removeItem("v2-schedule-scroll");
+  }, [data]);
   const [notice, setNotice] = useState("");
   const change = (fn: any) => (v: string) => {
     setOffset(0);
@@ -247,8 +344,8 @@ export function ScheduleWorkspace({ api, mode }: Props) {
     <div className="workspace-page">
       <Head
         n="01 / FIXTURES"
-        title="完整赛程"
-        text="展示已取得的全部赛程。候选只是其中一部分。"
+        title="近期比赛与研究推荐"
+        text="研究推荐、完整赛程与赛前证据。"
       >
         <button onClick={manual}>
           立即刷新 <span>↗</span>
@@ -256,45 +353,25 @@ export function ScheduleWorkspace({ api, mode }: Props) {
         <small>自动读取 · 每30秒更新视图</small>
       </Head>
       <LoadState {...state} />
-      <div className="ws-summary">
-        <Stat
-          label="筛选范围内比赛"
-          value={data?.total ?? "—"}
-          detail={`目录共 ${data?.totalKnown ?? "—"} 场已知比赛`}
-        />
-        <Stat
-          label="研究候选"
-          value={data?.researchCandidates.length ?? "—"}
-          detail="固定决策，不等于出票"
-        />
-        <Stat
-          label="严格前瞻"
-          value={data?.strictCandidates.length ?? "—"}
-          detail="资格不足时保持空集"
-        />
-        <Stat
-          label="已迁移联赛配置"
-          value={data?.metadata?.leagues.length ?? "—"}
-          detail="来源能力逐项显示"
-        />
+      <div className="schedule-overview">
+        <span>
+          近期 <b>{data?.total ?? "—"}</b> 场
+        </span>
+        <span>已知目录 {data?.totalKnown ?? "—"} 场</span>
+        <span>自动读取公开来源</span>
+        <span>时间：柏林 / Europe/Berlin</span>
       </div>
-      <div className="ws-candidates">
-        <CandidateGroup
-          title="研究候选"
-          rows={data?.researchCandidates || []}
-          empty="本范围暂无通过固定策略的研究候选。"
-        />
-        <CandidateGroup
-          title="严格前瞻候选"
-          rows={data?.strictCandidates || []}
-          empty="完整实时模型输入与验证资格尚未具备；不以历史重放代替。"
-        />
-        <CandidateGroup
-          title="观察比赛"
-          rows={data?.observations || []}
-          empty="本范围暂无等待观察的比赛；完整赛程仍在下方。"
-        />
-      </div>
+      <Recommendations
+        data={data}
+        onSelect={(filter?: string) => {
+          if (typeof filter === "string") change(setStatus)(filter);
+          else
+            sessionStorage.setItem(
+              "v2-schedule-scroll",
+              String(window.scrollY),
+            );
+        }}
+      />
       <section className="ws-panel">
         <div className="ws-section-head">
           <h2>
@@ -321,108 +398,70 @@ export function ScheduleWorkspace({ api, mode }: Props) {
             ))}
           </div>
         </div>
-        <div className="ws-filters">
-          {period === "CUSTOM" && (
-            <label className="ws-filter">
-              <span>比赛日期</span>
+        <details className="schedule-filters">
+          <summary>
+            筛选联赛、状态和球队{" "}
+            {league !== "ALL" || status !== "ALL" || q ? "· 已筛选" : ""}
+          </summary>
+          <div className="ws-filters">
+            {period === "CUSTOM" && (
+              <label className="ws-filter">
+                <span>比赛日期</span>
+                <input
+                  aria-label="比赛日期"
+                  type="date"
+                  value={custom}
+                  onChange={(e) => change(setCustom)(e.target.value)}
+                />
+              </label>
+            )}
+            <Select
+              label="赛程联赛"
+              value={league}
+              onChange={change(setLeague)}
+              values={[
+                ["ALL", "全部已配置赛事"],
+                ...(data?.metadata?.leagues || []).map((l: any) => [
+                  l.code,
+                  l.name,
+                ]),
+                ...(mode === "DEMO" ? [["DEMO", "DEMO 合成赛事"]] : []),
+              ]}
+            />
+            <Select
+              label="赛程状态"
+              value={status}
+              onChange={change(setStatus)}
+              values={[
+                ["ALL", "全部状态"],
+                ["CANDIDATE", "候选"],
+                ["OBSERVING", "观察"],
+                ["WATCH", "全部待观察（含待补证）"],
+                ["NO_EDGE", "无优势"],
+                ["MISSING_DATA", "缺数据"],
+                ["STALE_QUOTE", "报价失效"],
+                ["MODEL_FAILED", "模型失败"],
+                ["STARTED", "已开赛"],
+                ["FINISHED", "已结束"],
+              ]}
+            />
+            <label className="ws-filter search">
+              <span>搜索球队 / 对阵</span>
               <input
-                aria-label="比赛日期"
-                type="date"
-                value={custom}
-                onChange={(e) => change(setCustom)(e.target.value)}
+                aria-label="搜索球队"
+                placeholder="输入球队名称…"
+                value={q}
+                onChange={(e) => change(setQ)(e.target.value)}
               />
             </label>
-          )}
-          <Select
-            label="赛程联赛"
-            value={league}
-            onChange={change(setLeague)}
-            values={[
-              ["ALL", "全部已配置赛事"],
-              ["jfa.emperors", "天皇杯 · JFA官方公告"],
-              ...(data?.metadata?.leagues || []).map((l: any) => [
-                l.code,
-                l.name,
-              ]),
-              ...(mode === "DEMO" ? [["DEMO", "DEMO 合成赛事"]] : []),
-            ]}
-          />
-          <Select
-            label="赛程状态"
-            value={status}
-            onChange={change(setStatus)}
-            values={[
-              ["ALL", "全部状态"],
-              ["CANDIDATE", "候选"],
-              ["OBSERVING", "观察"],
-              ["NO_EDGE", "无优势"],
-              ["MISSING_DATA", "缺数据"],
-              ["STALE_QUOTE", "报价失效"],
-              ["MODEL_FAILED", "模型失败"],
-              ["STARTED", "已开赛"],
-              ["FINISHED", "已结束"],
-            ]}
-          />
-          <label className="ws-filter search">
-            <span>搜索球队 / 对阵</span>
-            <input
-              aria-label="搜索球队"
-              placeholder="输入球队名称…"
-              value={q}
-              onChange={(e) => change(setQ)(e.target.value)}
-            />
-          </label>
-        </div>
-        <div className="ws-fixture-table">
-          <div className="ws-fixture-row ws-table-heading">
-            <span>开球 / 赛事</span>
-            <span>对阵</span>
-            <span>观察状态</span>
-            <span>证据与验证</span>
-            <span />
           </div>
-          {data?.items.map((f: any) => (
-            <Link
-              className="ws-fixture-row"
-              key={f.id}
-              to={"/match/" + encodeURIComponent(f.id)}
-            >
-              <div>
-                <strong>{time(f.kickoffAt)}</strong>
-                <small>
-                  {day(Date.parse(f.kickoffAt))} ·{" "}
-                  {leagueName(f.competition, data.metadata.leagues)}
-                </small>
-              </div>
-              <div className="ws-teams">
-                <span className="ws-team-mark">{f.home.slice(0, 1)}</span>
-                <strong>
-                  {f.home}
-                  <small>{f.away}</small>
-                </strong>
-              </div>
-              <div>
-                <span className={"ws-state state-" + f.state}>{f.label}</span>
-                <small>{f.reason}</small>
-              </div>
-              <div>
-                <strong>
-                  {f.predictionCount
-                    ? `${f.predictionCount} 份冻结预测`
-                    : "等待完整输入"}
-                </strong>
-                <small>
-                  {f.validation === "DEMO_ONLY"
-                    ? "DEMO · 不是真实模型"
-                    : f.validation === "LEGACY_NON_PROSPECTIVE"
-                      ? "Legacy历史记录 · 不具前瞻资格"
-                      : "实时V6/V7受阻 · 仍保留比赛"}
-                </small>
-              </div>
-              <b className="ws-arrow">↗</b>
-            </Link>
-          ))}
-        </div>
+        </details>
+        <FixtureList
+          data={data}
+          onSelect={() =>
+            sessionStorage.setItem("v2-schedule-scroll", String(window.scrollY))
+          }
+        />
         {data && !data.items.length && (
           <div className="ws-empty">
             <strong>本筛选范围没有已载入比赛</strong>
@@ -475,22 +514,27 @@ export function FixtureWorkspace({ api }: Props) {
     );
   const f = data.fixture,
     latest = data.quotes[0],
-    publicOdds = data.publicData.providerOdds || [];
+    publicOdds = (data.publicData.providerOdds || []).filter(
+      (o: any) => o && typeof o === "object",
+    );
   return (
     <div className="workspace-page">
-      <Link className="ws-back" to="/workbench">
+      <Link
+        className="ws-back"
+        to={sessionStorage.getItem("v2-schedule-location") || "/workbench"}
+      >
         ← 返回完整赛程
       </Link>
       <Head
         n="MATCH / EVIDENCE"
         title="比赛研究"
-        text={`${f.competition || "赛事"} · ${fmt(f.kickoffAt)} · ${f.status === "FINISHED" ? "已结束" : "赛程观察"}`}
+        text={`${data.competitionName || "赛事"} · ${fmt(f.kickoffAt)} · ${f.status === "FINISHED" ? "已结束" : f.status === "LIVE" ? "进行中" : f.status === "POSTPONED" ? "延期" : "赛程观察"}`}
       />
       <LoadState {...state} />
       <section className="ws-match-hero">
         <div>
-          <span className="ws-large-mark">{f.home.slice(0, 1)}</span>
-          <h2>{f.home}</h2>
+          <TeamBadge name={f.home} logo={data.publicData?.homeLogo} />
+          <h2>{teamName(f.home, f.competition || f.leagueCode)}</h2>
         </div>
         <div className="ws-match-middle">
           <span>REGULATION / 90′</span>
@@ -500,13 +544,24 @@ export function FixtureWorkspace({ api }: Props) {
                   const s = JSON.parse(data.adjudications[0].regulationJson);
                   return `${s.home} : ${s.away}`;
                 })()
-              : "VS"}
+              : data.archivedScore?.length === 1
+                ? data.archivedScore[0]
+                : f.status === "FINISHED"
+                  ? "比分未核验"
+                  : "VS"}
           </strong>
           <small>{fmt(f.kickoffAt)}</small>
+          {!data.adjudications.length && data.archivedScore?.length > 0 && (
+            <small>
+              {data.archivedScore.length === 1
+                ? "旧档保存比分 · 未作新系统裁定"
+                : "旧档比分冲突 · 保留原记录待复核"}
+            </small>
+          )}
         </div>
         <div>
-          <span className="ws-large-mark away">{f.away.slice(0, 1)}</span>
-          <h2>{f.away}</h2>
+          <TeamBadge name={f.away} logo={data.publicData?.awayLogo} />
+          <h2>{teamName(f.away, f.competition || f.leagueCode)}</h2>
         </div>
       </section>
       <div className="ws-note">
@@ -533,6 +588,7 @@ export function FixtureWorkspace({ api }: Props) {
               </button>
             ))}
           </div>
+          <CurrentMarkets data={data} market={market} />
           <div className="ws-odds-history">
             {market === "1X2" &&
               (data.savedQuotes?.oneXTwo || []).map((q: any) => (
@@ -587,7 +643,7 @@ export function FixtureWorkspace({ api }: Props) {
             value={data.savedQuotes || {}}
             label="旧源1X2/大小球原始值与抓取时间（Historical）"
           />
-          {latest ? (
+          {latest && market === "1X2" ? (
             <>
               <div className="ws-odds-grid">
                 {["HOME", "DRAW", "AWAY"].map((side, i) => (
@@ -604,6 +660,7 @@ export function FixtureWorkspace({ api }: Props) {
                 {fmt(latest.observedAt)} · 来源更新{" "}
                 {fmt(latest.providerUpdatedAt)}
               </p>
+              <QuoteHistory quotes={data.quotes} />
               <div className="ws-odds-history">
                 <h3>同源1X2变化</h3>
                 {data.quotes.slice(0, 8).map((q: any) => (
@@ -620,12 +677,12 @@ export function FixtureWorkspace({ api }: Props) {
                 ))}
               </div>
             </>
-          ) : (
+          ) : market === "1X2" && !data.referenceMarkets?.length ? (
             <div className="ws-empty compact">
               <strong>尚无完整可核验的1X2报价</strong>
               <p>已保存的公开盘口与历史报价在下方保留原值；缺失不填0。</p>
             </div>
-          )}
+          ) : null}
           <div className="ws-market-missing">
             <div>
               <strong>亚洲盘</strong>
@@ -682,73 +739,152 @@ export function FixtureWorkspace({ api }: Props) {
             <h2>预测与入选原因</h2>
             <span className="ws-state">概率 ≠ 评分</span>
           </div>
-          {data.predictions.map((p: any) => (
-            <article className="ws-prediction" key={p.id}>
-              <h3>{p.modelId}</h3>
+          {data.predictions
+            .filter(
+              (p: any, i: number, all: any[]) =>
+                p.modelId !== "RECENT_FORM_POISSON_RESEARCH_V1" &&
+                all.findIndex((x) => x.modelId === p.modelId) === i,
+            )
+            .map((p: any) => (
+              <article className="ws-prediction" key={p.id}>
+                <h3>
+                  {p.modelId === "MARKET_PROPORTIONAL_V1"
+                    ? "市场基准 · 比例去水"
+                    : p.modelId === "RECENT_FORM_MARKET80_RESEARCH_V1"
+                      ? "市场80%＋近期赛况20% · 未验证研究"
+                      : p.modelId}
+                </h3>
+                <div className="ws-probability">
+                  {(p.central || []).map((v: number, i: number) => (
+                    <div key={i}>
+                      <small>{["主胜", "平局", "客胜"][i]}</small>
+                      <strong>{pct(v)}</strong>
+                      <i style={{ width: `${v * 100}%` }} />
+                    </div>
+                  ))}
+                </div>
+                <p className="ws-caption">
+                  冻结截止 {fmt(p.cutoffAt)} · 计算 {fmt(p.calculatedAt)}
+                </p>
+                {p.expectations.map((e: any) => (
+                  <div key={e.id} className="ws-expectation">
+                    <b>
+                      {({ HOME: "主胜", DRAW: "平局", AWAY: "客胜" } as any)[
+                        e.selection
+                      ] || e.selection}
+                    </b>
+                    <span>估算EV {pct(e.ev)}</span>
+                    <small>
+                      {e.accepted
+                        ? "研究候选 · 尚未验证收益优势"
+                        : p.modelId === "MARKET_PROPORTIONAL_V1"
+                          ? "市场基准仅作对照，没有独立优势信号"
+                          : e.reason === "RESEARCH_NO_SUPPORTED_EDGE"
+                            ? "未达到研究门槛：EV 3%–20%，赔率1.20–8.00"
+                            : e.reason === "EV_BELOW_THRESHOLD"
+                              ? "估算EV未达到策略门槛"
+                              : e.reason}
+                    </small>
+                  </div>
+                ))}
+                <Json value={p} label="冻结预测与模型解释 / predictionId" />
+              </article>
+            ))}
+          {data.historicalModelSamples?.map((p: any) => (
+            <article className="ws-prediction" key={p.modelId}>
+              <h3>{p.label} · 历史固定重放</h3>
+              <p className="ws-caption">
+                使用归档输入，不是赛前捕获。原模型输出独立保留；不按此场赛果重选方法。
+              </p>
               <div className="ws-probability">
-                {p.central.map((v: number, i: number) => (
+                {(
+                  p.central ??
+                  ["HOME", "DRAW", "AWAY"].map(
+                    (side) => p.stressBySelection?.[side] ?? null,
+                  )
+                ).map((v: number, i: number) => (
                   <div key={i}>
-                    <small>{["主胜", "平局", "客胜"][i]}</small>
+                    <small>
+                      {["主胜", "平局", "客胜"][i]}
+                      {p.kind === "SELECTION_STRESS_ONLY" ? "压力值" : "概率"}
+                    </small>
                     <strong>{pct(v)}</strong>
-                    <i style={{ width: `${v * 100}%` }} />
                   </div>
                 ))}
               </div>
-              <p className="ws-caption">
-                冻结截止 {fmt(p.cutoffAt)} · 计算 {fmt(p.calculatedAt)}
+              <p>
+                原研究方向：
+                {(
+                  {
+                    HOME: "主胜",
+                    DRAW: "平局",
+                    AWAY: "客胜",
+                    NO_ACTION: "无行动",
+                  } as any
+                )[p.action] ?? p.action}{" "}
+                · 原估算EV {pct(p.estimatedEV)}
               </p>
-              {p.expectations.map((e: any) => (
-                <div key={e.id} className="ws-expectation">
-                  <b>{e.selection}</b>
-                  <span>estimated EV {pct(e.ev)}</span>
-                  <small>
-                    {e.accepted ? "研究候选" : "拒绝"} · {e.reason}
-                  </small>
-                </div>
-              ))}
-              <Json value={p} label="冻结预测与模型解释 / predictionId" />
+              <Json value={p} label="历史模型原始输出、赔率与样本身份" />
             </article>
           ))}
-          {!data.predictions.length && (
+          {!data.predictions.length && !data.historicalModelSamples?.length && (
             <p className="ws-muted">
               尚无本场冻结预测。不会通过赛果补造赛前概率。
             </p>
           )}
           {data.models.map((m: any) => (
-            <article className="ws-model-blocked" key={m.id}>
-              <div>
-                <h3>{m.label}</h3>
-                <span className="ws-state">缺数据 · BLOCKED</span>
-              </div>
+            <details className="ws-model-blocked" key={m.id}>
+              <summary>
+                {m.label} · 模型状态与缺项
+                <span className="ws-state">
+                  {m.status === "UNSUPPORTED_COMPETITION"
+                    ? "本赛事不适用"
+                    : "实时推断待补证"}
+                </span>
+              </summary>
               <p>{m.reason}</p>
               <small>{m.probabilityKind}</small>
-            </article>
+            </details>
           ))}
           <div className="ws-separate-metrics">
             <span>
-              model probability：{data.predictions.length ? "如上" : "未提供"}
+              模型概率：
+              {data.predictions.length ? "如上，按冻结值显示" : "尚无冻结值"}
             </span>
             <span>
-              estimated EV：{data.predictions.length ? "读取冻结值" : "未计算"}
+              估算EV：{data.predictions.length ? "读取冻结值" : "未计算"}
             </span>
             <span>
-              evidence completeness：
+              证据完整度：
               {data.quotes.length
                 ? "有报价；实时特征仍缺"
                 : "报价与实时特征缺失"}
             </span>
-            <span>validation status：历史研究 / 未晋升</span>
+            <span>验证状态：历史或公开参考研究 / 未晋升</span>
           </div>
           <p className="ws-caption">
             研究排序分如存在，仅表示规则排序，不是命中概率或收益保证。
           </p>
         </section>
       </div>
+      <MatchContext data={data} />
       <section className="ws-panel">
         <div className="ws-section-head">
           <h2>原始数据与审计时间线</h2>
           <span>预测、赛果、更正分别保留</span>
         </div>
+        {data.sourceAliases?.length > 0 && (
+          <div className="ws-note">
+            另有 {data.sourceAliases.length}{" "}
+            条同队、同时间来源记录。来源ID尚未完成权威关联，保留原记录与账本，不自动合并。
+            {data.sourceAliases.map((f: any) => (
+              <Link key={f.id} to={"/match/" + encodeURIComponent(f.id)}>
+                {" "}
+                查看关联来源 ↗{" "}
+              </Link>
+            ))}
+          </div>
+        )}
         <div className="ws-timeline">
           {data.adjudications.map((a: any) => (
             <div key={a.id}>
@@ -762,7 +898,7 @@ export function FixtureWorkspace({ api }: Props) {
           <Json
             key={a.id}
             value={a}
-            label={`Legacy关联记录 · ${a.portfolio} · ${a.title}`}
+            label={`旧档关联记录 · ${a.portfolio} · ${a.title}`}
           />
         ))}
         <Json
@@ -773,6 +909,10 @@ export function FixtureWorkspace({ api }: Props) {
             observations: data.observations,
             adjudications: data.adjudications,
           }}
+        />
+        <Json
+          value={data.predictions}
+          label="全部历次冻结预测（含已停止使用的研究版本）"
         />
         {f.competition === "DEMO" && (
           <Link to={"/fixtures/" + encodeURIComponent(f.id)}>
@@ -794,7 +934,7 @@ export function HistoryWorkspace({
   api,
   ledger = false,
 }: Props & { ledger?: boolean }) {
-  const [filters, setFilters] = useState<Record<string, string>>({
+  const [filters, setFilters] = useState<Record<string, string>>(() => ({
       mode: "LEGACY_IMPORT",
       period: "ALL",
       league: "ALL",
@@ -805,21 +945,109 @@ export function HistoryWorkspace({
       currency: "ALL",
       odds: "ALL",
       score: "ALL",
+      status: "ALL",
       from: "",
       to: "",
       q: "",
-    }),
-    [offset, setOffset] = useState(0),
+      ...Object.fromEntries(new URLSearchParams(window.location.search)),
+    })),
+    [offset, setOffset] = useState(
+      Number(new URLSearchParams(window.location.search).get("offset") || 0),
+    ),
     [detail, setDetail] = useState<any>();
+  const recordDialog = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!detail) return;
+    const previous = document.activeElement as HTMLElement;
+    recordDialog.current?.focus();
+    const close = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDetail(undefined);
+      if (e.key === "Tab") {
+        const nodes = Array.from(
+          recordDialog.current?.querySelectorAll<HTMLElement>(
+            'button,a[href],input,select,summary,[tabindex="0"]',
+          ) ?? [],
+        ).filter((n) => n.getClientRects().length);
+        const first = nodes[0],
+          last = nodes.at(-1);
+        if (!first) {
+          e.preventDefault();
+          return;
+        }
+        if (
+          e.shiftKey &&
+          (document.activeElement === first ||
+            document.activeElement === recordDialog.current)
+        ) {
+          e.preventDefault();
+          last?.focus();
+        } else if (
+          !e.shiftKey &&
+          (document.activeElement === last ||
+            document.activeElement === recordDialog.current)
+        ) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("keydown", close);
+      previous?.focus();
+    };
+  }, [detail]);
+  useEffect(() => {
+    window.history.replaceState(
+      null,
+      "",
+      `${ledger ? "/ledger" : "/history"}?` +
+        new URLSearchParams({ ...filters, offset: String(offset) }),
+    );
+  }, [filters, offset, ledger]);
   const state = useData(
     api,
     `/workspace/${ledger ? "ledger" : "history"}?` +
       new URLSearchParams({ ...filters, offset: String(offset) }),
   );
   const { data } = state;
+  const openedRecord = useRef("");
+  useEffect(() => {
+    if (!filters.record || openedRecord.current === filters.record || !data)
+      return;
+    const match = data.items.find((r: any) => r.id === filters.record);
+    if (match) {
+      openedRecord.current = filters.record;
+      setDetail(match);
+    }
+  }, [data, filters.record]);
+  const [exportNotice, setExportNotice] = useState("");
+  async function exportFiltered() {
+    try {
+      setExportNotice("正在导出完整筛选记录…");
+      const value = await api(
+        `/workspace/${ledger ? "ledger" : "history"}?` +
+          new URLSearchParams({ ...filters, export: "1" }),
+      );
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(value, null, 2)], {
+          type: "application/json",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = ledger ? "魔虚罗-筛选账本.json" : "魔虚罗-筛选历史.json";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExportNotice(`已导出完整 ${value.total} 条记录及统计口径。`);
+    } catch (e) {
+      setExportNotice("导出失败：" + String(e));
+    }
+  }
+
   const s = data?.summary;
   const change = (key: string) => (value: string) => {
-    setFilters((f) => ({ ...f, [key]: value }));
+    setFilters((f) => ({ ...f, [key]: value, record: "" }));
     setOffset(0);
     setDetail(undefined);
   };
@@ -841,14 +1069,17 @@ export function HistoryWorkspace({
         <Link className="ws-button secondary" to="/archives">
           原始档案与导入 ↗
         </Link>
+        <button className="secondary" onClick={exportFiltered}>
+          导出当前筛选 ↗
+        </button>
       </Head>
       <LoadState {...state} />
+      <p role="status">{exportNotice}</p>
       {ledger && (
         <div className="ws-ledger-modes">
           {[
             ["LEGACY_IMPORT", "历史票 / Legacy"],
             ["PAPER", "2.0纸面票"],
-            ["USER_REPORTED", "手工实际声明"],
           ].map(([v, l]) => (
             <button
               key={v}
@@ -861,6 +1092,12 @@ export function HistoryWorkspace({
         </div>
       )}
       <div className="ws-note">
+        {ledger && data?.accounting && (
+          <p>
+            {data.accounting.basis} · 账期 {data.accounting.timeZone}{" "}
+            {data.accounting.cutoff}。{data.accounting.attribution}
+          </p>
+        )}
         {filters.mode === "USER_REPORTED" && ledger
           ? "用户自行声明的成交与返还，不等同于服务器验证的输赢。"
           : ledger && filters.mode === "PAPER"
@@ -888,8 +1125,20 @@ export function HistoryWorkspace({
               detail={s?.currencies?.join(" / ")}
             />
             <Stat label="净收益（已知已结）" value={amount(s?.profitAtoms)} />
-            <Stat label="ROI" value={pct(s?.roi)} detail="分母：已结投入" />
-            <Stat label="未结 / 待复核" value={s?.open ?? "—"} />
+            <Stat
+              label="ROI"
+              value={pct(s?.roi)}
+              detail={
+                s?.roiDenominator === "LEGACY_RESOLVED_STAKE_EXCLUDING_VOID"
+                  ? "分母：已结投入，不含退票"
+                  : "分母：已结投入"
+              }
+            />
+            <Stat
+              label="当前未结 / 待复核"
+              value={data?.exposure?.open ?? "—"}
+              detail={`未结投入 ${amount(data?.exposure?.stakeAtoms)} · 包含前期未结`}
+            />
             <Stat label="已结" value={s?.settled ?? "—"} />
             <Stat
               label="最大净收益回撤"
@@ -898,6 +1147,48 @@ export function HistoryWorkspace({
             />
           </div>
           <section className="ws-panel ws-chart-panel">
+            <div className="ws-bottom-links">
+              <button
+                className="secondary"
+                onClick={() => {
+                  setFilters((f) => ({
+                    ...f,
+                    period: "ALL",
+                    from: "",
+                    to: "",
+                    status: "OPEN",
+                    record: "",
+                  }));
+                  setOffset(0);
+                }}
+              >
+                查看全部未结票 →
+              </button>
+              <button
+                className="secondary"
+                onClick={() => {
+                  setFilters((f) => ({
+                    ...f,
+                    period: "ALL",
+                    from: "",
+                    to: "",
+                    status: "REVIEW",
+                    record: "",
+                  }));
+                  setOffset(0);
+                }}
+              >
+                查看待复核票 →
+              </button>
+              {filters.status !== "ALL" && (
+                <button
+                  className="secondary"
+                  onClick={() => change("status")("ALL")}
+                >
+                  显示全部状态
+                </button>
+              )}
+            </div>
             <div className="ws-section-head">
               <h2>累计已结净收益</h2>
               <span>
@@ -913,6 +1204,7 @@ export function HistoryWorkspace({
           )}
         </>
       )}
+      {ledger && <LedgerReview review={data?.review} />}
       <section className="ws-panel">
         <div className="ws-section-head">
           <h2>
@@ -920,91 +1212,108 @@ export function HistoryWorkspace({
           </h2>
           <span>统计基于完整筛选集合，分页不改指标</span>
         </div>
-        <div className="ws-filters wrap">
-          <label className="ws-filter">
-            <span>起始日期</span>
-            <input
-              aria-label="起始日期"
-              type="date"
-              value={filters.from}
-              onChange={(e) => change("from")(e.target.value)}
-            />
-          </label>
-          <label className="ws-filter">
-            <span>结束日期</span>
-            <input
-              aria-label="结束日期"
-              type="date"
-              value={filters.to}
-              onChange={(e) => change("to")(e.target.value)}
-            />
-          </label>
-          <Select
-            label="历史联赛"
-            value={filters.league}
-            onChange={change("league")}
-            values={options("leagues")}
-          />
-          <Select
-            label="历史模型"
-            value={filters.model}
-            onChange={change("model")}
-            values={options("models")}
-          />
-          <Select
-            label="历史市场"
-            value={filters.market}
-            onChange={change("market")}
-            values={options("markets")}
-          />
-          <Select
-            label="历史策略"
-            value={filters.strategy}
-            onChange={change("strategy")}
-            values={options("strategy")}
-          />
-          {ledger && (
-            <>
-              <Select
-                label="赔率区间"
-                value={filters.odds}
-                onChange={change("odds")}
-                values={[
-                  ["ALL", "全部赔率"],
-                  ["LOW", "低于1.80"],
-                  ["MID", "1.80–2.49"],
-                  ["HIGH", "2.50及以上"],
-                ]}
+        <details className="schedule-filters">
+          <summary>筛选日期、策略、模型、赔率与状态</summary>
+          <div className="ws-filters wrap">
+            <label className="ws-filter">
+              <span>起始日期</span>
+              <input
+                aria-label="起始日期"
+                type="date"
+                value={filters.from}
+                onChange={(e) => change("from")(e.target.value)}
               />
-              <Select
-                label="评分区间"
-                value={filters.score}
-                onChange={change("score")}
-                values={[
-                  ["ALL", "全部 / 含未记录"],
-                  ["HIGH", "75及以上"],
-                  ["MID", "45–74"],
-                  ["LOW", "低于45"],
-                ]}
+            </label>
+            <label className="ws-filter">
+              <span>结束日期</span>
+              <input
+                aria-label="结束日期"
+                type="date"
+                value={filters.to}
+                onChange={(e) => change("to")(e.target.value)}
               />
-              <Select
-                label="统计币种"
-                value={filters.currency}
-                onChange={change("currency")}
-                values={options("currency")}
-              />
-            </>
-          )}
-          <label className="ws-filter search">
-            <span>搜索历史记录</span>
-            <input
-              aria-label="搜索历史记录"
-              placeholder="对阵 / 策略 / ID"
-              value={filters.q}
-              onChange={(e) => change("q")(e.target.value)}
+            </label>
+            <Select
+              label="历史联赛"
+              value={filters.league}
+              onChange={change("league")}
+              values={options("leagues")}
             />
-          </label>
-        </div>
+            <Select
+              label="历史模型"
+              value={filters.model}
+              onChange={change("model")}
+              values={options("models")}
+            />
+            <Select
+              label="历史市场"
+              value={filters.market}
+              onChange={change("market")}
+              values={options("markets")}
+            />
+            <Select
+              label="历史策略"
+              value={filters.strategy}
+              onChange={change("strategy")}
+              values={options("strategy")}
+            />
+            {ledger && (
+              <>
+                <Select
+                  label="赔率区间"
+                  value={filters.odds}
+                  onChange={change("odds")}
+                  values={[
+                    ["ALL", "全部赔率"],
+                    ["LOW", "低于1.80"],
+                    ["MID", "1.80–2.49"],
+                    ["HIGH", "2.50及以上"],
+                  ]}
+                />
+                <Select
+                  label="评分区间"
+                  value={filters.score}
+                  onChange={change("score")}
+                  values={[
+                    ["ALL", "全部 / 含未记录"],
+                    ["HIGH", "75及以上"],
+                    ["MID", "45–74"],
+                    ["LOW", "低于45"],
+                  ]}
+                />
+                <Select
+                  label="统计币种"
+                  value={filters.currency}
+                  onChange={change("currency")}
+                  values={options("currency")}
+                />
+              </>
+            )}
+            <label className="ws-filter search">
+              <span>搜索历史记录</span>
+              <input
+                aria-label="搜索历史记录"
+                placeholder="对阵 / 策略 / ID"
+                value={filters.q}
+                onChange={(e) => change("q")(e.target.value)}
+              />
+            </label>
+          </div>
+          <Select
+            label="票据状态"
+            value={filters.status}
+            onChange={change("status")}
+            values={[
+              ["ALL", "全部状态"],
+              ["OPEN", "未结"],
+              ["REVIEW", "待复核"],
+              ["CLOSED", "已结"],
+              ["WIN", "赢"],
+              ["LOSS", "输"],
+              ["VOID", "退票"],
+            ]}
+          />
+        </details>
         <div className="ws-records">
           {data?.items.map((r: any) => (
             <button
@@ -1013,7 +1322,19 @@ export function HistoryWorkspace({
               onClick={() => setDetail(r)}
             >
               <div>
-                <span className="ws-record-tag">{r.kind || r.mode}</span>
+                <span className="ws-record-tag">
+                  {(
+                    {
+                      TICKET: "历史票",
+                      RESEARCH_OBSERVATION: "研究观测",
+                      REFERENCE_FILE: "原始档案",
+                      PAPER: "纸面票",
+                      LEGACY_IMPORT: "历史导入",
+                    } as any
+                  )[r.kind || r.mode] ??
+                    r.kind ??
+                    r.mode}
+                </span>
                 <small>{fmt(r.at)}</small>
               </div>
               <div>
@@ -1032,8 +1353,17 @@ export function HistoryWorkspace({
               <div>
                 <strong>{amount(r.pnlAtoms)}</strong>
                 <small>
-                  {r.status} ·{" "}
-                  {r.currency === "UNKNOWN" ? "原币种未记录" : r.currency}
+                  {(
+                    {
+                      WIN: "赢",
+                      LOSS: "输",
+                      VOID: "退票",
+                      OPEN: "未结",
+                      REVIEW: "待复核",
+                      NON_PROSPECTIVE: "非前瞻",
+                    } as any
+                  )[String(r.status).toUpperCase()] ?? r.status}{" "}
+                  · {r.currency === "UNKNOWN" ? "原币种未记录" : r.currency}
                 </small>
               </div>
               <b>↗</b>
@@ -1064,7 +1394,14 @@ export function HistoryWorkspace({
         </div>
       </section>
       {detail && (
-        <section className="ws-panel ws-selected-record">
+        <section
+          className="ws-panel ws-selected-record"
+          role="dialog"
+          aria-modal="true"
+          aria-label="记录详情"
+          tabIndex={-1}
+          ref={recordDialog}
+        >
           <div className="ws-section-head">
             <h2>原始记录 · {detail.portfolio}</h2>
             <button onClick={() => setDetail(undefined)}>关闭详情</button>
@@ -1080,7 +1417,8 @@ export function HistoryWorkspace({
                 key={f.id}
                 to={"/match/" + encodeURIComponent(f.id)}
               >
-                {f.home} — {f.away} · 比赛详情 →
+                {teamName(f.home, f.competition || f.leagueCode)} —{" "}
+                {teamName(f.away, f.competition || f.leagueCode)} · 比赛详情 →
               </Link>
             ))}
           </div>
@@ -1088,12 +1426,17 @@ export function HistoryWorkspace({
             (l: any, i: number) => (
               <article className="ws-leg" key={i}>
                 <h3>
-                  {l.home} — {l.away}
+                  {teamName(l.home, l.competition || l.leagueCode)} —{" "}
+                  {teamName(l.away, l.competition || l.leagueCode)}
                 </h3>
                 <p>
-                  注项 {l.pickName ?? l.pick ?? "未知"} · 赔率{" "}
-                  {l.odds ?? "未记录"} · {l.marketType ?? l.market ?? "1X2"} ·
-                  盘口 {l.line ?? l.handicap ?? l.total ?? "未记录"}
+                  注项{" "}
+                  {l.pickName ??
+                    (["主胜", "平局", "客胜"][Number(l.pick)] || l.pick) ??
+                    "未知"}{" "}
+                  · 赔率 {l.odds ?? "未记录"} ·{" "}
+                  {l.marketType ?? l.market ?? "1X2"} · 盘口{" "}
+                  {l.line ?? l.handicap ?? l.total ?? "未记录"}
                 </p>
                 <p>
                   报价：{l.provider || "来源未知"} · {fmt(l.priceCapturedAt)} ·{" "}
@@ -1105,12 +1448,30 @@ export function HistoryWorkspace({
             ),
           )}
           <Json value={detail} label="完整原始记录与内容hash" />
+          <details className="ws-audit">
+            <summary>只读换腿复盘 · 原票不变</summary>
+            <p className="ws-caption">
+              只使用原票保存的备选赔率及已保存比分，计算整票假设盈亏；不属于真实收益或前瞻验证。
+            </p>
+            {detail.counterfactuals?.length ? (
+              detail.counterfactuals.map((a: any, i: number) => (
+                <p key={i}>
+                  第{a.index + 1}腿 → {a.selection} · 原备选赔率{" "}
+                  {a.odds ?? "未保存"} · 假设整票净收益{" "}
+                  {a.hypotheticalProfit == null
+                    ? "缺必要原始值，不能计算"
+                    : a.hypotheticalProfit.toFixed(2)}
+                </p>
+              ))
+            ) : (
+              <p>原票没有保存备选价格；不会以现价补写历史。</p>
+            )}
+          </details>
         </section>
       )}
       {ledger && (
         <div className="ws-bottom-links">
-          <Link to="/demo-ledger">纸面出票 / 结算 / 更正与完整导出 →</Link>
-          <Link to="/reported">登记或更正手工实际声明 →</Link>
+          <Link to="/archives">导出与原始档案 →</Link>
         </div>
       )}
     </div>
@@ -1119,13 +1480,45 @@ export function HistoryWorkspace({
 export function LaboratoryWorkspace({ api }: Props) {
   const [season, setSeason] = useState("ALL"),
     [league, setLeague] = useState("ALL"),
-    [odds, setOdds] = useState("ALL");
+    [odds, setOdds] = useState("ALL"),
+    [sampleOffset, setSampleOffset] = useState(0);
   const state = useData(
     api,
-    "/workspace/models?" + new URLSearchParams({ season, league, odds }),
+    "/workspace/models?" +
+      new URLSearchParams({
+        season,
+        league,
+        odds,
+        offset: String(sampleOffset),
+      }),
     60000,
   );
   const { data } = state;
+  const [exportMessage, setExportMessage] = useState("");
+  async function exportSamples() {
+    try {
+      setExportMessage("正在导出全部筛选样本…");
+      const value = await api(
+        "/workspace/models?" +
+          new URLSearchParams({ season, league, odds, export: "1" }),
+      );
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(value, null, 2)], {
+          type: "application/json",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "魔虚罗-模型研究-完整样本.json";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setExportMessage(
+        `已导出 ${value.models[0]?.samples?.length ?? 0} 场共同样本及三个方法的证据。`,
+      );
+    } catch (e) {
+      setExportMessage("导出失败：" + String(e));
+    }
+  }
   return (
     <div className="workspace-page">
       <Head
@@ -1133,20 +1526,27 @@ export function LaboratoryWorkspace({ api }: Props) {
         title="模型实验室"
         text="比较同一批样本，而不是比较包装后的收益。"
       >
+        <button className="secondary" onClick={exportSamples}>
+          导出全部筛选样本 ↗
+        </button>
         <Link className="ws-button secondary" to="/registry">
           模型登记与冻结评估 ↗
         </Link>
       </Head>
       <LoadState {...state} />
       <div className="ws-note">
-        {data?.scope || "读取研究口径"} · 本次固定重放不等同于严格前瞻。数据截止{" "}
-        {fmt(data?.sourceCutoffAt)} · 不自动晋升。
+        历史固定重放 · 档案导出截止 {fmt(data?.sourceCutoffAt)}；比赛样本截止{" "}
+        {data?.population?.sampleCutoff ?? "未记录"}。不自动晋升。
       </div>
+      <p role="status">{exportMessage}</p>
       <div className="ws-filters">
         <Select
           label="研究赛季"
           value={season}
-          onChange={setSeason}
+          onChange={(v: string) => {
+            setSampleOffset(0);
+            setSeason(v);
+          }}
           values={[
             ["ALL", "全部共同样本"],
             ...(data?.seasons || []).map((s: string) => [s, s]),
@@ -1155,7 +1555,10 @@ export function LaboratoryWorkspace({ api }: Props) {
         <Select
           label="研究联赛"
           value={league}
-          onChange={setLeague}
+          onChange={(v: string) => {
+            setSampleOffset(0);
+            setLeague(v);
+          }}
           values={[
             ["ALL", "全部共同样本联赛"],
             ...(data?.leagues || []).map((s: string) => [s, s]),
@@ -1164,72 +1567,110 @@ export function LaboratoryWorkspace({ api }: Props) {
         <Select
           label="研究赔率区间"
           value={odds}
-          onChange={setOdds}
+          onChange={(v: string) => {
+            setSampleOffset(0);
+            setOdds(v);
+          }}
           values={[
             ["ALL", "全部 / 含无行动"],
-            ["LOW", "动作赔率 <1.80"],
-            ["MID", "动作赔率 1.80–2.49"],
-            ["HIGH", "动作赔率 ≥2.50"],
+            ["LOW", "市场热门赔率 <1.80"],
+            ["MID", "市场热门赔率 1.80–2.49"],
+            ["HIGH", "市场热门赔率 ≥2.50"],
           ]}
         />
       </div>
-      <div className="ws-model-comparison">
-        {data?.models.map((m: any, i: number) => (
-          <section className="ws-lab-model" key={m.id}>
-            <div className="ws-section-label">
-              <span>
-                0{i + 1} /{" "}
-                {m.kind === "SELECTION_STRESS_ONLY"
-                  ? "STRESS ONLY"
-                  : "CENTRAL 1X2"}
-              </span>
-              <b>研究</b>
-            </div>
-            <h2>{m.label}</h2>
-            <small>{m.validation}</small>
-            <div className="ws-lab-primary">
-              <span>研究动作 ROI</span>
-              <strong>{pct(m.metrics.roi)}</strong>
-              <small>1单位平注 · 非真实账户成交</small>
-            </div>
-            <div className="ws-lab-metrics">
+      <section className="ws-panel">
+        <h2>同一批比赛，三种固定方法</h2>
+        <p className="ws-caption">
+          共同样本 {data?.models?.[0]?.metrics.eligibleN ?? "—"}{" "}
+          场；V6只有方向压力概率，不能用于三分类损失。
+          {data?.population
+            ? `原档案 ${data.population.originalN} 场，排除 ${data.population.excludedN} 场；样本截止 ${data.population.sampleCutoff}。`
+            : ""}
+        </p>
+        <div className="ws-table-scroll model-matrix">
+          <table>
+            <thead>
+              <tr>
+                <th>口径</th>
+                {data?.models.map((m: any) => (
+                  <th key={m.id}>
+                    {m.id.startsWith("V6")
+                      ? "V6 · 配置388"
+                      : m.id.startsWith("V7")
+                        ? "V7 · 固定融合"
+                        : "市场基准"}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
               {[
-                ["N（动作）", m.metrics.count],
-                ["预测样本", m.metrics.eligibleN],
-                ["wins / losses", `${m.metrics.wins} / ${m.metrics.losses}`],
-                ["avg odds", m.metrics.avgOdds?.toFixed(3) ?? "—"],
-                ["drawdown（单位）", amount(m.metrics.maxDrawdownAtoms)],
-                ["coverage", pct(m.metrics.coverage)],
-                ["LogLoss", m.metrics.logLoss?.toFixed(4) ?? "不适用"],
-                ["Brier", m.metrics.brier?.toFixed(4) ?? "不适用"],
-              ].map(([k, v]) => (
-                <div key={String(k)}>
-                  <span>{k}</span>
-                  <strong>{v}</strong>
-                </div>
+                ["共同样本N", (m: any) => m.metrics.eligibleN],
+                ["研究动作N", (m: any) => m.metrics.count],
+                [
+                  "赢 / 输",
+                  (m: any) => `${m.metrics.wins} / ${m.metrics.losses}`,
+                ],
+                ["研究动作ROI", (m: any) => pct(m.metrics.roi)],
+                [
+                  "平均动作赔率",
+                  (m: any) => m.metrics.avgOdds?.toFixed(3) ?? "—",
+                ],
+                [
+                  "回撤（研究单位）",
+                  (m: any) => amount(m.metrics.maxDrawdownAtoms),
+                ],
+                [
+                  "LogLoss",
+                  (m: any) => m.metrics.logLoss?.toFixed(4) ?? "不适用",
+                ],
+                ["Brier", (m: any) => m.metrics.brier?.toFixed(4) ?? "不适用"],
+                ["样本覆盖率", (m: any) => pct(m.metrics.coverage)],
+                ["行动率", (m: any) => pct(m.metrics.actionRate)],
+                [
+                  "验证状态",
+                  (m: any) =>
+                    m.id.startsWith("V6") ? "事后配置研究" : "历史重放",
+                ],
+              ].map(([label, get]: any) => (
+                <tr key={label}>
+                  <th>{label}</th>
+                  {data?.models.map((m: any) => (
+                    <td key={m.id}>{get(m)}</td>
+                  ))}
+                </tr>
               ))}
-            </div>
-            {m.kind === "SELECTION_STRESS_ONLY" && (
-              <p className="ws-caption">
-                V6逐方向压力输出不归一化，不进入三分类LogLoss/Brier/校准。
-              </p>
-            )}
-            <Json
-              value={{
-                sampleRange: m.sampleRange,
-                sampleManifestHash: m.sampleManifestHash,
-                artifactHash: m.artifactHash,
-                trainCutoff: m.trainCutoff,
-                calibrationCutoff: m.calibrationCutoff,
-                fixedBlend: m.fixedBlend,
-              }}
-              label="固定变体、样本范围、训练/校准截止"
-            />
-          </section>
+            </tbody>
+          </table>
+        </div>
+        <p className="ws-note">
+          V6只有8次历史研究动作，当前收益不能证明稳定优势。V6/V7均未自动晋升；无行动ROI保持空值。
+        </p>
+        {data?.models.map((m: any) => (
+          <Json
+            key={m.id}
+            value={{
+              sampleRange: m.sampleRange,
+              sampleManifestHash: m.sampleManifestHash,
+              artifactHash: m.artifactHash,
+              artifactEvidence: m.artifactEvidence,
+              trainCutoff: m.trainCutoff,
+              calibrationCutoff: m.calibrationCutoff,
+              fixedBlend: m.fixedBlend,
+            }}
+            label={`${m.label} · 权重、训练截止与样本证据`}
+          />
         ))}
-      </div>
+        {data?.population && (
+          <Json value={data.population} label="全部排除样本与原始资格标记" />
+        )}
+      </section>
       {data?.models.map((m: any) => (
-        <section className="ws-panel" key={"samples:" + m.id}>
+        <details className="ws-panel lab-detail" key={"samples:" + m.id}>
+          <summary>
+            {m.label} · 查看全部 {m.sampleTotal} 场证据
+          </summary>
           <div className="ws-section-head">
             <h2>{m.label} · 逐场研究证据</h2>
             <span>
@@ -1237,13 +1678,16 @@ export function LaboratoryWorkspace({ api }: Props) {
             </span>
           </div>
           <p className="ws-caption">
-            当前筛选的前20场原始推断输出。历史重放不是赛前捕获；V6压力值分别保留，没有归一化。
+            当前筛选第 {sampleOffset + 1}–
+            {Math.min(sampleOffset + 20, m.sampleTotal)} 场，共 {m.sampleTotal}{" "}
+            场。历史重放不是赛前捕获；V6压力值分别保留，没有归一化。
           </p>
           {m.samplePreview.map((r: any) => (
             <div className="ws-odds-history" key={r.fixtureId}>
               <div>
                 <span>
-                  {r.date} · {r.home} — {r.away}
+                  {r.date} · {teamName(r.home, r.competition || r.leagueCode)} —{" "}
+                  {teamName(r.away, r.competition || r.leagueCode)}
                 </span>
                 <b>
                   {r.action === "NO_ACTION" ? "无行动" : r.action} · EV{" "}
@@ -1264,13 +1708,33 @@ export function LaboratoryWorkspace({ api }: Props) {
               />
             </div>
           ))}
-        </section>
+          <div className="ws-pagination">
+            <button
+              disabled={!sampleOffset}
+              onClick={() => setSampleOffset(Math.max(0, sampleOffset - 20))}
+            >
+              上一页样本
+            </button>
+            <button
+              disabled={m.nextOffset == null}
+              onClick={() => setSampleOffset(m.nextOffset)}
+            >
+              下一页样本
+            </button>
+          </div>
+        </details>
       ))}
       <section className="ws-panel">
         <div className="ws-section-head">
           <h2>当前赛季 · 严格前瞻表现</h2>
           <span>与上方历史重放分开</span>
         </div>
+        <p className="ws-caption">
+          按比赛去重：市场基准已冻结 {data?.prospective.marketCapturedN ?? "—"}{" "}
+          场，市场＋近期赛况研究已冻结{" "}
+          {data?.prospective.researchCapturedN ?? "—"}{" "}
+          场；这两类公开参考研究不计入严格前瞻成绩。
+        </p>
         <div className="ws-summary">
           <Stat label="前瞻 N" value={data?.prospective.n ?? "—"} />
           <Stat label="前瞻 ROI" value={pct(data?.prospective.roi)} />
@@ -1282,7 +1746,8 @@ export function LaboratoryWorkspace({ api }: Props) {
         </div>
       </section>
       {data?.models.map((m: any) => (
-        <section className="ws-panel" key={m.id}>
+        <details className="ws-panel lab-detail" key={m.id}>
+          <summary>{m.label} · 分组与校准</summary>
           <div className="ws-section-head">
             <h2>{m.label} · 分组复盘</h2>
             <span>本次共同样本</span>
@@ -1308,6 +1773,12 @@ export function LaboratoryWorkspace({ api }: Props) {
                       <th>N / 预测</th>
                       <th>胜 / 负</th>
                       <th>ROI</th>
+                      <th>均价</th>
+                      <th>回撤</th>
+                      <th>LogLoss / Brier</th>
+                      <th>行动率</th>
+                      <th>样本覆盖</th>
+                      <th>样本日期</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1321,6 +1792,20 @@ export function LaboratoryWorkspace({ api }: Props) {
                           {r.wins} / {r.losses}
                         </td>
                         <td>{pct(r.roi)}</td>
+                        <td>{r.avgOdds?.toFixed(2) ?? "—"}</td>
+                        <td>{amount(r.maxDrawdownAtoms)}</td>
+                        <td>
+                          {r.logLoss?.toFixed(3) ?? "—"} /{" "}
+                          {r.brier?.toFixed(3) ?? "—"}
+                        </td>
+                        <td>{pct(r.actionRate)}</td>
+                        <td>
+                          {r.eligibleN}/{r.originalN} · {pct(r.coverage)}
+                        </td>
+                        <td>
+                          {r.sampleRange.from ?? "无样本"} —{" "}
+                          {r.sampleRange.to ?? "无样本"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1350,7 +1835,7 @@ export function LaboratoryWorkspace({ api }: Props) {
               压力输出无完整三分类校准；不显示伪校准图。
             </p>
           )}
-        </section>
+        </details>
       ))}
       <section className="ws-panel">
         <div className="ws-section-head">
@@ -1525,16 +2010,33 @@ export function RuntimeWorkspace({ api, mode }: Props) {
         {data?.sources.map((s: any) => (
           <div className="ws-source-row" key={s.id}>
             <div>
-              <strong>{s.competition}</strong>
+              <strong>{leagueName(s.competition, data.leagues)}</strong>
               <small>{s.providerId}</small>
             </div>
             <span className="ws-state">
-              {s.state === "EMPTY" ? "当前来源返回空集" : s.state}
+              {(
+                {
+                  EMPTY: "本来源本日期为空",
+                  FAILED: "读取失败",
+                  DEGRADED: "已读公开参考",
+                  CAPTURING: "读取中",
+                  CAPTURED: "已取得证据",
+                  NORMALIZATION_FAILED: "格式待复核",
+                } as any
+              )[s.state] ?? s.state}
             </span>
             <span>{s.normalizedCount} 场</span>
             <div>
               <small>{fmt(s.startedAt)}</small>
-              <p>{s.reason}</p>
+              <p>
+                {s.state === "EMPTY"
+                  ? "来源未返回该日赛事；不代表其他来源也没有比赛。"
+                  : s.state === "FAILED"
+                    ? "来源本轮未成功，按退避继续重试；具体原因保留在原始运行记录。"
+                    : s.state === "DEGRADED"
+                      ? "赛程与可用盘口已保留；价格为公开参考，来源更新时间未提供。"
+                      : s.reason}
+              </p>
             </div>
           </div>
         ))}
@@ -1543,7 +2045,21 @@ export function RuntimeWorkspace({ api, mode }: Props) {
         <h2>模型队列</h2>
         <div className="ws-summary">
           {data?.queue.map((q: any) => (
-            <Stat key={q.state} label={q.state} value={q.count} />
+            <Stat
+              key={q.state}
+              label={
+                (
+                  {
+                    DONE: "已完成",
+                    RUNNING: "推断中",
+                    QUEUED: "等待领取",
+                    FAILED: "失败",
+                    BLOCKED: "受阻",
+                  } as any
+                )[q.state] ?? q.state
+              }
+              value={q.count}
+            />
           ))}
         </div>
         <Link to="/system-details">安装身份、schema与完整状态 →</Link>
@@ -1558,7 +2074,7 @@ export function LegacyWorkspace({ api }: Props) {
     <div className="workspace-page">
       <Head
         n="LEGACY / READ ONLY"
-        title="旧版功能对照"
+        title="旧档案与设置"
         text="旧设置与十策略保留在独立只读视图，方便逐项核对。"
       />
       <LoadState {...state} />
@@ -1572,24 +2088,6 @@ export function LegacyWorkspace({ api }: Props) {
         <Link to="/ledger">模拟与统计 ↗</Link>
         <Link to="/models">模型实验室 ↗</Link>
       </div>
-      <section className="ws-panel">
-        <div className="ws-section-head">
-          <h2>官方杯赛观察</h2>
-          <Link to="/workbench?league=jfa.emperors">
-            天皇杯官方已公布赛程 →
-          </Link>
-        </div>
-        <p className="ws-caption">
-          旧版JFA第三轮公告进入完整赛程，自动读取原始公告。官方公告只确认赛程，不推断比分或赔率。
-        </p>
-        <a
-          href="https://www.jfa.jp/match/news/00036688/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          日本足协原公告 ↗
-        </a>
-      </section>
       <section className="ws-panel">
         <div className="ws-section-head">
           <h2>旧十策略配置</h2>
@@ -1628,52 +2126,6 @@ export function LegacyWorkspace({ api }: Props) {
           ))}
         </div>
       </section>
-      <HypothesisCalculator />
     </div>
-  );
-}
-function HypothesisCalculator() {
-  const [odds, setOdds] = useState(""),
-    [probability, setProbability] = useState(""),
-    [budget, setBudget] = useState("");
-  const o = Number(odds),
-    p = Number(probability) / 100,
-    b = Number(budget),
-    valid =
-      odds !== "" &&
-      probability !== "" &&
-      budget !== "" &&
-      o > 1 &&
-      p > 0 &&
-      p < 1 &&
-      b > 0;
-  return (
-    <section className="ws-panel">
-      <h2>个人假设计算器</h2>
-      <p className="ws-caption">
-        只计算你输入的假设，不使用模型或行情，不生成票据。
-      </p>
-      <div className="ws-filters">
-        {[
-          ["假设十进制赔率", odds, setOdds],
-          ["自行假设概率（%）", probability, setProbability],
-          ["可承受损失预算", budget, setBudget],
-        ].map(([label, value, setter]: any) => (
-          <label className="ws-filter" key={label}>
-            <span>{label}</span>
-            <input
-              type="number"
-              aria-label={label}
-              value={value}
-              onChange={(e) => setter(e.target.value)}
-            />
-          </label>
-        ))}
-      </div>
-      <div className="ws-summary">
-        <Stat label="假设EV" value={valid ? pct(p * o - 1) : "—"} />
-        <Stat label="输入预算" value={valid ? b.toFixed(2) : "—"} />
-      </div>
-    </section>
   );
 }

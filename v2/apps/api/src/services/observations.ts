@@ -7,7 +7,11 @@ import {
 import { score } from "../../../../packages/domain/index";
 import { one, stmt, uid, rows, atomic } from "../repositories/db";
 import { receipt, type Context } from "./commands";
-export const MODELS = ["MARKET_PROPORTIONAL_V1", "DEMO_FIXED_CENTRAL_V1"];
+export const MODELS = [
+  "MARKET_PROPORTIONAL_V1",
+  "DEMO_FIXED_CENTRAL_V1",
+  "RECENT_FORM_MARKET80_RESEARCH_V1",
+];
 export async function observe(c: Context, key: string) {
   const r = await receipt(c, "observe", key, {});
   if (r.old) return { id: r.old.resultRef };
@@ -127,7 +131,7 @@ export async function observe(c: Context, key: string) {
       hash,
       bytes,
     ),
-    ...MODELS.map((m) =>
+    ...MODELS.filter((m) => m !== "RECENT_FORM_MARKET80_RESEARCH_V1").map((m) =>
       stmt(
         c.db,
         "INSERT INTO jobs(id,bundleId,modelId,state,deadlineAt) VALUES(?,?,?,'QUEUED',?)",
@@ -292,7 +296,16 @@ export async function complete(
     return { state: "DONE", predictionId: old.resultRef };
   }
   const f = input(JSON.parse(b.canonical));
-  if (f.mode !== "DEMO") throw new Error("NETWORK_DISABLED");
+  const research = f.mode === "LOCAL_RESEARCH";
+  if (f.mode !== "DEMO" && !research) throw new Error("NETWORK_DISABLED");
+  if (research && j.modelId === "DEMO_FIXED_CENTRAL_V1")
+    throw Error("MODE_MISMATCH");
+  const installation = await one(
+    c.db,
+    "SELECT mode FROM installations WHERE id=?",
+    c.installationId,
+  );
+  if (installation.mode !== f.mode) throw Error("MODE_MISMATCH");
   if (c.now < b.cutoffAt || c.now >= Date.parse(f.kickoffAt))
     throw new Error("FEATURE_LATE");
   const feature = uid(),
@@ -364,12 +377,33 @@ export async function complete(
       ),
       stmt(
         c.db,
-        "INSERT INTO decisions VALUES(?,?,?,?,?,'DEMO_EV_POSITIVE_V1')",
+        "INSERT INTO decisions VALUES(?,?,?,?,?,?)",
         uid(),
         e,
-        er > 1 ? 1 : 0,
-        er > 1 ? "DEMO_CANDIDATE" : "EV_BELOW_THRESHOLD",
+        (
+          research
+            ? j.modelId !== "MARKET_PROPORTIONAL_V1" &&
+              er >= 1.03 &&
+              er <= 1.2 &&
+              Number(q.decimalOdds) >= 1.2 &&
+              Number(q.decimalOdds) <= 8
+            : er > 1
+        )
+          ? 1
+          : 0,
+        research
+          ? j.modelId !== "MARKET_PROPORTIONAL_V1" &&
+            er >= 1.03 &&
+            er <= 1.2 &&
+            Number(q.decimalOdds) >= 1.2 &&
+            Number(q.decimalOdds) <= 8
+            ? "UNVALIDATED_RESEARCH_CANDIDATE"
+            : "RESEARCH_NO_SUPPORTED_EDGE"
+          : er > 1
+            ? "DEMO_CANDIDATE"
+            : "EV_BELOW_THRESHOLD",
         c.now,
+        research ? "PUBLIC_RESEARCH_EV3_V1" : "DEMO_EV_POSITIVE_V1",
       ),
     );
   }

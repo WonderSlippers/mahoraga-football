@@ -24,22 +24,136 @@
         "USER_REPORTED"
       ]
     },
-    "fixtureId": { "type": "string", "minLength": 1 },
-    "revisionId": { "type": "string", "minLength": 1 },
-    "observedAt": { "type": "string", "format": "date-time" },
-    "ingestedAt": { "type": "string", "format": "date-time" },
-    "cutoffAt": { "type": "string", "format": "date-time" },
-    "kickoffAt": { "type": "string", "format": "date-time" },
+    "fixtureId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revisionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ingestedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cutoffAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "kickoffAt": {
+      "type": "string",
+      "format": "date-time"
+    },
     "odds": {
       "type": "array",
       "minItems": 3,
       "maxItems": 3,
-      "items": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,12})?$" }
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9]+(\\.[0-9]{1,12})?$"
+      }
     },
     "missingMask": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "uniqueItems": true
+    },
+    "researchFeatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "homeRecent",
+        "awayRecent",
+        "neutralSite",
+        "sourceSnapshotId",
+        "observedAt"
+      ],
+      "properties": {
+        "homeRecent": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "at", "gf", "ga", "opponent", "competition"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "gf": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "ga": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "opponent": {
+                "type": "string"
+              },
+              "competition": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "awayRecent": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "at", "gf", "ga", "opponent", "competition"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "gf": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "ga": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "opponent": {
+                "type": "string"
+              },
+              "competition": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "neutralSite": {
+          "type": ["boolean", "null"]
+        },
+        "sourceSnapshotId": {
+          "type": "string"
+        },
+        "observedAt": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
     }
   }
 }

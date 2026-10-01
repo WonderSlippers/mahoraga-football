@@ -191,7 +191,7 @@ export async function captureSource(
   }
   const recent = await stmt(
     c.db,
-    "SELECT nextAttemptAt FROM source_runs ORDER BY startedAt DESC LIMIT 1",
+    "SELECT nextAttemptAt FROM source_runs WHERE providerId='OPENLIGADB_V1' ORDER BY startedAt DESC LIMIT 1",
   ).first<any>();
   if (recent?.nextAttemptAt > c.now) throw Error("SOURCE_BACKOFF");
   const owner = uid();

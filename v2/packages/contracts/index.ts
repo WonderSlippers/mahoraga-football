@@ -14,6 +14,27 @@ export type FrozenInput = {
   kickoffAt: string;
   odds: string[];
   missingMask: string[];
+  researchFeatures?: {
+    homeRecent: {
+      id: string;
+      at: string;
+      gf: number;
+      ga: number;
+      opponent: string;
+      competition: string;
+    }[];
+    awayRecent: {
+      id: string;
+      at: string;
+      gf: number;
+      ga: number;
+      opponent: string;
+      competition: string;
+    }[];
+    neutralSite: boolean | null;
+    sourceSnapshotId: string;
+    observedAt: number;
+  };
 };
 export function input(value: unknown): FrozenInput {
   if (!validate(value)) throw new Error("FEATURE_SCHEMA_MISMATCH");
@@ -26,6 +47,14 @@ export function input(value: unknown): FrozenInput {
     Date.parse(v.cutoffAt) >= Date.parse(v.kickoffAt)
   )
     throw new Error("FEATURE_LATE");
+  if (
+    v.researchFeatures &&
+    (v.researchFeatures.observedAt > Date.parse(v.cutoffAt) ||
+      [...v.researchFeatures.homeRecent, ...v.researchFeatures.awayRecent].some(
+        (g) => Date.parse(g.at) >= Date.parse(v.cutoffAt),
+      ))
+  )
+    throw Error("FEATURE_LATE");
   return v;
 }
 export function canonical(v: unknown): string {
