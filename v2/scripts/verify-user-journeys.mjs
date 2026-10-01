@@ -62,17 +62,18 @@ try {
   await action("league=uefa.nations", () =>
     page.getByLabel("赛程联赛", { exact: true }).selectOption("uefa.nations"),
   );
-  await action("q=", () =>
+  await action("q=" + encodeURIComponent("哈萨克斯坦"), () =>
     page.getByLabel("搜索球队", { exact: true }).fill("哈萨克斯坦"),
   );
-  assert((await page.locator(".fixture-card").count()) >= 1);
-  for (const card of await page.locator(".fixture-card").all())
-    await expect(card).toContainText("哈萨克斯坦");
+  await expect(
+    page.locator(".fixture-card").filter({ hasNotText: "哈萨克斯坦" }),
+  ).toHaveCount(0);
   const nationalMatch = page
     .locator(".fixture-card")
     .filter({ hasText: "摩尔多瓦" })
     .first();
   await expect(nationalMatch).toBeVisible();
+  assert((await page.locator(".fixture-card").count()) >= 1);
   const url = page.url();
   await nationalMatch.click();
   await loaded();
@@ -110,9 +111,12 @@ try {
   check("返回赛程保留中文搜索和联赛筛选");
   await page.reload();
   await loaded();
-  assert((await page.locator(".fixture-card").count()) >= 1);
-  for (const card of await page.locator(".fixture-card").all())
-    await expect(card).toContainText("哈萨克斯坦");
+  await expect(
+    page.locator(".fixture-card").filter({ hasNotText: "哈萨克斯坦" }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".fixture-card").filter({ hasText: "摩尔多瓦" }).first(),
+  ).toBeVisible();
   check("刷新保留筛选");
   await go("/workbench?period=CUSTOM&custom=2026-10-02");
   await page.locator(".schedule-filters summary").click();

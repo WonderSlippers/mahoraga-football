@@ -71,6 +71,10 @@ header small {
   background: var(--ws-bg);
   padding: 32px 22px;
 }
+:root[data-theme="light"] .shell > nav {
+  background: var(--ws-panel);
+  color: var(--ws-ink);
+}
 nav .navtitle {
   color: var(--ws-muted);
   font-size: 12px;

@@ -1122,7 +1122,15 @@ export function HistoryWorkspace({
             <Stat
               label="投入"
               value={amount(s?.stakeAtoms)}
-              detail={s?.currencies?.join(" / ")}
+              detail={s?.currencies
+                ?.map((v: string) =>
+                  v === "UNKNOWN"
+                    ? "原币种未记录"
+                    : v === "PAPER"
+                      ? "纸面单位"
+                      : v,
+                )
+                .join(" / ")}
             />
             <Stat label="净收益（已知已结）" value={amount(s?.profitAtoms)} />
             <Stat

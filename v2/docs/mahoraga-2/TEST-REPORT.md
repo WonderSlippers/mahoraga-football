@@ -6,18 +6,18 @@
 
 下列命令在v2目录执行。证据目录为 `.runtime-v2/feature-parity/`；交付副本在聊天目录 `outputs/feature-parity-20261001/`。退出码均为实际执行结果0。
 
-|命令|退出码|通过 / 失败 / 跳过|证据|证明范围|
-|---|---:|---|---|---|
-|`npm run check`|0|类型/格式/边界检查|check.log|不是模型验证|
-|`npm run test:unit`|0|46 / 0 / 0|unit.log|契约、市场/账本数学、日期/八状态/缺额/混币/官方公告解析|
-|`npm run test:integration`|0|41 / 0 / 0|integration.log|真实D1、冻结/原子/幂等/导入/恢复/自动裁定，包含新功能测试|
-|`node node_modules/tsx/dist/cli.mjs --test tests/unit/workspace.test.ts tests/integration/workspace.test.ts`|0|8 / 0 / 0|functional-tests.log|上述全集的子集，不重复累计；研究观测不计入资金、无日期ALL、CAS任务租约、冲突/重放|
-|`node node_modules/tsx/dist/cli.mjs --test tests/integration/backup.test.ts`|0|2 / 0 / 0|backup-tests.log|上述全集的子集；schema7分页恢复到schema8，301报价不丢失|
-|`npm run test:e2e`|0|3 / 0 / 0|e2e.log|实际Chrome→API→Python→D1→票→结算→更正→重启；实际自有runner恢复|
-|`npm run test:model-parity`|0|6 / 0 / 0|model-parity.log|V6原函数250历史行、V7原函数115合格历史行及哈希/语义守卫|
-|`.venv/Scripts/python.exe model-runner/build_workspace_study.py`|0|115行固定V7实际数值对照|fixed-candidate.log、fixed-candidate-parity.json|与原包predict对照，最大误差1.1102230246251565e-16；不训练、不证明前瞻|
-|`npm run build`|0|生产构建成功|build.log|React/Vite及Worker构建|
-|`node scripts/verify-workspace-browser.mjs`|0|31 / 0 / 0|browser-functional.log、browser-functional-report.json|当前运行5274真实浏览器功能/过滤/分页/原证据/自动推进/响应式/双主题，无pageerror|
+| 命令                                                                                                         | 退出码 | 通过 / 失败 / 跳过      | 证据                                                   | 证明范围                                                                          |
+| ------------------------------------------------------------------------------------------------------------ | -----: | ----------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `npm run check`                                                                                              |      0 | 类型/格式/边界检查      | check.log                                              | 不是模型验证                                                                      |
+| `npm run test:unit`                                                                                          |      0 | 46 / 0 / 0              | unit.log                                               | 契约、市场/账本数学、日期/八状态/缺额/混币/官方公告解析                           |
+| `npm run test:integration`                                                                                   |      0 | 41 / 0 / 0              | integration.log                                        | 真实D1、冻结/原子/幂等/导入/恢复/自动裁定，包含新功能测试                         |
+| `node node_modules/tsx/dist/cli.mjs --test tests/unit/workspace.test.ts tests/integration/workspace.test.ts` |      0 | 8 / 0 / 0               | functional-tests.log                                   | 上述全集的子集，不重复累计；研究观测不计入资金、无日期ALL、CAS任务租约、冲突/重放 |
+| `node node_modules/tsx/dist/cli.mjs --test tests/integration/backup.test.ts`                                 |      0 | 2 / 0 / 0               | backup-tests.log                                       | 上述全集的子集；schema7分页恢复到schema8，301报价不丢失                           |
+| `npm run test:e2e`                                                                                           |      0 | 3 / 0 / 0               | e2e.log                                                | 实际Chrome→API→Python→D1→票→结算→更正→重启；实际自有runner恢复                    |
+| `npm run test:model-parity`                                                                                  |      0 | 6 / 0 / 0               | model-parity.log                                       | V6原函数250历史行、V7原函数115合格历史行及哈希/语义守卫                           |
+| `.venv/Scripts/python.exe model-runner/build_workspace_study.py`                                             |      0 | 115行固定V7实际数值对照 | fixed-candidate.log、fixed-candidate-parity.json       | 与原包predict对照，最大误差1.1102230246251565e-16；不训练、不证明前瞻             |
+| `npm run build`                                                                                              |      0 | 生产构建成功            | build.log                                              | React/Vite及Worker构建                                                            |
+| `node scripts/verify-workspace-browser.mjs`                                                                  |      0 | 31 / 0 / 0              | browser-functional.log、browser-functional-report.json | 当前运行5274真实浏览器功能/过滤/分页/原证据/自动推进/响应式/双主题，无pageerror   |
 
 单元46、D1集成41、核心E2E3与研究网站浏览器31分别统计；子集8与2不叠加。Python6中守卫用例不是额外真实模型样本。115行固定研究比较与原历史parity分开说明，不能把历史样本当作当时已捕获的前瞻记录。
 
@@ -42,12 +42,11 @@
 
 ## 保护证据与限制
 
-protection-check-20261001.json核对本轮开始/结束旧HEAD、dirty patch/status、PID59592、任务动作一致。活动旧D1仅SQLite URI mode=ro和query_only=ON读取，一致backup写入v2自有目录；quick_check=ok。snapshot-proof.json与snapshot-export-proof.json记录原票/报价/模型逐字段一致及旧元数据变化；不是声明旧站自身期间完全无写入。新DEMO与research独立installationId、端口与状态目录。未push、部署、正式切换或修改旧数据库。
+protection-check-20261001.json核对旧HEAD、dirty patch/status、PID59592。其“任务动作全部一致”字段后续审查发现CIM序列化比较错误，已作废：正确解码为3项一致、2项不同，后两项任务文件mtime为2026-10-01 01:20:59 UTC，早于03:54 UTC开始的可用性审查；修改来源未归因，不回改或接管。当前权威证据为 .runtime-v2/usability/legacy-protection-final.json。活动旧D1此前仅SQLite URI mode=ro和query_only=ON读取，一致backup写入v2自有目录；quick_check=ok。snapshot-proof.json与snapshot-export-proof.json记录原票/报价/模型逐字段一致及旧元数据变化；不是声明旧站自身期间完全无写入。新DEMO与research独立installationId、端口与状态目录。未push、部署、正式切换或修改旧数据库。
 
 旧303/304文件与9/27基线一致；未跟踪local-hidden-task.vbs不同且mtime在本轮内，没有本轮前独立内容hash，差异时点/来源无法确定。本轮没有写该路径的命令，也不覆盖它。不能宣称所有旧文件逐字节未变。保护证明仅覆盖已记录范围，不是系统级写入审计。
 
 9/28旧60分钟真实API负载报告已完成退出0，RSS末窗口比1.21534；不能代替本轮新增自动来源流程的长测。此前历史验收报告见Git中本轮之前版本。
-
 
 ## 2026-10-01 用户指定头像
 

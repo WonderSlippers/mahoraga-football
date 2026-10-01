@@ -37,8 +37,10 @@ try {
       if (
         viewport.width === 1024 &&
         (await page.getByRole("button", { name: "浅色", exact: true }).count())
-      )
+      ) {
         await page.getByRole("button", { name: "浅色", exact: true }).click();
+        await page.waitForTimeout(250);
+      }
       const screenshot = `${dir}/${name}-${viewport.width}.png`;
       await page.screenshot({ path: screenshot, fullPage: false });
       const layout = await page.evaluate(() => ({
