@@ -17,6 +17,15 @@ import { reportTrade } from "./services/reported";
 import { evaluate } from "./services/evaluations";
 import { csvCell } from "../../../packages/evaluation/index";
 import { createExport, stepExport, downloadExport } from "./services/exports";
+import {
+  workspaceSchedule,
+  workspaceReport,
+  workspaceFixture,
+  workspaceMetadata,
+  importWorkspace,
+  modelLaboratory,
+} from "./services/workspace";
+import { automationTick } from "./services/automation";
 let bootstrapWindow = 0,
   bootstrapAttempts = 0;
 function wire(data: unknown): unknown {
@@ -107,9 +116,12 @@ export default {
             size += x.value.byteLength;
             if (
               size >
-              (["/api/v2/imports/preview", "/api/v2/imports/commit"].includes(
-                path,
-              )
+              ([
+                "/api/v2/imports/preview",
+                "/api/v2/imports/commit",
+                "/internal/v2/workspace-import",
+                "/internal/v2/archive-import",
+              ].includes(path)
                 ? 9 * 1024 * 1024
                 : 32768)
             ) {
@@ -163,9 +175,32 @@ export default {
           });
         }
         if (req.method !== "POST") throw new Error("NOT_FOUND");
+        if (path === "/internal/v2/workspace-import") {
+          exactFields(body, [
+            "sourceHash",
+            "sourceCutoffAt",
+            "metadata",
+            "study",
+          ]);
+          return ok(await importWorkspace(context, body));
+        }
+        if (path === "/internal/v2/archive-import") {
+          exactFields(body, ["namespace", "files"]);
+          const preview = await importPreview(context, body as any);
+          const result = await importCommit(context, {
+            previewId: preview.id,
+            files: body.files,
+            previewHash: preview.previewHash,
+          });
+          return ok(result);
+        }
         if (path === "/internal/v2/export-jobs/step") {
           exactFields(body, []);
           return ok(await stepExport(context));
+        }
+        if (path === "/internal/v2/automation/tick") {
+          exactFields(body, []);
+          return ok(await automationTick(context, env.MODE));
         }
         const leaseMatch = path.match(
           /^\/internal\/v2\/model-jobs\/([^/]+)\/(heartbeat|fail)$/,
@@ -290,6 +325,43 @@ export default {
         throw new Error("CSRF_INVALID");
       const key = req.headers.get("Idempotency-Key") || "";
       if (req.method === "GET") {
+        if (path === "/api/v2/workspace/schedule")
+          return ok(await workspaceSchedule(context, url.searchParams));
+        if (path === "/api/v2/workspace/history")
+          return ok(
+            await workspaceReport(context, url.searchParams, "history"),
+          );
+        if (path === "/api/v2/workspace/ledger")
+          return ok(await workspaceReport(context, url.searchParams, "ledger"));
+        if (path === "/api/v2/workspace/models")
+          return ok(await modelLaboratory(context, url.searchParams));
+        if (path === "/api/v2/workspace/settings")
+          return ok(await workspaceMetadata(env.DB));
+        if (path === "/api/v2/workspace/status")
+          return ok({
+            automation: await rows(env.DB, "SELECT * FROM automation_state"),
+            sources: await rows(
+              env.DB,
+              "SELECT * FROM source_runs ORDER BY startedAt DESC LIMIT 30",
+            ),
+            runner: await rows(env.DB, "SELECT * FROM runtime_health"),
+            queue: await rows(
+              env.DB,
+              "SELECT state,COUNT(*) count FROM jobs GROUP BY state",
+            ),
+            mode: env.MODE,
+            asOf: now,
+          });
+        const workspaceDetail = path.match(
+          /^\/api\/v2\/workspace\/fixtures\/([^/]+)$/,
+        );
+        if (workspaceDetail)
+          return ok(
+            await workspaceFixture(
+              context,
+              decodeURIComponent(workspaceDetail[1]),
+            ),
+          );
         if (path === "/api/v2/export-jobs")
           return ok(
             await rows(
@@ -712,6 +784,20 @@ export default {
           });
       }
       if (req.method === "POST") {
+        if (path === "/api/v2/workspace/refresh") {
+          exactFields(body, []);
+          return ok(await automationTick(context, env.MODE, true));
+        }
+        if (path === "/api/v2/workspace/automation") {
+          exactFields(body, ["enabled"]);
+          if (typeof body.enabled !== "boolean") throw Error("INVALID_FIELDS");
+          await stmt(
+            env.DB,
+            "UPDATE automation_state SET enabled=? WHERE id='LOCAL_PIPELINE'",
+            body.enabled ? 1 : 0,
+          ).run();
+          return ok({ enabled: body.enabled });
+        }
         if (path === "/api/v2/export-jobs") {
           exactFields(body, []);
           return ok(await createExport(context, key), 202);

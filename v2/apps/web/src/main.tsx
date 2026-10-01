@@ -10,6 +10,15 @@ import {
   useLocation,
 } from "react-router-dom";
 import "./style.css";
+import "./workspace.css";
+import {
+  ScheduleWorkspace,
+  FixtureWorkspace,
+  HistoryWorkspace,
+  LaboratoryWorkspace,
+  RuntimeWorkspace,
+  LegacyWorkspace,
+} from "./workspace";
 let csrf = "";
 async function api(path: string, body?: unknown, key?: string) {
   const response = await fetch("/api/v2" + path, {
@@ -80,7 +89,9 @@ function App() {
           魔虚罗 <span>2.0</span>
         </div>
         <span className="badge">
-          {location.pathname === "/archives"
+          {location.pathname === "/archives" ||
+          location.pathname === "/history" ||
+          location.pathname === "/legacy"
             ? "LEGACY_IMPORT · 原始历史档案"
             : location.pathname === "/reported"
               ? "USER_REPORTED · 手工声明"
@@ -106,18 +117,33 @@ function App() {
         <div className="shell">
           <nav>
             <p className="navtitle">研究流程</p>
-            <NavLink to="/workbench">01 今日观察</NavLink>
-            {!research && <NavLink to="/ledger">02 纸面账本</NavLink>}
-            <NavLink to="/models">03 模型状态</NavLink>
-            <NavLink to="/system">04 系统信息</NavLink>
-            <NavLink to="/archives">05 历史档案</NavLink>
-            <NavLink to="/reported">06 手工成交声明</NavLink>
+            <NavLink to="/workbench">
+              01 完整赛程 <span>↗</span>
+            </NavLink>
+            <NavLink to="/history">
+              02 历史中心 <span>↗</span>
+            </NavLink>
+            <NavLink to="/ledger">
+              03 账本与复盘 <span>↗</span>
+            </NavLink>
+            <NavLink to="/models">
+              04 模型实验室 <span>↗</span>
+            </NavLink>
+            <NavLink to="/system">
+              05 数据运行状态 <span>↗</span>
+            </NavLink>
+            <NavLink to="/legacy">
+              06 Legacy只读 <span>↗</span>
+            </NavLink>
+            <NavLink to="/reported">
+              手工成交声明 <span>↗</span>
+            </NavLink>
             <div className="navnote">
               {research ? "真实研究独立数据库" : "DEMO 专用数据库"}
               <br />
               自动出票：关闭
               <br />
-              {research ? "来源白名单：OpenLigaDB" : "真实网络：禁用"}
+              {research ? "自动轮转 · 公开来源" : "离线工程演练"}
               <br />
               <a
                 href={
@@ -137,16 +163,42 @@ function App() {
                 element={research ? <ResearchDetail /> : <Detail />}
               />
               <Route
+                path="/match/:id"
+                element={<FixtureWorkspace api={api} mode={mode} />}
+              />
+              <Route
                 path="/ledger"
+                element={<HistoryWorkspace api={api} mode={mode} ledger />}
+              />
+              <Route
+                path="/history"
+                element={<HistoryWorkspace api={api} mode={mode} />}
+              />
+              <Route
+                path="/models"
+                element={<LaboratoryWorkspace api={api} mode={mode} />}
+              />
+              <Route
+                path="/system"
+                element={<RuntimeWorkspace api={api} mode={mode} />}
+              />
+              <Route
+                path="/legacy"
+                element={<LegacyWorkspace api={api} mode={mode} />}
+              />
+              <Route path="/demo-workbench" element={<Workbench />} />
+              <Route
+                path="/demo-ledger"
                 element={research ? <Sources /> : <Ledger />}
               />
-              <Route path="/models" element={<Models />} />
-              <Route path="/system" element={<System />} />
+              <Route path="/registry" element={<Models />} />
+              <Route path="/sources" element={<Sources />} />
+              <Route path="/system-details" element={<System />} />
               <Route path="/archives" element={<Archives />} />
               <Route path="/reported" element={<Reported />} />
               <Route
                 path="*"
-                element={research ? <Sources /> : <Workbench />}
+                element={<ScheduleWorkspace api={api} mode={mode} />}
               />
             </Routes>
           </main>
@@ -486,7 +538,7 @@ function Detail() {
           </button>
         </div>
       </dialog>
-      <Link to="/ledger" className="textlink">
+      <Link to="/demo-ledger" className="textlink">
         打开纸面账本 →
       </Link>
     </>

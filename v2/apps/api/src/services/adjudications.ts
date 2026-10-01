@@ -28,7 +28,7 @@ export async function adjudicate(
   );
   const evidence = await rows(
     c.db,
-    "SELECT * FROM result_observations WHERE fixtureId=? ORDER BY observedAt,id LIMIT 1001",
+    "SELECT o.*,s.providerId FROM result_observations o JOIN source_snapshots s ON s.id=o.sourceSnapshotId WHERE o.fixtureId=? ORDER BY o.observedAt,o.id LIMIT 1001",
     fixture.id,
   );
   if (!evidence.length) throw Error("RESULT_MISSING");
@@ -45,7 +45,7 @@ export async function adjudicate(
         /* stays unknown */
       }
     }
-    return { ...e, id: e.id as string, regulation };
+    return { ...e, id: e.id as string, providerId: e.providerId, regulation };
   });
   const values = new Set(
     normalized.filter((e) => e.regulation).map((e) => canonical(e.regulation)),
@@ -77,7 +77,9 @@ export async function adjudicate(
         ? "RESULT_CONFLICT"
         : state === "REVIEW"
           ? "RESULT_REGULATION_UNKNOWN"
-          : "OPENLIGA_SINGLE_SOURCE_REGULATION_V1") +
+          : normalized.every((e) => e.providerId === "OPENLIGADB_V1")
+            ? "OPENLIGA_SINGLE_SOURCE_REGULATION_V1"
+            : "CONSISTENT_KNOWN_REGULATION_V1") +
     ": " +
     p.reason;
   try {

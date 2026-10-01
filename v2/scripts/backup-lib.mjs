@@ -40,6 +40,9 @@ export const tables = [
   "evaluation_samples",
   "export_jobs",
   "export_chunks",
+  "workspace_imports",
+  "fixture_catalog",
+  "automation_state",
 ];
 const hash = (x) =>
   crypto.createHash("sha256").update(JSON.stringify(x)).digest("hex");
@@ -92,6 +95,15 @@ export async function restore(db, backup, installation) {
     backup.data[t] = [];
     backup.manifest[t] = { rows: 0, sha256: hash([]) };
   }
+  if (backup.sourceInstallation?.schemaVersion <= 7)
+    for (const t of [
+      "workspace_imports",
+      "fixture_catalog",
+      "automation_state",
+    ]) {
+      backup.data[t] = [];
+      backup.manifest[t] = { rows: 0, sha256: hash([]) };
+    }
   if (
     backup.format !== "MAHORAGA_V2_CONSISTENT_SNAPSHOT_V1" ||
     Object.keys(backup.data).sort().join() !== [...tables].sort().join()
@@ -119,7 +131,7 @@ export async function restore(db, backup, installation) {
         throw Error("BACKUP_SCHEMA_MISMATCH");
       const row =
         table === "installations"
-          ? { ...original, id: installation.installationId, schemaVersion: 7 }
+          ? { ...original, id: installation.installationId, schemaVersion: 8 }
           : original;
       statements.push(
         db

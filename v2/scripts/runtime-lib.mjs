@@ -40,12 +40,22 @@ export function engine(
         c.mode !== "LOCAL_RESEARCH" ||
         request.method !== "GET" ||
         u.protocol !== "https:" ||
-        u.host !== "api.openligadb.de" ||
         u.username ||
         u.password ||
-        u.search ||
         u.hash ||
-        !/^\/getmatchdata\/bl1\/20\d{2}$/.test(u.pathname)
+        !(
+          (u.host === "api.openligadb.de" &&
+            !u.search &&
+            /^\/getmatchdata\/bl1\/20\d{2}$/.test(u.pathname)) ||
+          (u.host === "www.jfa.jp" &&
+            u.pathname === "/match/news/00036688/" &&
+            !u.search) ||
+          (u.host === "site.api.espn.com" &&
+            /^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9_.]{3,50}\/scoreboard$/.test(
+              u.pathname,
+            ) &&
+            /^\?dates=20\d{6}&limit=100$/.test(u.search))
+        )
       )
         return new Response("NETWORK_DISABLED", { status: 403 });
       return sourceFetch(u, {
@@ -98,7 +108,14 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
       "utf8",
     ),
   );
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0008_workspace.sql"),
+      "utf8",
+    ),
+  );
   const immutable = [
+    "workspace_imports",
     "source_snapshots",
     "source_chunks",
     "fixture_revisions",
@@ -140,7 +157,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
     if (existing.id !== c.installationId || existing.mode !== c.mode)
       throw Error("INSTALLATION_MISMATCH");
     await db
-      .prepare("UPDATE installations SET schemaVersion=7 WHERE id=?")
+      .prepare("UPDATE installations SET schemaVersion=8 WHERE id=?")
       .bind(c.installationId)
       .run();
     return;
@@ -149,7 +166,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
   await db.batch([
     db
       .prepare("INSERT INTO installations VALUES(?,?,?,?,?)")
-      .bind(c.installationId, c.mode, 7, c.appCodeSha, Date.now()),
+      .bind(c.installationId, c.mode, 8, c.appCodeSha, Date.now()),
     ...(c.mode === "DEMO"
       ? [
           db.prepare(

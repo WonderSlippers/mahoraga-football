@@ -1,66 +1,49 @@
-# 测试报告
+# 功能对齐与可用性恢复：实际验收报告
 
-## 执行环境与结论
-Windows / Node24.14.0 / Python3.12.3 / Chrome / Miniflare4.20260515.0（真正workerd+D1）。测试输入均为DEMO，不是模型盈利证明。
+日期：2026-10-01。工作区：独立worktree `work/mahoraga-v2/v2`。旧5173未接管。测试全部由真实进程执行；静态边界检查、历史模型对照、DEMO财务链及真实来源浏览器分别列出。
 
-2026-09-28上海时间03:03—03:05汇总运行：
+## 最终命令与数量
 
-|命令|退出码|测试数|失败/跳过|
-|---|---|---|---|
-|npm run doctor|0|环境检查|0|
-|npm run check|0|TypeScript|0|
-|npm run test:unit|0|26|0/0|
-|npm run test:integration|0|16|0/0|
-|npm run test:e2e|0|1|0/0|
-|npm run build|0|Worker+Vite产物|0|
+下列命令在v2目录执行。证据目录为 `.runtime-v2/feature-parity/`；交付副本在聊天目录 `outputs/feature-parity-20261001/`。退出码均为实际执行结果0。
 
-机器报告：.runtime-v2/verification/2026-09-27T19-03-35.575Z/verification.json；每条命令的起止UTC、退出码和原始日志在同目录。UTC时间不是模型报价时间。
+|命令|退出码|通过 / 失败 / 跳过|证据|证明范围|
+|---|---:|---|---|---|
+|`npm run check`|0|类型/格式/边界检查|check.log|不是模型验证|
+|`npm run test:unit`|0|46 / 0 / 0|unit.log|契约、市场/账本数学、日期/八状态/缺额/混币/官方公告解析|
+|`npm run test:integration`|0|41 / 0 / 0|integration.log|真实D1、冻结/原子/幂等/导入/恢复/自动裁定，包含新功能测试|
+|`node node_modules/tsx/dist/cli.mjs --test tests/unit/workspace.test.ts tests/integration/workspace.test.ts`|0|8 / 0 / 0|functional-tests.log|上述全集的子集，不重复累计；研究观测不计入资金、无日期ALL、CAS任务租约、冲突/重放|
+|`node node_modules/tsx/dist/cli.mjs --test tests/integration/backup.test.ts`|0|2 / 0 / 0|backup-tests.log|上述全集的子集；schema7分页恢复到schema8，301报价不丢失|
+|`npm run test:e2e`|0|3 / 0 / 0|e2e.log|实际Chrome→API→Python→D1→票→结算→更正→重启；实际自有runner恢复|
+|`npm run test:model-parity`|0|6 / 0 / 0|model-parity.log|V6原函数250历史行、V7原函数115合格历史行及哈希/语义守卫|
+|`.venv/Scripts/python.exe model-runner/build_workspace_study.py`|0|115行固定V7实际数值对照|fixed-candidate.log、fixed-candidate-parity.json|与原包predict对照，最大误差1.1102230246251565e-16；不训练、不证明前瞻|
+|`npm run build`|0|生产构建成功|build.log|React/Vite及Worker构建|
+|`node scripts/verify-workspace-browser.mjs`|0|31 / 0 / 0|browser-functional.log、browser-functional-report.json|当前运行5274真实浏览器功能/过滤/分页/原证据/自动推进/响应式/双主题，无pageerror|
 
-## 行为证据
-- 15条原包数学golden逐条核验金额；严格null/空串/概率/时间、跨语言Schema和canonical bytes哈希。
-- D1实际FK/CHECK/UNIQUE/append-only触发器；重复migration不丢数据。
-- 同key同payload 100个并发调用只有一张票；换payload报409语义错误；不同key同businessKey不重票。
-- 出票7个注入点、结算6个注入点全部在真实D1整批回滚；非源码字符串检查。
-- CAS冲突、余额竞争、赢→输、reopen/void、负余额更正与独立ledger SUM重放。
-- 模型完成重复回传哈希冲突、租约接管、迟到/改期/赛后拒绝、冻结原票/概率不变。
-- 无会话/伪旧身份/跨站/CSRF/内部权限拒绝；浏览器真的登录、观察、出票、结算、更正、停止重启。
-- 100000张合成票下meta所用jobs聚合查询rows_read不增加；不声称百万报价列表或60分钟稳定性达标。
-- 截图：test-results/01-frozen-research-1440.png 至 06-restart-restored.png。已人工查看手机截图，无横向溢出；自动化核验390px scrollWidth。
-- e2e-persistence.json：predictionsUnchanged=true，ticketsUnchanged=true，browserErrors=[]，restarted=true。
+单元46、D1集成41、核心E2E3与研究网站浏览器31分别统计；子集8与2不叠加。Python6中守卫用例不是额外真实模型样本。115行固定研究比较与原历史parity分开说明，不能把历史样本当作当时已捕获的前瞻记录。
 
-## 失败和修复记录
-首次tsc发现响应JSON类型及共享脚本声明缺失，修复后重跑通过。首次Vite生产构建向上加载旧PostCSS依赖失败，添加新目录独立PostCSS配置后通过。汇总首次运行在check退出2，原日志保留在19-03-18.856Z目录；后续全量运行通过。未删除失败项伪造通过。
+## 实际页面与数据
 
-## 未运行
-原根测试集；历史导入恢复；100万报价/完整列表延迟；60分钟稳定性与跨平台CI。研究模型parity的后续实际结果见下，不代表P4全链完成。以上未运行项不算通过，不宣称84项全过。
+- 17张真实PNG：完整赛程、历史比赛详情、已保存1X2/大小球市场详情、历史中心、账本、模型实验室、运行状态、Legacy、官方杯赛、六页手机、平板和浅色主题。截图来自Chrome，非合成。
+- 浏览器实际719项历史记录（705原档案+14原研究观测）、498旧票/570腿；65联赛设置与十策略自动读取。74058行1X2、2075行大小球保留原文件/时间。已知赛程626场的快照数量随自动发现变化，所有非候选仍存在。
+- 策略/联赛/模型/市场/日期筛选及账本赔率/评分/币种/五时间范围有实际检查；翻页不改变完整集合统计；今日无投入时ROI=null。
+- Market/V6配置388/V7固定quote-weighted：共同历史范围115行，分季/联赛/赔率/校准与逐场证据；V6压力值不归一化，三分类LogLoss/Brier不适用。严格前瞻N=0、ROI=null。
+- 来源自动cursor无人工点击推进；当日65联赛均已尝试，EMPTY/FAILED/DEGRADED留痕。真实JFA公告HTTP200解析16场，保留原文。仅明确90分钟无歧义结果进入既有自动裁定/纸面结算；未知比分不补0，重复运行无资金影响。
+- 视觉实检1440×1000、1024宽、390×844：排版/留白/层级、forest/lime颜色、轻动效/焦点/悬停、reduced-motion、桌面和手机无横向溢出、浅深主题。没有宣称获得设计奖项。
 
-## 保护
-未连接旧数据库，未发旧站HTTP请求，未停止原进程，未运行旧启动器/修改计划任务。304个静态源码文件前后SHA核对、旧PID/命令行及任务actions核对见outputs/protection-check.json。未执行旧库逐行审计，不能声称旧站自身期间没有写入。
+## 失败与修复
 
-## 免口令入口复验
-2026-09-28：npm run check 退出0；npm run test:e2e 退出0（1通过、0跳过），覆盖无会话自动进入、第二个全新浏览器会话、跨站403、模型令牌直接建会话401，以及原有出票/结算/更正/重启链路；npm run build退出0。
+本轮初次发现旧票缺pick导致VALUE_INVALID，改为显式null；初版测试ISO时间与数字比较、自动状态object/array假设已修正；启动器尚未READY时浏览器ERR_CONNECTION_REFUSED，保存browser-before-ready-failure.json，确认READY后完整重跑；历史ALL原先过滤了无日期档案，已修复并增加单元与真实UI719数量断言；旧研究观测遗漏已补自动读取与原解释展示。最终0失败/0跳过。原错误过程没有被包装为PASS。
 
-## 研究原函数数值对照（2026-09-28）
-`npm run test:model-parity`：退出0，6项通过，0失败/错误/跳过。日志 `.runtime-v2/model-parity/test.log`，机器报告同目录 `report.json`。
-V6：250条真实档案输入，五联赛；21条动作、229条NO_ACTION，所选压力EV最大误差0。V7：全部115条2026合格档案输入，五联赛；中心概率最大绝对误差1.1102230246251565e-16。raw与混合版本最大差0.10767742851596951，固定使用raw。树边界及缺失/时间/变体/hash否定测试实际执行。
+## 模型与自动链边界
 
-首次运行退出1：6项中5通过，V7样本断言失败。原因是错误假设每联赛至少50条2026记录；实际20/29/18/18/30共115条。改为全量115条，未补造数据、未用更早训练期冒充2026。复验6项全部通过。此修正没有放宽100条总量门槛。原始历史缺捕获时间仍列限制，不用合成守卫数据冒充原模型数值对照。
-# 真实来源切片验证（2026-09-28）
-`npm run check`退出0；`npm run test:unit`32通过/0失败/0跳过；`npm run test:integration`21通过/0失败/0跳过，随后新增出站桥测试单独1通过；`npm run test:e2e`1通过/0跳过；build退出0。
+实时V6/V7所需同一feature builder、xG/滚动历史及完整报价时间证据不足；亚洲盘双边价缺失；旧专用报价曲线/研究排序和部分AFC专题未完全移植。公开参考价不是可成交/合格实时报价。当前自动流程没有完成“合格quote→live features→V6/V7新冻结任务→严格决策”的完整研究链，不自动晋升或新出票。旧专题与实时功能按FEATURE-PARITY列为部分，共34项：完整22、部分12、尚无入口0。
 
-实际网络命令 `node scripts/live-source-smoke.mjs` 最终退出0，HTTP200，306场规范化，DEGRADED=QUOTE_AND_XG_NOT_PROVIDED，截图research-desktop/mobile.png；无pageerror，无390px横向溢出。完整捕获JSON保留在.runtime-v2/source-probes/capture-2026-09-27T20-30-58.889Z.json，snapshotId fa4db4ec-3a15-44c0-8ceb-10093568f747。
+需手动：Windows重启后启动新程序；确认新纸面票；登记实际记录；解决冲突赛果。没有修改旧任务，亦未建立新Windows自启任务。Linux CI、新增来源的60分钟长测及正式切换未验收。
 
-初次真实Worker采集FAILED：workerd不支持请求redirect:error，修为manual且出站桥禁止重定向。中间重试收到SOURCE_BACKOFF，未绕过退避；后续正常成功。增加Worker HTTP→出站桥测试防止仅service测试漏掉运行时差异。失败记录仍保存在独立研究库。
+## 保护证据与限制
 
-## 后续验收与审查记录
-- 最新完整汇总 `.runtime-v2/verification/2026-09-28T00-04-38.850Z/verification.json`：doctor/check/build退出0；40 unit、39 integration、3 browser E2E、6 Python parity全部通过，0失败/0跳过。12项import为重复子集。逐命令前后源码摘要均为 `0917e4d26ab526800db30ec47369bdecda61035854ebe315889d33ed6c4661b2`。
-- 浏览器证据位于 `test-results/`：真实纸面确认、冻结、结算、更正、重启及6页面390px截图；本轮截图等待实际数据加载完成。runner进程恢复测试证据为 `supervisor-recovery.json`，实际Python租约恢复证据为 `.runtime-v2/fault-evidence/runner-recovery.json`。
-- 旧资源复核 `outputs/protected-resources-2026-09-28.json`（聊天交付目录）：304文件哈希、HEAD、默认short未提交清单、原5进程命令与5任务动作均相同。此前 `-uall` 展开未跟踪目录导致清单行数差异；用与盘点相同的参数复核后无差异，未修改旧资源。
-- `.runtime-v2/verification/2026-09-27T23-55-02.506Z`：doctor/check/build退出0；40 unit、38 integration、3 browser E2E、6 Python parity全部通过，0跳过；test:import重复子集12通过，不加到总数。随后针对重复业务结算幂等键新增1项测试实际通过，待最终总入口合并。
-- 前一汇总 `2026-09-27T23-46-54.656Z` 有1个导出测试文件进程异常退出，未给出内部断言失败。原日志保留；单独TAP复跑通过，另连续5次均退出0，之后全套38项通过。未伪称已确定异常退出根因。
-- 公共参考原50个测试文件：复制公开提交到新.runtime-v2/legacy-baseline后执行，161通过、0失败、0跳过，退出0。采用新v2依赖；不是旧活动dirty工作区的测试结论。其中原有源码检查保持“旧回归检查”的性质，不算模型验证。
-- 新research完整有界备份：40表/3537行，全部哈希一致；恢复身份9c576c60-ebb8-4cb8-a9b2-a465c34eede0，重启复验通过。证据`.runtime-v2/backup-2026-09-27T23-43-54.288Z/restore-test.json`。
-- 新demo备份：40表/50行，恢复身份bc98deeb-3d02-486d-afe8-a6cb6c98fa0b，哈希与重启通过。此为新DEMO自身备份，不是旧站账本。
-- API容量测量 `.runtime-v2/capacity-74ac3117-aed5-4c3b-b4f1-f1465506690a/report.json`：10万票具有实际腿/状态/ledger关联，百万合成quoteSet；100次meta p95=15.83ms，100次票页p95=14.98ms，2页无重漏，账本汇总一致。百万quoteSet只是索引容量测试，不是百万条具有完整证据的市场观测。
-- 原D1代理循环报告有长停顿，`acceptance-review.json`明确不接受A82。原exit0保留，不覆盖。实际Worker API长测独立进行；短时10000请求内存诊断不替代60分钟验收。
-- 原始模型对照、来源采集、合成财务/性能测试分开统计。新`report:verification`逐命令保存源码哈希前后值，运行中改源码不能记为同一版本通过。
+protection-check-20261001.json核对本轮开始/结束旧HEAD、dirty patch/status、PID59592、任务动作一致。活动旧D1仅SQLite URI mode=ro和query_only=ON读取，一致backup写入v2自有目录；quick_check=ok。snapshot-proof.json与snapshot-export-proof.json记录原票/报价/模型逐字段一致及旧元数据变化；不是声明旧站自身期间完全无写入。新DEMO与research独立installationId、端口与状态目录。未push、部署、正式切换或修改旧数据库。
+
+旧303/304文件与9/27基线一致；未跟踪local-hidden-task.vbs不同且mtime在本轮内，没有本轮前独立内容hash，差异时点/来源无法确定。本轮没有写该路径的命令，也不覆盖它。不能宣称所有旧文件逐字节未变。保护证明仅覆盖已记录范围，不是系统级写入审计。
+
+9/28旧60分钟真实API负载报告已完成退出0，RSS末窗口比1.21534；不能代替本轮新增自动来源流程的长测。此前历史验收报告见Git中本轮之前版本。

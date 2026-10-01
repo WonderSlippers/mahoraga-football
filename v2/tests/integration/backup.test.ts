@@ -82,10 +82,30 @@ test("A70 bounded paged backup crosses multiple SQL pages and verifies restored 
       )
       .bind(q.marketId, q.sourceSnapshotId, q.providerId, q.observedAt)
       .run();
+    await a.prepare("UPDATE installations SET schemaVersion=7").run();
     const backup = await exportPaged(a, path.join(dir, "snapshot"));
     assert.equal(backup.tables.quote_sets.rows, 301);
+    for (const table of [
+      "workspace_imports",
+      "fixture_catalog",
+      "automation_state",
+    ])
+      delete backup.tables[table];
+    fs.writeFileSync(
+      path.join(dir, "snapshot", "manifest.json"),
+      JSON.stringify(backup),
+    );
     const restored = await restorePaged(b, path.join(dir, "snapshot"), dest);
     assert.equal(restored.hashesMatch, true);
+    assert.equal(
+      (await b.prepare("SELECT schemaVersion FROM installations").first())
+        .schemaVersion,
+      8,
+    );
+    assert.equal(
+      (await b.prepare("SELECT COUNT(*) n FROM fixture_catalog").first()).n,
+      0,
+    );
     assert.equal(
       (await b.prepare("SELECT COUNT(*) n FROM quote_sets").first()).n,
       301,

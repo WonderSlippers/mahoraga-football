@@ -8,6 +8,7 @@ import { safeState, root, freePort, modeGuard } from "./safety.mjs";
 import { runtime, config, engine, migrate } from "./runtime-lib.mjs";
 import { workerBuild } from "./build.mjs";
 import { localSessionPlugin } from "./local-session.mjs";
+import { importLegacyWorkspace } from "./import-workspace.mjs";
 process.chdir(root);
 const command = process.argv[2];
 const mode = process.env.V2_MODE || "DEMO";
@@ -138,6 +139,18 @@ if (command === "doctor") {
     await mf.dispose();
     throw Error("INSTALLATION_MISMATCH");
   }
+  if (["demo", "research"].includes(process.env.V2_PROFILE || "demo")) {
+    try {
+      console.log(
+        "LEGACY_AUTO_IMPORT",
+        JSON.stringify(
+          await importLegacyWorkspace(c, `http://127.0.0.1:${apiPort}`),
+        ),
+      );
+    } catch (error) {
+      console.error("LEGACY_AUTO_IMPORT_FAILED", String(error));
+    }
+  }
   const web = await createServer({
     configFile: path.join(root, "apps/web/vite.config.ts"),
     plugins: [localSessionPlugin(c)],
@@ -187,9 +200,42 @@ if (command === "doctor") {
     });
   };
   startRunner();
+  const autoAbort = new AbortController();
+  let automationBusy = false;
+  const advanceAutomation = async () => {
+    if (mode !== "LOCAL_RESEARCH" || closing || automationBusy) return;
+    automationBusy = true;
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:${apiPort}/internal/v2/automation/tick`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + c.serviceToken,
+            "Content-Type": "application/json",
+          },
+          body: "{}",
+          signal: AbortSignal.any([
+            autoAbort.signal,
+            AbortSignal.timeout(60000),
+          ]),
+        },
+      );
+      await response.arrayBuffer();
+      if (!response.ok) console.error("AUTOMATION_TICK_HTTP", response.status);
+    } catch (error) {
+      if (!closing) console.error("AUTOMATION_TICK_RETRY", error.name);
+    } finally {
+      automationBusy = false;
+    }
+  };
+  const autoTimer = setInterval(advanceAutomation, 5000);
+  void advanceAutomation();
   const close = async () => {
     if (closing) return;
     closing = true;
+    clearInterval(autoTimer);
+    autoAbort.abort();
     clearTimeout(restartTimer);
     runner.kill();
     await web.close();

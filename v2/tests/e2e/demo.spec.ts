@@ -137,7 +137,7 @@ test("A63 A65 A71 A74 A75 browser import, manual claim, evaluation and mobile ro
     .fill("Correct synthetic test claim");
   await page.getByRole("button", { name: "保存独立声明" }).click();
   await expect(page.getByText("USER_REPORTED · revision 2")).toBeVisible();
-  await page.goto("/models");
+  await page.goto("/registry");
   await page.getByRole("button", { name: "冻结当前评估样本" }).click();
   await expect(
     page.getByRole("heading", { name: /固定样本结果/ }),
@@ -202,12 +202,12 @@ test("A38 A39 A40 A72 browser → Python → D1 → ticket → settlement → co
     },
   );
   expect(direct.status()).toBe(401);
-  await page.goto("/workbench");
+  await page.goto("/demo-workbench");
   await expect(page.getByRole("heading", { name: "今日观察" })).toBeVisible();
   await expect(page.locator("input[type=password]")).toHaveCount(0);
   const fresh = await browser.newContext();
   const freshPage = await fresh.newPage();
-  await freshPage.goto("http://127.0.0.1:5293/");
+  await freshPage.goto("http://127.0.0.1:5293/demo-workbench");
   await expect(
     freshPage.getByRole("heading", { name: "今日观察" }),
   ).toBeVisible();
@@ -366,7 +366,7 @@ test("A82 supervisor restarts only its verified child runner and preserves ledge
       { timeout: 15000 },
     )
     .not.toBe(current.runnerPid);
-  await page.goto("/workbench");
+  await page.goto("/demo-workbench");
   await expect(page.getByTestId("load-status")).toHaveAttribute(
     "data-loaded",
     "true",
@@ -383,7 +383,7 @@ test("A82 supervisor restarts only its verified child runner and preserves ledge
       { timeout: 15000 },
     )
     .toBe(4);
-  await page.goto("/ledger");
+  await page.goto("/demo-ledger");
   await expect(page.getByTestId("available")).toHaveText("75.00");
   const next = JSON.parse(fs.readFileSync(path.join(dir, "run.json"), "utf8"));
   fs.writeFileSync(
