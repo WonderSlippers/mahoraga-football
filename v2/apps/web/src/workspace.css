@@ -40,17 +40,13 @@ header .brand {
   align-items: center;
   gap: 10px;
 }
-.brand::before {
-  content: "M";
-  display: grid;
-  place-items: center;
-  background: var(--ws-accent);
-  color: var(--ws-bg);
-  font-size: 20px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  transform: rotate(-12deg);
+.brand-avatar {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 15%));
 }
 .brand span {
   color: var(--ws-accent);
@@ -1293,10 +1289,9 @@ pre {
   header .brand {
     font-size: 20px;
   }
-  header .brand::before {
-    width: 27px;
-    height: 27px;
-    font-size: 16px;
+  header .brand-avatar {
+    width: 34px;
+    height: 34px;
   }
   header .brand span {
     font-size: 11px;

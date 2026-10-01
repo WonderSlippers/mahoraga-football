@@ -86,6 +86,13 @@ function App() {
     <>
       <header>
         <div className="brand">
+          <img
+            className="brand-avatar"
+            src="/mahoraga-avatar.png?v=user-reference-1"
+            width="44"
+            height="44"
+            alt="魔虚罗头像"
+          />
           魔虚罗 <span>2.0</span>
         </div>
         <span className="badge">

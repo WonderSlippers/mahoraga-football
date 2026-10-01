@@ -50,3 +50,8 @@ LOCAL_RESEARCH必须使用独立profile（research）、独立installation/D1、
 ### D-20261001-OBSERVATIONS
 
 旧reviews和marketReviews为14条完全相同的已保存研究观测。自动导入workspace元数据时按原内容SHA256去重，保留两处集合名，历史中心从不可变导入生成只读投影，不注册为2.0 Prediction、不重算旧概率、不产生权威票据。日期使用原evidence.calculatedAt并明确其不是报价时间；历史ALL保留无日期档案，日期筛选排除无日期项。
+
+
+## 2026-10-01 用户指定头像
+
+头像采用用户上传黑白魔虚罗原图，直接复制而不生成/裁切/重绘；加资源版本参数避免旧缓存。
