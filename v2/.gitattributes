@@ -1,6 +1,6 @@
 * text=auto eol=lf
 # Sealed execution assets are checked against their exact original bytes.
-model-runner/comparison_models.py -text -eol
-model-runner/prepare_comparison_features.py -text -eol
-model-runner/research_adapters.py -text -eol
-model-runner/legacy-bridge.mjs -text -eol
+model-runner/comparison_models.py -text -eol whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+model-runner/prepare_comparison_features.py -text -eol whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+model-runner/research_adapters.py -text -eol whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+model-runner/legacy-bridge.mjs -text -eol whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
