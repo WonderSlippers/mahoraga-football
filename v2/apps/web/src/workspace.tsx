@@ -10,6 +10,7 @@ import {
 import { LedgerReview } from "./ledger-review";
 import { CurrentMarkets, MatchContext, QuoteHistory } from "./match-evidence";
 import { FixtureList, Recommendations, TeamBadge } from "./schedule-view";
+import { ComparisonPanel } from "./comparison-view";
 type Client = (path: string, body?: unknown, key?: string) => Promise<any>;
 type Props = { api: Client; mode?: string };
 const pct = (x: any) =>
@@ -351,6 +352,11 @@ export function ScheduleWorkspace({ api, mode }: Props) {
           立即刷新 <span>↗</span>
         </button>
         <small>自动读取 · 每30秒更新视图</small>
+        {mode === "LOCAL_RESEARCH" && (
+          <Link className="ws-tool-link" to="/models#parallel">
+            V6 与旧版V2并行比较 →
+          </Link>
+        )}
       </Head>
       <LoadState {...state} />
       <div className="schedule-overview">
@@ -492,6 +498,7 @@ export function ScheduleWorkspace({ api, mode }: Props) {
       <p role="status" className="ws-notice">
         {notice}
       </p>
+      {mode === "LOCAL_RESEARCH" && <ComparisonPanel api={api} compact />}
       {mode === "DEMO" && (
         <Link className="ws-tool-link" to="/demo-workbench">
           打开离线观察与纸面出票演练 →
@@ -567,6 +574,7 @@ export function FixtureWorkspace({ api }: Props) {
       <div className="ws-note">
         赛前预测与报价永久冻结。赛后新增赛果与更正，不根据比分重算概率。实时来源不足时，历史记录仍可查看。
       </div>
+      <ComparisonPanel api={api} fixture={id} />
       <div className="ws-detail-grid">
         <section className="ws-panel">
           <div className="ws-section-head">
@@ -835,14 +843,18 @@ export function FixtureWorkspace({ api }: Props) {
           {data.models.map((m: any) => (
             <details className="ws-model-blocked" key={m.id}>
               <summary>
-                {m.label} · 模型状态与缺项
+                {m.label} · 严格推荐资格
                 <span className="ws-state">
                   {m.status === "UNSUPPORTED_COMPETITION"
                     ? "本赛事不适用"
-                    : "实时推断待补证"}
+                    : "未晋升严格推荐"}
                 </span>
               </summary>
-              <p>{m.reason}</p>
+              <p>
+                {m.status === "UNSUPPORTED_COMPETITION"
+                  ? m.reason
+                  : "此处显示原登记的严格推荐资格。V6固定并行研究输出在上方单独展示，不因开始记录就自动晋升。"}
+              </p>
               <small>{m.probabilityKind}</small>
             </details>
           ))}
@@ -857,7 +869,7 @@ export function FixtureWorkspace({ api }: Props) {
             <span>
               证据完整度：
               {data.quotes.length
-                ? "有报价；实时特征仍缺"
+                ? "报价已冻结；各方法特征状态见对应证据"
                 : "报价与实时特征缺失"}
             </span>
             <span>验证状态：历史或公开参考研究 / 未晋升</span>
@@ -1541,6 +1553,9 @@ export function LaboratoryWorkspace({ api }: Props) {
           模型登记与冻结评估 ↗
         </Link>
       </Head>
+      <div id="parallel">
+        <ComparisonPanel api={api} />
+      </div>
       <LoadState {...state} />
       <div className="ws-note">
         历史固定重放 · 档案导出截止 {fmt(data?.sourceCutoffAt)}；比赛样本截止{" "}
@@ -1893,6 +1908,7 @@ export function RuntimeWorkspace({ api, mode }: Props) {
   const state = useData(api, "/workspace/status", 10000);
   const { data, refresh } = state;
   const [message, setMessage] = useState("");
+  const device = useData(api, "/device-access", 30000).data;
   const automation = data?.automation[0];
   async function run() {
     setMessage("正在立即读取来源…");
@@ -1924,6 +1940,38 @@ export function RuntimeWorkspace({ api, mode }: Props) {
         <button onClick={run}>立即刷新 / 重试 ↗</button>
       </Head>
       <LoadState {...state} />
+      {mode === "LOCAL_RESEARCH" && (
+        <section className="ws-panel">
+          <div className="ws-section-head">
+            <h2>手机与并行研究</h2>
+            <Link to="/models#parallel">V6 / V2 比较 →</Link>
+          </div>
+          <p>
+            {device?.lanOrigin ? (
+              <>
+                <span>手机与电脑连接同一网络，打开 </span>
+                <a href={device.lanOrigin + "/workbench"}>
+                  {device.lanOrigin}/workbench
+                </a>
+              </>
+            ) : (
+              "局域网入口暂不可用；当前电脑入口正常。"
+            )}
+          </p>
+          <p className="ws-note">
+            电脑需要保持开机。V6 原始特征由后台准备，V2 与 V6
+            自动领取冻结任务，不需反复点击。
+          </p>
+          {device?.featureStatus && (
+            <p>
+              特征准备：{device.featureStatus.prepared} /{" "}
+              {device.featureStatus.targets} 场 · 历史截止{" "}
+              {device.featureStatus.historyLastDate} ·{" "}
+              {fmt(device.featureStatus.at)}
+            </p>
+          )}
+        </section>
+      )}
       <div className="ws-summary">
         <Stat
           label="本地运行"
@@ -1985,7 +2033,7 @@ export function RuntimeWorkspace({ api, mode }: Props) {
                   : i === 2
                     ? "必要输入满足才冻结"
                     : i === 3
-                      ? "V6/V7实时仍受阻"
+                      ? "V6 / V2 固定并行研究"
                       : i === 7
                         ? "原子幂等；不自动新出票"
                         : "自动 / 事件驱动"}
@@ -2072,6 +2120,22 @@ export function RuntimeWorkspace({ api, mode }: Props) {
         </div>
         <Link to="/system-details">安装身份、schema与完整状态 →</Link>
       </section>
+      {mode === "LOCAL_RESEARCH" && (
+        <details className="ws-audit">
+          <summary>开发工具 · 离线 DEMO</summary>
+          <p>
+            用于验证冻结、纸面结算、更正与重启恢复。所有比赛和收益都是合成演示，不参与推荐或模型比较。
+          </p>
+          {location.hostname === "127.0.0.1" ||
+          location.hostname === "localhost" ? (
+            <a href={`http://127.0.0.1:5273/workbench?offline=1`}>
+              在此电脑打开离线演练 ↗
+            </a>
+          ) : (
+            <p>离线演练只在电脑端开放，不影响手机查看真实赛事。</p>
+          )}
+        </details>
+      )}
     </div>
   );
 }

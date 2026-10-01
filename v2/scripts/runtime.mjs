@@ -9,6 +9,7 @@ import { runtime, config, engine, migrate } from "./runtime-lib.mjs";
 import { workerBuild } from "./build.mjs";
 import { localSessionPlugin } from "./local-session.mjs";
 import { importLegacyWorkspace } from "./import-workspace.mjs";
+import { startLanGateway } from "./lan-gateway.mjs";
 process.chdir(root);
 const command = process.argv[2];
 const mode = process.env.V2_MODE || "DEMO";
@@ -162,6 +163,16 @@ if (command === "doctor") {
     },
   });
   await web.listen();
+  let lan = { origin: null, close: async () => {} };
+  if (mode === "LOCAL_RESEARCH" && process.env.V2_LAN !== "0") {
+    try {
+      lan = await startLanGateway(webPort);
+      c.lanOrigin = lan.origin;
+      if (lan.origin) console.log("PHONE_READY", lan.origin + "/workbench");
+    } catch (e) {
+      console.error("LAN_LISTENER_UNAVAILABLE", e.code || e.message);
+    }
+  }
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
   const log = fs.openSync(path.join(dir, "runner.log"), "a");
@@ -200,6 +211,49 @@ if (command === "doctor") {
     });
   };
   startRunner();
+  let featureRunner,
+    featuresBusy = false;
+  const advanceFeatures = () => {
+    if (mode !== "LOCAL_RESEARCH" || closing || featuresBusy) return;
+    featuresBusy = true;
+    const runFeatureStep = (executable, args, next) => {
+      featureRunner = spawn(executable, args, {
+        cwd: root,
+        windowsHide: true,
+        stdio: ["ignore", log, log],
+        env: {
+          ...process.env,
+          V2_API: `http://127.0.0.1:${apiPort}`,
+          V2_SERVICE_TOKEN: c.serviceToken,
+        },
+      });
+      if (record) {
+        record.featureRunnerPid = featureRunner.pid;
+        fs.writeFileSync(path.join(dir, "run.json"), JSON.stringify(record), {
+          mode: 0o600,
+        });
+      }
+      featureRunner.on("error", () => {
+        featuresBusy = false;
+        console.error("FEATURE_COLLECTOR_START_FAILED");
+      });
+      featureRunner.on("exit", (code) => {
+        if (closing) return;
+        if (code !== 0) console.error("FEATURE_COLLECTOR_EXIT", code);
+        if (next) next();
+        else featuresBusy = false;
+      });
+    };
+    runFeatureStep(process.execPath, ["scripts/comparison-collector.mjs"], () =>
+      runFeatureStep(
+        python,
+        ["model-runner/prepare_comparison_features.py"],
+        null,
+      ),
+    );
+  };
+  const featuresTimer = setInterval(advanceFeatures, 300000);
+  void advanceFeatures();
   const autoAbort = new AbortController();
   let automationBusy = false;
   const advanceAutomation = async () => {
@@ -235,9 +289,12 @@ if (command === "doctor") {
     if (closing) return;
     closing = true;
     clearInterval(autoTimer);
+    clearInterval(featuresTimer);
     autoAbort.abort();
     clearTimeout(restartTimer);
     runner.kill();
+    featureRunner?.kill();
+    await lan.close();
     await web.close();
     await mf.dispose();
     control.close();

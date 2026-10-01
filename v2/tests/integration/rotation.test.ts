@@ -57,7 +57,26 @@ test("normal rotation covers consecutive leagues, advances across dates and isol
       if (url.includes("ger.1")) throw Error("ONE_PROVIDER_FAILED");
       return Response.json({ events: [] });
     };
-    const first: any = await automationTick(c, "LOCAL_RESEARCH", true, fetcher);
+    const wide: any = await automationTick(c, "LOCAL_RESEARCH", true, fetcher);
+    assert.equal(wide.capture.state, "WIDE_MODEL_DISCOVERY");
+    assert.equal(urls.length, 4);
+    assert.equal(
+      (await rows(db, "SELECT cursor FROM automation_state"))[0].cursor,
+      0,
+    );
+    assert(
+      urls.every(
+        (url) =>
+          new URL(url).searchParams.get("dates")! > day.replaceAll("-", ""),
+      ),
+    );
+    urls.length = 0;
+    const first: any = await automationTick(
+      { ...c, now: now + 1000 },
+      "LOCAL_RESEARCH",
+      true,
+      fetcher,
+    );
     assert.equal(first.capture.state, "ROTATION_BATCH");
     assert.equal(urls.length, 4);
     assert(
@@ -74,8 +93,20 @@ test("normal rotation covers consecutive leagues, advances across dates and isol
       4,
     );
     urls.length = 0;
+    const secondWide: any = await automationTick(
+      { ...c, now: now + 2000 },
+      "LOCAL_RESEARCH",
+      true,
+      fetcher,
+    );
+    assert.equal(secondWide.capture.state, "WIDE_MODEL_DISCOVERY");
+    assert.equal(
+      (await rows(db, "SELECT cursor FROM automation_state"))[0].cursor,
+      4,
+    );
+    urls.length = 0;
     await automationTick(
-      { ...c, now: Date.now() + 1000 },
+      { ...c, now: now + 3000 },
       "LOCAL_RESEARCH",
       true,
       fetcher,

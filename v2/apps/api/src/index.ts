@@ -26,6 +26,11 @@ import {
   modelLaboratory,
 } from "./services/workspace";
 import { automationTick } from "./services/automation";
+import {
+  comparisonFeatures,
+  comparisonReport,
+  completeComparison,
+} from "./services/comparison";
 let bootstrapWindow = 0,
   bootstrapAttempts = 0;
 function wire(data: unknown): unknown {
@@ -174,7 +179,39 @@ export default {
             manifestHash: b.manifestHash,
           });
         }
+        if (
+          path === "/internal/v2/comparison/targets" &&
+          req.method === "GET"
+        ) {
+          return ok(
+            await rows(
+              env.DB,
+              "SELECT f.id fixtureId,f.home,f.away,r.kickoffAt,cat.competition FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE f.status='SCHEDULED' AND r.kickoffAt>? AND cat.competition IN('eng.1','ger.1','ita.1','esp.1','fra.1') ORDER BY r.kickoffAt LIMIT 100",
+              now,
+            ),
+          );
+        }
         if (req.method !== "POST") throw new Error("NOT_FOUND");
+        if (path === "/internal/v2/comparison/features") {
+          exactFields(body, ["fixtureId", "payload", "sources"]);
+          return ok(await comparisonFeatures(context, body));
+        }
+        const researchComplete = path.match(
+          /^\/internal\/v2\/model-jobs\/([^/]+)\/complete-comparison$/,
+        );
+        if (researchComplete) {
+          exactFields(body, [
+            "owner",
+            "fencingToken",
+            "bundleHash",
+            "modelHash",
+            "featureCanonical",
+            "output",
+          ]);
+          return ok(
+            await completeComparison(context, researchComplete[1], body),
+          );
+        }
         if (path === "/internal/v2/workspace-import") {
           exactFields(body, [
             "sourceHash",
@@ -335,6 +372,8 @@ export default {
           return ok(await workspaceReport(context, url.searchParams, "ledger"));
         if (path === "/api/v2/workspace/models")
           return ok(await modelLaboratory(context, url.searchParams));
+        if (path === "/api/v2/workspace/comparison")
+          return ok(await comparisonReport(context, url.searchParams));
         if (path === "/api/v2/workspace/settings")
           return ok(await workspaceMetadata(env.DB));
         if (path === "/api/v2/workspace/status")

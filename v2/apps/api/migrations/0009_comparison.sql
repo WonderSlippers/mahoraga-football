@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS comparison_methods(id TEXT PRIMARY KEY,label TEXT NOT NULL,manifestJson TEXT NOT NULL,manifestHash TEXT NOT NULL,frozenAt INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS comparison_features(fixtureId TEXT NOT NULL REFERENCES fixtures(id),featureHash TEXT NOT NULL,payloadJson TEXT NOT NULL,sourceManifestJson TEXT NOT NULL,observedAt INTEGER NOT NULL,PRIMARY KEY(fixtureId,featureHash));
+CREATE TABLE IF NOT EXISTS comparison_observations(id TEXT PRIMARY KEY,jobId TEXT NOT NULL UNIQUE REFERENCES jobs(id),methodId TEXT NOT NULL REFERENCES comparison_methods(id),fixtureRevisionId TEXT NOT NULL REFERENCES fixture_revisions(id),bundleId TEXT NOT NULL REFERENCES input_bundles(id),state TEXT NOT NULL CHECK(state IN('DONE','BLOCKED')),outputJson TEXT NOT NULL,outputHash TEXT NOT NULL,calculatedAt INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS comparison_fixture ON comparison_observations(fixtureRevisionId,methodId,calculatedAt);

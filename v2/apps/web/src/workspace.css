@@ -2401,3 +2401,78 @@ body {
 .bar-negative {
   fill: #b57272;
 }
+.comparison-panel {
+  border-top: 2px solid var(--ws-accent);
+}
+.comparison-at {
+  font-size: 1rem !important;
+}
+.comparison-table {
+  overflow: auto;
+  max-width: 100%;
+  margin: 20px 0;
+}
+.comparison-table table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.comparison-table th,
+.comparison-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--ws-line);
+}
+.comparison-table td small {
+  display: block;
+  max-width: 180px;
+  font-size: 0.7rem;
+  opacity: 0.65;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.comparison-records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.comparison-record {
+  padding: 16px;
+  border: 1px solid var(--ws-line);
+  border-radius: 12px;
+  min-width: 0;
+}
+.comparison-record a {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 650;
+  margin: 8px 0;
+}
+.comparison-record a span {
+  font-weight: 400;
+  opacity: 0.45;
+  font-size: 0.8rem;
+}
+.comparison-record small {
+  display: block;
+  opacity: 0.65;
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+.comparison-record p {
+  line-height: 1.7;
+  margin: 12px 0;
+}
+@media (max-width: 680px) {
+  .comparison-records {
+    grid-template-columns: 1fr;
+  }
+  .comparison-table {
+    margin-right: -8px;
+  }
+  .comparison-record {
+    padding: 14px;
+  }
+}

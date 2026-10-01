@@ -5,6 +5,7 @@ import {
   decimalAmerican,
   publicMarkets,
   recentGames,
+  totalLine,
 } from "../../apps/api/src/services/public-research";
 import { normalizeESPN } from "../../apps/api/src/services/automation";
 import { fixtureStatus } from "../../apps/api/src/services/workspace";
@@ -89,6 +90,24 @@ test("recent histories exclude future, missing scores and shootouts, preserve ge
   assert.equal(r[0].gf, 0);
   assert.equal(r[0].ga, 2);
   assert.equal(r[0].at, "2026-09-28T10:30:00.000Z");
+});
+test("real ESPN o/u line prefixes preserve totals instead of silently losing an offered market", () => {
+  assert.equal(totalLine("o2.5", "over"), "2.5");
+  assert.equal(totalLine("u2.5", "under"), "2.5");
+  assert.equal(totalLine("o2.5", "under"), null);
+  assert.equal(totalLine(null, "over"), null);
+  assert.equal(totalLine("2.13", "over"), null);
+  const q = publicMarkets([
+    {
+      total: {
+        over: { close: { line: "o2.5", odds: "-165" } },
+        under: { close: { line: "u2.5", odds: "+120" } },
+      },
+    },
+  ])[0];
+  assert.equal(q.total.over.line, "2.5");
+  assert.equal(q.total.under.line, "2.5");
+  assert.equal(q.total.under.odds, "2.2");
 });
 test("postponed fixtures never become started from the clock and recovered jobs no longer read as failed", () => {
   assert.equal(

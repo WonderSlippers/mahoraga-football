@@ -279,7 +279,8 @@ export async function captureESPN(
           ),
         );
       await atomic(c.db, queries);
-      if (!official) await freezePublicResearch(c, f, snapshot, observed);
+      if (!official)
+        await freezePublicResearch(c, f, snapshot, observed, fetcher);
     }
     await stmt(
       c.db,
@@ -420,6 +421,28 @@ export async function automationTick(
     );
     const checked = new Set(attempted.map((r) => r.competition));
     const missing = leagues.filter((l: any) => !checked.has(l.code));
+    const wideCalendar = Array.from({ length: 22 }, (_, i) =>
+      localDay(c.now + (i + 7) * 86400000),
+    )
+      .filter((d) => [0, 6].includes(new Date(d + "T00:00:00Z").getUTCDay()))
+      .flatMap((day) =>
+        leagues
+          .filter((l: any) =>
+            ["eng.1", "ger.1", "ita.1", "esp.1", "fra.1"].includes(l.code),
+          )
+          .map((league: any) => ({
+            league,
+            day,
+            url: espnUrl(league.code, day),
+          })),
+      );
+    const wideSeen = await rows(
+      c.db,
+      "SELECT sourceUrl FROM source_runs WHERE providerId='ESPN_PUBLIC_V1' AND startedAt>?",
+      c.now - 3600000,
+    );
+    const seenUrls = new Set(wideSeen.map((r) => r.sourceUrl));
+    const wideMissing = wideCalendar.filter((r) => !seenUrls.has(r.url));
     const urgent = await stmt(
       c.db,
       "SELECT c.competition,c.sourceUrl,r.kickoffAt FROM fixture_catalog c JOIN fixtures f ON f.id=c.fixtureId JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision WHERE f.status='SCHEDULED' AND r.kickoffAt>? AND r.kickoffAt<? AND c.lastCapturedAt<? AND c.sourceUrl LIKE 'https://site.api.espn.com/%' AND NOT EXISTS(SELECT 1 FROM source_runs sr WHERE sr.providerId='ESPN_PUBLIC_V1' AND sr.sourceUrl=c.sourceUrl AND sr.startedAt>?) ORDER BY c.lastCapturedAt,r.kickoffAt LIMIT 1",
@@ -436,8 +459,11 @@ export async function automationTick(
       "SELECT MAX(startedAt) at FROM source_runs WHERE providerId='OPENLIGADB_V1'",
     ).first<any>();
     let wasUrgent = false;
+    let wasWide = false;
     try {
       wasUrgent = JSON.parse(state.reason)?.capture?.priority === "URGENT";
+      wasWide =
+        JSON.parse(state.reason)?.capture?.state === "WIDE_MODEL_DISCOVERY";
     } catch {}
     if (urgent && checked.has(urgent.competition) && !wasUrgent) {
       initialDiscovery = true;
@@ -465,6 +491,21 @@ export async function automationTick(
           priority: "URGENT",
         };
       }
+    } else if (!missing.length && wideMissing.length && !wasWide) {
+      initialDiscovery = true;
+      const results = await Promise.allSettled(
+        wideMissing
+          .slice(0, 4)
+          .map((r) => captureESPN(c, r.league.code, r.day, fetcher)),
+      );
+      capture = {
+        state: "WIDE_MODEL_DISCOVERY",
+        results: results.map((r: any) =>
+          r.status === "fulfilled"
+            ? r.value
+            : { state: "FAILED", reason: String(r.reason) },
+        ),
+      };
     } else if (
       !missing.length &&
       (!lastOpenLiga?.at || c.now - lastOpenLiga.at >= 3600000)
@@ -503,15 +544,20 @@ export async function automationTick(
         })),
       };
     } else if (leagues.length) {
+      const calendar = [-1, 0, 1, 2, 3, 4, 5, 6].flatMap((offset) =>
+        leagues.map((league: any) => ({ league, offset })),
+      );
+      for (let offset = 7; offset < 29; offset++)
+        for (const league of leagues.filter((l: any) =>
+          ["eng.1", "ger.1", "ita.1", "esp.1", "fra.1"].includes(l.code),
+        ))
+          calendar.push({ league, offset });
       advanceCursor = Math.min(4, leagues.length);
       initialDiscovery = true;
       const result = await Promise.allSettled(
         Array.from({ length: advanceCursor }, (_, i) => {
-          const sequence = state.cursor + i,
-            league = leagues[sequence % leagues.length],
-            offset = [-1, 0, 1, 2, 3, 4, 5, 6][
-              Math.floor(sequence / leagues.length) % 8
-            ];
+          const { league, offset } =
+            calendar[(state.cursor + i) % calendar.length];
           return captureESPN(
             c,
             league.code,
@@ -535,6 +581,28 @@ export async function automationTick(
         ["EMPTY", "DEGRADED", "CAPTURED"].includes(r.state),
       );
     const settled = await autoSettle(c);
+    const prepared = await stmt(
+      c.db,
+      "SELECT DISTINCT cat.competition,cat.sourceUrl FROM fixture_catalog cat JOIN fixtures f ON f.id=cat.fixtureId JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision WHERE f.status='SCHEDULED' AND r.kickoffAt>? AND cat.lastCapturedAt<? AND EXISTS(SELECT 1 FROM comparison_features cf WHERE cf.fixtureId=f.id) AND EXISTS(SELECT 1 FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId WHERE fr.fixtureId=f.id) AND COALESCE((SELECT json_extract(b.canonical,'$.comparisonFeatures.featureHash') FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId WHERE fr.fixtureId=f.id ORDER BY b.cutoffAt DESC LIMIT 1),'')<>(SELECT cf.featureHash FROM comparison_features cf WHERE cf.fixtureId=f.id ORDER BY cf.observedAt DESC LIMIT 1) ORDER BY r.kickoffAt LIMIT 1",
+      c.now,
+      c.now - 30000,
+    ).first<any>();
+    let featureRefresh: any = null;
+    if (prepared) {
+      const day = new URL(prepared.sourceUrl).searchParams.get("dates");
+      if (day && /^\d{8}$/.test(day)) {
+        try {
+          featureRefresh = await captureESPN(
+            c,
+            prepared.competition,
+            `${day.slice(0, 4)}-${day.slice(4, 6)}-${day.slice(6, 8)}`,
+            fetcher,
+          );
+        } catch (e) {
+          featureRefresh = { state: "FAILED", reason: String(e) };
+        }
+      }
+    }
     await stmt(
       c.db,
       "UPDATE automation_state SET cursor=cursor+?,lastSuccessAt=CASE WHEN ?=1 THEN ? ELSE lastSuccessAt END,nextRunAt=?,stage='IDLE',reason=? WHERE id='LOCAL_PIPELINE'",
@@ -545,8 +613,9 @@ export async function automationTick(
       canonical({
         capture,
         settled,
+        featureRefresh,
         quoteRefresh: "PUBLIC_REFERENCE_ONLY_WHEN_AVAILABLE",
-        features: "V6_V7_NECESSARY_INPUTS_BLOCKED",
+        features: "FROZEN_V6_RAW_HISTORY_AND_LEGACY_V2_SHADOW",
         predictions: "EXISTING_PULL_JOBS",
         automaticNewTickets: false,
       }),

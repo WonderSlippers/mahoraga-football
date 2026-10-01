@@ -7,8 +7,15 @@ import { spawnSync } from "node:child_process";
 import { engine, migrate } from "../../scripts/runtime-lib.mjs";
 // @ts-ignore shared worker build
 import { workerBuild } from "../../scripts/build.mjs";
-import { captureESPN } from "../../apps/api/src/services/automation";
+import {
+  captureESPN,
+  automationTick,
+} from "../../apps/api/src/services/automation";
 import { claim, complete } from "../../apps/api/src/services/observations";
+import {
+  completeComparison,
+  comparisonReport,
+} from "../../apps/api/src/services/comparison";
 import {
   importWorkspace,
   workspaceSchedule,
@@ -94,16 +101,16 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
     await captureESPN(c, "fifa.friendly", day, fetcher);
     assert.equal((await rows(db, "SELECT * FROM quote_sets")).length, 1);
     assert.equal((await rows(db, "SELECT * FROM quote_selections")).length, 3);
-    assert.equal((await rows(db, "SELECT * FROM jobs")).length, 2);
+    assert.equal((await rows(db, "SELECT * FROM jobs")).length, 4);
     assert.equal((await rows(db, "SELECT * FROM source_snapshots")).length, 2);
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 4; i++) {
       const job = await claim({ ...c, now: Date.now() }, "python-test");
       assert.ok(job);
       const p = spawnSync(
         path.resolve(".venv/Scripts/python.exe"),
         [
           "-c",
-          "import json,sys;sys.stdin.reconfigure(encoding='utf-8');from runner import predict;print(json.dumps(predict(json.load(sys.stdin))))",
+          "import json,sys;sys.stdin.reconfigure(encoding='utf-8');from runner import predict,validate;from comparison_models import predict_comparison,IDS;j=json.load(sys.stdin);print(json.dumps(predict_comparison(j,validate(json.loads(j['canonical']))) if j['modelId'] in IDS else predict(j)))",
         ],
         {
           cwd: path.resolve("model-runner"),
@@ -113,21 +120,57 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
         },
       );
       assert.equal(p.status, 0, p.stderr);
-      const result = await complete({ ...c, now: Date.now() }, job.id, {
-        owner: "python-test",
-        fencingToken: job.fencingToken,
-        bundleHash: job.bundleHash,
-        modelHash: job.modelHash,
-        central: JSON.parse(p.stdout),
-        featureCanonical: job.canonical,
-      });
-      assert.equal(result.state, "DONE");
+      const comparison =
+        job.modelId.startsWith("V6_C388_FROZEN") ||
+        job.modelId.startsWith("LEGACY_20260920");
+      const result = await (comparison ? completeComparison : complete)(
+        { ...c, now: Date.now() },
+        job.id,
+        {
+          owner: "python-test",
+          fencingToken: job.fencingToken,
+          bundleHash: job.bundleHash,
+          modelHash: job.modelHash,
+          central: JSON.parse(p.stdout),
+          ...(comparison ? { output: JSON.parse(p.stdout) } : {}),
+          featureCanonical: job.canonical,
+        },
+      );
+      assert.equal(
+        result.state,
+        job.modelId.startsWith("V6") ? "BLOCKED" : "DONE",
+      );
     }
     const detail = await workspaceFixture(
       { ...c, now: Date.now() },
       "espn:fifa.friendly:123456",
     );
     assert.equal(detail.predictions.length, 2);
+    const compared = await comparisonReport({ ...c, now: Date.now() });
+    assert.equal(compared.totalRecords, 2);
+    assert.equal(compared.commonFixtureN, 0);
+    assert.equal(
+      compared.methods.find((m) => m.id.startsWith("LEGACY"))!.metrics[0].all
+        .openN,
+      1,
+    );
+    assert.equal(compared.methods[0].metrics[0].all.roi, null);
+    const active = await workspaceSchedule(
+      { ...c, now: Date.now() },
+      new URLSearchParams("upcoming=1"),
+    );
+    assert.equal(
+      active.items[0].failedJobs,
+      0,
+      "Unsupported shadow jobs must not poison a valid schedule",
+    );
+    assert.notEqual(active.items[0].state, "MODEL_FAILED");
+    assert.equal(active.items[0].dataJson, undefined);
+    assert.equal(active.items[0].referenceMarket.raw, undefined);
+    await assert.rejects(
+      stmt(db, "UPDATE comparison_observations SET outputJson='{}'").run(),
+      /IMMUTABLE_FACT/,
+    );
     assert.equal(detail.quotes[0].providerUpdatedAt, null);
     assert.equal(detail.models[0].status, "UNSUPPORTED_COMPETITION");
     const hashes = detail.predictions.map((p) => p.predictionHash);
@@ -158,6 +201,143 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       ).predictions.map((p) => p.predictionHash),
       hashes,
     );
+  } finally {
+    await mf.dispose();
+  }
+});
+
+test("feature-ready refresh advances past a quoteless fixture to a later quoted fixture", async () => {
+  await workerBuild();
+  const cfg = {
+    installationId: crypto.randomUUID(),
+    mode: "LOCAL_RESEARCH",
+    bootstrap: "test",
+    serviceToken: "test",
+    webOrigin: "http://127.0.0.1:5293",
+    appCodeSha: "QUEUE_CONTRACT_TEST_ONLY",
+  };
+  const mf = engine(cfg, ".runtime-v2/queue-test", { port: 0, persist: false });
+  try {
+    const db = await mf.getD1Database("DB");
+    await migrate(db, cfg);
+    const c = { db, installationId: cfg.installationId, now: Date.now() };
+    await importWorkspace(c, {
+      sourceHash: "c".repeat(64),
+      sourceCutoffAt: c.now,
+      metadata: {
+        leagues: [
+          { code: "eng.1", name: "英超" },
+          { code: "fra.1", name: "法甲" },
+        ],
+      },
+      study: { models: [] },
+    });
+    const make = (id: string, days: number, quoted: boolean) => ({
+      id,
+      date: new Date(c.now + days * 86400000).toISOString(),
+      competitions: [
+        {
+          competitors: [
+            {
+              homeAway: "home",
+              team: { id: "1", displayName: "Contract Home" },
+            },
+            {
+              homeAway: "away",
+              team: { id: "2", displayName: "Contract Away" },
+            },
+          ],
+          status: { type: { state: "pre", name: "STATUS_SCHEDULED" } },
+          odds: quoted
+            ? [
+                {
+                  provider: { name: "TEST_REFERENCE_ONLY" },
+                  moneyline: {
+                    home: { close: { odds: "+100" } },
+                    draw: { close: { odds: "+220" } },
+                    away: { close: { odds: "+300" } },
+                  },
+                },
+              ]
+            : [],
+        },
+      ],
+    });
+    const noQuote = make("777777", 3, false),
+      quoted = make("777778", 4, true);
+    const noDay = noQuote.date.slice(0, 10),
+      quotedDay = quoted.date.slice(0, 10);
+    const urls: string[] = [];
+    const fetcher: any = async (value: any) => {
+      const url = String(value);
+      urls.push(url);
+      if (!url.includes("scoreboard?"))
+        throw Error("TEST_ONLY_DETAIL_UNAVAILABLE");
+      const day = new URL(url).searchParams.get("dates");
+      return Response.json({
+        events:
+          day === noDay.replaceAll("-", "")
+            ? [noQuote]
+            : day === quotedDay.replaceAll("-", "")
+              ? [quoted]
+              : [],
+      });
+    };
+    await captureESPN(c, "eng.1", noDay, fetcher);
+    await captureESPN(c, "fra.1", quotedDay, fetcher);
+    const failures = await rows(
+      db,
+      "SELECT snapshotId,reason FROM source_runs WHERE providerId='ESPN_STANDINGS_V1' AND state='FAILED'",
+    );
+    assert.equal(failures.length, 2);
+    assert(
+      failures.every(
+        (r) =>
+          r.snapshotId === null &&
+          r.reason.includes("TEST_ONLY_DETAIL_UNAVAILABLE"),
+      ),
+    );
+    for (const id of ["espn:eng.1:777777", "espn:fra.1:777778"]) {
+      await stmt(
+        db,
+        "INSERT INTO comparison_features VALUES(?,?,'{}','[]',?)",
+        id,
+        "d".repeat(64),
+        c.now,
+      ).run();
+      await stmt(
+        db,
+        "UPDATE fixture_catalog SET lastCapturedAt=? WHERE fixtureId=?",
+        c.now - 60000,
+        id,
+      ).run();
+    }
+    urls.length = 0;
+    await automationTick(c, "LOCAL_RESEARCH", true, fetcher);
+    assert(
+      urls.some(
+        (url) =>
+          url.includes("/fra.1/scoreboard") &&
+          new URL(url).searchParams.get("dates") ===
+            quotedDay.replaceAll("-", ""),
+      ),
+    );
+    assert(
+      !urls.some(
+        (url) =>
+          url.includes("/eng.1/scoreboard") &&
+          new URL(url).searchParams.get("dates") === noDay.replaceAll("-", ""),
+      ),
+    );
+    const latest = await rows(
+      db,
+      "SELECT canonical FROM input_bundles ORDER BY cutoffAt DESC LIMIT 1",
+    );
+    assert.equal(
+      JSON.parse(latest[0].canonical).comparisonFeatures.featureHash,
+      "d".repeat(64),
+    );
+    assert.equal((await rows(db, "SELECT * FROM tickets")).length, 0);
   } finally {
     await mf.dispose();
   }

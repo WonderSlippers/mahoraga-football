@@ -15,19 +15,24 @@ export function engine(
   dir,
   { port = 8788, persist = true, sourceFetch = fetch } = {},
 ) {
+  // This Windows host assigns ephemeral ports in 1024–15000, including
+  // Fetch-forbidden ports. Miniflare's binding proxy uses Fetch too.
+  // An explicitly unnamed endpoint uses a safe local development range;
+  // occupied ports still fail and no existing listener is stopped.
+  const selectedPort = port === 0 ? crypto.randomInt(20000, 30000) : port;
   return new Miniflare({
     modules: true,
     scriptPath: path.join(root, "dist/worker.js"),
     compatibilityDate: "2026-05-15",
     host: "127.0.0.1",
-    port,
+    port: selectedPort,
     d1Databases: { DB: "mahoraga-v2-" + c.installationId },
     d1Persist: persist ? path.join(safeState(dir), "d1") : false,
     bindings: {
       INSTALLATION_ID: c.installationId,
       MODE: c.mode,
       WEB_ORIGIN: c.webOrigin,
-      API_HOST: "127.0.0.1:" + port,
+      API_HOST: "127.0.0.1:" + selectedPort,
       BOOTSTRAP_HASH: hash(c.bootstrap),
       SERVICE_TOKEN: c.serviceToken,
       LOCAL_SESSION_TOKEN: c.localSessionToken || "",
@@ -59,7 +64,12 @@ export function engine(
             /^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9_.]{3,50}\/summary$/.test(
               u.pathname,
             ) &&
-            /^\?event=\d{3,30}$/.test(u.search))
+            /^\?event=\d{3,30}$/.test(u.search)) ||
+          (u.host === "site.web.api.espn.com" &&
+            /^\/apis\/v2\/sports\/soccer\/(eng\.1|esp\.1|ita\.1|ger\.1|fra\.1|ned\.1|por\.1|mex\.1|jpn\.1)\/standings$/.test(
+              u.pathname,
+            ) &&
+            /^\?season=20\d{2}$/.test(u.search))
         )
       )
         return new Response("NETWORK_DISABLED", { status: 403 });
@@ -119,7 +129,16 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
       "utf8",
     ),
   );
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0009_comparison.sql"),
+      "utf8",
+    ),
+  );
   const immutable = [
+    "comparison_methods",
+    "comparison_features",
+    "comparison_observations",
     "workspace_imports",
     "source_snapshots",
     "source_chunks",
@@ -162,7 +181,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
     if (existing.id !== c.installationId || existing.mode !== c.mode)
       throw Error("INSTALLATION_MISMATCH");
     await db
-      .prepare("UPDATE installations SET schemaVersion=8 WHERE id=?")
+      .prepare("UPDATE installations SET schemaVersion=9 WHERE id=?")
       .bind(c.installationId)
       .run();
     return;
@@ -171,7 +190,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
   await db.batch([
     db
       .prepare("INSERT INTO installations VALUES(?,?,?,?,?)")
-      .bind(c.installationId, c.mode, 8, c.appCodeSha, Date.now()),
+      .bind(c.installationId, c.mode, 9, c.appCodeSha, Date.now()),
     ...(c.mode === "DEMO"
       ? [
           db.prepare(

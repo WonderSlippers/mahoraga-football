@@ -3,6 +3,7 @@ import hashlib,json,os,time,uuid,urllib.request,urllib.error,threading,base64,ma
 from pathlib import Path
 from datetime import datetime
 from jsonschema import Draft7Validator,FormatChecker
+from comparison_models import IDS as COMPARISON_IDS,predict_comparison
 SCHEMA=json.loads((Path(__file__).parents[1]/'packages/contracts/input.schema.json').read_text())
 def validate(value):
     Draft7Validator(SCHEMA,format_checker=FormatChecker()).validate(value)
@@ -78,8 +79,15 @@ def main():
                         if next_offset is not None and (not part or next_offset!=offset+len(part)):raise ValueError('INVALID_CHUNK_CURSOR')
                         parts.append(part);offset=next_offset
                     job['canonical']=b''.join(parts).decode('utf-8')
-                    post('/internal/v2/model-jobs/'+job['id']+'/complete',dict(lease,bundleHash=job['bundleHash'],modelHash=job['modelHash'],central=predict(job),featureCanonical=job['canonical']))
-                    print('MODEL_JOB_COMPLETE',job['modelId'],job['id'],flush=True)
+                    if job['modelId'] in COMPARISON_IDS:
+                        value=validate(json.loads(job['canonical']))
+                        if hashlib.sha256(job['canonical'].encode()).hexdigest()!=job['bundleHash']:raise ValueError('MODEL_HASH_MISMATCH')
+                        output=predict_comparison(job,value)
+                        post('/internal/v2/model-jobs/'+job['id']+'/complete-comparison',dict(lease,bundleHash=job['bundleHash'],modelHash=job['modelHash'],output=output,featureCanonical=job['canonical']))
+                        print('COMPARISON_JOB_'+output['state'],job['modelId'],job['id'],output['reason'],flush=True)
+                    else:
+                        post('/internal/v2/model-jobs/'+job['id']+'/complete',dict(lease,bundleHash=job['bundleHash'],modelHash=job['modelHash'],central=predict(job),featureCanonical=job['canonical']))
+                        print('MODEL_JOB_COMPLETE',job['modelId'],job['id'],flush=True)
                 finally:stop.set();thread.join(timeout=11)
             else: time.sleep(0.05 if export['active'] else 1)
         except Exception as exc:

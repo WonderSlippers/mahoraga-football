@@ -332,8 +332,9 @@ test("A46 runner lease fencing and changed input/model reject stale completion",
   assert.equal((await rows(db, "SELECT * FROM predictions")).length, 0);
 });
 test("A17 A18 A19 A62 real Worker routes reject false auth, cross-origin and authority fields", async () => {
+  const origin = (await mf.ready).origin;
   const fetch = (path: string, init: any = {}) =>
-    mf.dispatchFetch("http://127.0.0.1:0" + path, init);
+    mf.dispatchFetch(origin + path, init);
   let r = await fetch("/api/v2/meta", {
     headers: { "oai-authenticated-user": "owner" },
   });

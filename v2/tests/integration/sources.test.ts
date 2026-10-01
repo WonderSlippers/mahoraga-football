@@ -43,28 +43,23 @@ afterEach(async () => {
   await mf.dispose();
 });
 test("A43 Worker HTTP capture route crosses real workerd outbound bridge", async () => {
-  const session = await mf.dispatchFetch(
-    "http://127.0.0.1:0/api/v2/session/bootstrap",
-    {
-      method: "POST",
-      headers: { Origin: "http://127.0.0.1:5274" },
-      body: JSON.stringify({ passphrase: "test" }),
-    },
-  );
+  const origin = (await mf.ready).origin;
+  const session = await mf.dispatchFetch(origin + "/api/v2/session/bootstrap", {
+    method: "POST",
+    headers: { Origin: "http://127.0.0.1:5274" },
+    body: JSON.stringify({ passphrase: "test" }),
+  });
   const token = (await session.json()).data.csrf;
-  const response = await mf.dispatchFetch(
-    "http://127.0.0.1:0/api/v2/source-captures",
-    {
-      method: "POST",
-      headers: {
-        Origin: "http://127.0.0.1:5274",
-        Cookie: session.headers.get("set-cookie"),
-        "X-CSRF-Token": token,
-        "Idempotency-Key": "worker",
-      },
-      body: JSON.stringify({ season: 2026 }),
+  const response = await mf.dispatchFetch(origin + "/api/v2/source-captures", {
+    method: "POST",
+    headers: {
+      Origin: "http://127.0.0.1:5274",
+      Cookie: session.headers.get("set-cookie"),
+      "X-CSRF-Token": token,
+      "Idempotency-Key": "worker",
     },
-  );
+    body: JSON.stringify({ season: 2026 }),
+  });
   const body = await response.json();
   assert.equal(response.status, 200);
   assert.equal(body.data.state, "DEGRADED", JSON.stringify(body));

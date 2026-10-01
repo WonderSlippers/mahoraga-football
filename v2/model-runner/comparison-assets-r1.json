@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "selected": "V6_C388_FROZEN_20261001",
+  "parallel": "LEGACY_20260920_FROZEN_V2",
+  "savedV7": "V7_RETURN_PARTIAL_QUOTE_WEIGHTED_FIXED",
+  "sourceCommit": "40ae6816dfbcbdfd89eac1a05eefae98ecd0db9b",
+  "legacyDefaults": {
+    "goalWeight": 0.5,
+    "evolutionShift": 0
+  },
+  "assets": {
+    "mahoraga_v6_league_policies/code/paper_inference.py": "49f262ee047778e07d680f35467281a6fe44364eb7fef724a59a4fa739d92e9a",
+    "mahoraga_v7_lab/code/model.py": "cf5aac447b2c01ba3418eae338ac939fa731b6c6ae94f97a9b44530dfb92035b",
+    "mahoraga_v7_lab/models/return_partial_2026.json": "7746e847ec329635a1f16737e7d2394a2561d9220e047a8800c3cfae9c3b1775",
+    "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_eng.1.json": "fe20f46d6d784e2f1cdd7b225ec985bef4212d6f060bed3e22b734af159ef476",
+    "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_ger.1.json": "01c9e7e42df89dea4c6f2d4afa89527192f42bb39ade0e1d96f549e0f2ae9dc2",
+    "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_ita.1.json": "cf8fb69e5a4acd968f6affa16a5b3e938c93ea18f2f486fa978b168494e58764",
+    "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_esp.1.json": "63668f4c299d4c4b56f6806d469341d77486bd998cc57fcd649b10520147afdb",
+    "mahoraga_v6_league_policies/models/HONEST_CANDIDATE_2025_fra.1.json": "c1bbae1546b6d4316ef6e2b97e1b73f0d45a367e802d0d3f90d72c2385f01942",
+    "legacy-source.zip": "d968249005634f18ebd71a831a3ca34263e347ed4efa9bc956159bccf23f1044",
+    "lib/goal-model.ts": "220018ad5c6dc2b0d945078e745a29f2ac50de57bd18ccf548bcfafd6bc5ec98",
+    "lib/simulation-lab.ts": "741378fb9b5682c7535696f9eb10feae10316c69dc5f0a1aa7c3820877c27ef1",
+    "legacy-arithmetic.ts": "07bab62f7d7b855d6c4958c409db75aaeeb6de5d8c232a72c51334cd73a99de3",
+    "legacy-arithmetic.mjs": "90a8f0022321b8f8641618029496f7648f6c36a61a65e874b3ddf609df588b77",
+    "upstream/build_features.py": "5155e1eac0ff8dfb90cc4ff03b8434d5ca84f52253527c0c768854c1b5a0035f",
+    "upstream/features_v5.py": "92c95ab144bbcd9daed8b105066807f7eb5f1ce25a8c176edf9f7ee609e27bbf",
+    "upstream/goal-core.mjs": "9d51a43305e092727c71abaad9bbf6043826f8aa493898d28330d038a215dd76"
+  }
+}

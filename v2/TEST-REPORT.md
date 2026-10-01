@@ -83,3 +83,51 @@ V6配置388真实归档250行由原函数检查；V7固定融合真实共同115�
 原始日志/截图在 .runtime-v2/usability；用户副本为聊天根 outputs/usability-20261001，包含本报告、功能清单、保护/重启/源读取/浏览器JSON、测试日志和真实PNG。不提交本地数据库、原票私有数据或运行令牌到Git。
 
 仍未完成见 BLOCKERS.md；24完整/7部分/3退役、31审查29闭环/2部分见 FEATURE-PARITY.md。
+
+## 固定两算法与手机入口验收（2026-10-01）
+
+本节覆盖本轮新增代码，更新此前“实时V6仍BLOCKED”的结论。工作目录 `v2/`；机器命令逐项记录在 `.runtime-v2/parallel-models/check-*.json/.log`，包含开始/结束UTC、实际命令、退出码与数量。最终源码版本/运行身份以交付包运行证据为准，未push或部署。
+
+| 验证 | 实际命令 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| TypeScript/格式/边界 | `node scripts/verify-comparison.mjs check` | 退出0；边界源码检查不是模型验证 | check-check |
+| 单元与真实LAN代理 | `node scripts/verify-comparison.mjs unit` | 59/59，退出0，0跳过 | check-unit |
+| 完整D1集成 | `node scripts/verify-comparison.mjs integration` | 50/50，退出0；租约、原子、幂等、结算、更正、故障恢复等 | check-integration |
+| 补充队列/来源故障 | `node scripts/verify-comparison.mjs queue` | 2/2，退出0；其中1例与完整集成重合，另1例新增 | check-queue |
+| V6/旧V2固定函数与特征 | `node scripts/verify-comparison.mjs comparison` | 10/10，退出0；10条真实归档特征310数值，最大误差6.023e-13；旧V2独立公式oracle与原时间窗 | check-comparison、feature-parity.json |
+| 原模型包parity | `node scripts/verify-comparison.mjs model` | 6/6，退出0；V6原250行、V7原115共同历史行，不是实时盈利验证 | check-model |
+| 市场/近期比分研究软件 | `node scripts/verify-comparison.mjs publicmodel` | 5/5，退出0；不是V6或真实收益验证 | check-publicmodel |
+| 原离线浏览器全链路 | `node scripts/verify-comparison.mjs e2e` | 3/3，退出0；真实Python、D1、票据、结算、更正、重启/子进程恢复，DEMO明确合成 | check-e2e、test-results/e2e-report.json |
+| 构建 | `node scripts/verify-comparison.mjs build` | 退出0 | check-build |
+| 实际研究网站浏览器 | `node scripts/verify-comparison.mjs browser` | 13项实际检查通过，12个六页面桌面/手机尺寸检查，应用错误0；另两套V6实方向详情及真实私网会话截图 | browser-verification.json、16张真实PNG |
+
+共134项不同可执行测试通过（D1为完整50例加新增1例，专项重合例只计一次）。相同测试重跑不增加数量；0跳过。后续修改的比较显示字段/导出及队列分别有5例和2例针对性重跑，不用源码字符串、合成收益或截图充当原模型验证。
+
+浏览器实际打开赛程、比赛详情、历史、账本、实验室、系统，1440/390尺寸无页面横向溢出，首页第一比赛位置检查通过；实际切换共同/各自口径、下载全部冻结记录（后台追加仍完整）、私网HTTP无口令会话/CSRF刷新200、内部接口403。实体手机未持有，不能把浏览器390或本机私网访问说成手机硬件已测。
+
+实际公开赛事：18:48 UTC样本V6成功45场、旧V2成功30场，V6原生行动1场、旧V2两策略各30场；共同样本0、已结0、ROI null。数量继续自动更新，以最终 live-comparison.json 中截止为准，不计重复推断。真实V6方向在阿拉维斯—马德里竞技（2026-10-10）详情截图；压力值不是命中保证，报价明确为公开参考，未自动出票或晋升。
+
+赛程传输实际测得约177KB，状态200；elapsed约3.6秒为本轮自动任务同时运行时的一次本机读取，不作为性能/长期稳定达标结论。原完整新闻/阵容/原始JSON仍在详情与D1，列表不重复传输。
+
+### 本轮失败与修复（保留，不算通过）
+
+| 失败 | 真实结果与原因 | 修复/证据 |
+| --- | --- | --- |
+| 初始纯函数提取/特征 | clamp提取不适配、最少3历史限制与原配方不符；初始数值测试失败 | 修正建立r1；保留 `.models-local/frozen/20261001` 失败快照及 failed-initial-assets.json；原测试过程输出，不伪造历史日志 |
+| 初始格式检查 | 退出1，4文件需格式化 | 原失败check-check保存在check-history；修正重跑退出0 |
+| 远期发现回归 | 50例49过1败，原测试期望纯ROTATION | 查明远期优先可能延迟常规更新，改交替并实际测两次wide/two rotation/urgent；失败check-history完整保留 |
+| 快照时间专项 | 6例5过1败；控制时点晚1000ms的观察不应出现在早时点 | 调整测试为早/晚两快照并验证导出上界；原过程输出，后比较5/5通过 |
+| 随机端口 | 50例49过1败，Fetch bad port | 本机动态TCP1024–15000含Fetch禁用端口。独立未指定端口实例用安全范围，不改系统配置；windows-dynamic-port-range.txt和失败check-history |
+| 端口适配首轮 | 50例47过3败，测试仍向虚构127.0.0.1:0分派，触发Host守卫 | 测试改取真实Miniflare端点，认证/来源/Python恢复实际重跑完整50/50；未放宽Host或认证 |
+| 新队列故障场景 | 2例1过1败，积分来源失败时把reason放进snapshotId导致FK错误 | 修正失败写入列，保留reason、snapshotId=null和退避；队列2/2实际重跑。最初过程输出，未伪造失败日志 |
+| 服务启动前浏览器 | 退出1，0检查，connection refused | 确认新服务READY后实际重跑；browser-failed-startup.json与check-history保留 |
+
+### 保存、保护与交付边界
+
+模型/原始函数本地16资产hash与4执行文件hash封存；Git对四文件禁用换行转换以保留实际字节，代码SHA清单可审查。V7只封存。9月20日源码默认值与当晚未提交/可变参数不能等同，逐场1单位回报与旧每日组合账本不能等同。
+
+新库迁移前独立备份；迁移后两库quick_check=ok，8679条原研究预测与4条原DEMO预测全部不变，仅追加新研究推断；核心票据/账户/结算/账目没有新增或改写。原档案另按备份逐行比对。own-database-preservation.json只证明自有2.0库，不是旧D1审计。
+
+旧HEAD、dirty diff、5173三层PID/命令均一致；本阶段五个旧任务文件修改时点和基线动作比较均一致。相对更早基线仍3同2异（两变更在本轮之前），不抹去此前纠错。证据 legacy-before/after.json、current-phase-task-protection.json。没开旧D1、没调用旧HTTP、没写旧代码/任务、没接管旧入口；不主张阻止旧站自身原有写入或完成系统级写审计。
+
+新证据包：聊天根 `outputs/parallel-models-20261001`，含5份持续文档、启动说明、固定清单、命令/失败历史、实际浏览器PNG与运行/保护JSON、SHA交付清单。不包含令牌、数据库或模型权重。未完成项见 BLOCKERS.md，不能声称完美、已验证盈利或自动切换完成。

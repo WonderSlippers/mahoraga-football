@@ -666,7 +666,7 @@ export function fixtureStatus(f: any, now: number) {
 export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   const all = await rows(
     c.db,
-    "SELECT f.*,r.id revisionId,r.kickoffAt,COALESCE(cat.competition,src.competition,'DEMO') competition,COALESCE(cat.season,src.season) season,cat.dataJson,cat.lastCapturedAt,cat.sourceUrl,(SELECT COUNT(*) FROM predictions pr WHERE pr.fixtureRevisionId=r.id) predictionCount,(SELECT COUNT(*) FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId WHERE pr.fixtureRevisionId=r.id AND d.accepted=1) accepted,(SELECT MAX(q.observedAt) FROM quote_sets q JOIN market_definitions m ON m.id=q.marketId WHERE m.fixtureId=f.id) quoteAt,(SELECT COUNT(*) FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId WHERE s.fixtureRevisionId=r.id AND j.state IN('FAILED','BLOCKED') AND b.cutoffAt=(SELECT MAX(b2.cutoffAt) FROM input_bundles b2 JOIN jobs j2 ON j2.bundleId=b2.id JOIN observation_slots s2 ON s2.id=b2.slotId WHERE s2.fixtureRevisionId=r.id AND j2.modelId=j.modelId)) failedJobs FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id ORDER BY r.kickoffAt,f.id LIMIT 10001",
+    "SELECT f.*,r.id revisionId,r.kickoffAt,COALESCE(cat.competition,src.competition,'DEMO') competition,COALESCE(cat.season,src.season) season,cat.dataJson,cat.lastCapturedAt,cat.sourceUrl,(SELECT COUNT(*) FROM predictions pr WHERE pr.fixtureRevisionId=r.id) predictionCount,(SELECT COUNT(*) FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId WHERE pr.fixtureRevisionId=r.id AND d.accepted=1) accepted,(SELECT MAX(q.observedAt) FROM quote_sets q JOIN market_definitions m ON m.id=q.marketId WHERE m.fixtureId=f.id) quoteAt,(SELECT COUNT(*) FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId WHERE s.fixtureRevisionId=r.id AND j.state IN('FAILED','BLOCKED') AND j.modelId IN('MARKET_PROPORTIONAL_V1','RECENT_FORM_MARKET80_RESEARCH_V1','DEMO_FIXED_CENTRAL_V1') AND b.cutoffAt=(SELECT MAX(b2.cutoffAt) FROM input_bundles b2 JOIN jobs j2 ON j2.bundleId=b2.id JOIN observation_slots s2 ON s2.id=b2.slotId WHERE s2.fixtureRevisionId=r.id AND j2.modelId=j.modelId)) failedJobs FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id ORDER BY r.kickoffAt,f.id LIMIT 10001",
   );
   if (all.length > 10000) throw Error("SCHEDULE_CAPACITY_REQUIRES_PAGING");
   const frozen = await rows(
@@ -799,11 +799,27 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
           .toLowerCase()
           .includes(q)),
   );
+  const scheduleView = (f: any) => {
+    const { dataJson, publicData, referenceMarket, ...summary } = f;
+    const { raw, ...market } = referenceMarket ?? {};
+    return {
+      ...summary,
+      publicData: {
+        homeLogo: publicData.homeLogo ?? null,
+        awayLogo: publicData.awayLogo ?? null,
+        detail: {
+          homeRecent: publicData.detail?.homeRecent ?? [],
+          awayRecent: publicData.detail?.awayRecent ?? [],
+        },
+      },
+      referenceMarket: referenceMarket ? market : null,
+    };
+  };
   const offset = Number(p.get("offset") || 0);
   if (!Number.isSafeInteger(offset) || offset < 0)
     throw Error("INVALID_CURSOR");
   return {
-    items: filtered.slice(offset, offset + 40),
+    items: filtered.slice(offset, offset + 40).map(scheduleView),
     total: filtered.length,
     totalKnown: all.length,
     nextOffset: offset + 40 < filtered.length ? offset + 40 : null,
@@ -824,12 +840,14 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
       .sort(
         (a, b) => (b.research?.rankScore ?? 0) - (a.research?.rankScore ?? 0),
       )
-      .slice(0, 12),
+      .slice(0, 12)
+      .map(scheduleView),
     strictCandidates: [],
     observations: filtered
       .filter((f) => !["FINISHED", "STARTED", "CANDIDATE"].includes(f.state))
-      .slice(0, 8),
-    metadata: await workspaceMetadata(c.db),
+      .slice(0, 8)
+      .map(scheduleView),
+    metadata: { leagues: (await workspaceMetadata(c.db)).leagues },
     asOf: c.now,
   };
 }

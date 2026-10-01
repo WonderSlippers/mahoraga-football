@@ -3,6 +3,9 @@ import { atomic, stmt, uid, rows } from "../repositories/db";
 import type { Context } from "./commands";
 import { boundedBody, evidenceChunks } from "../../../../packages/sources";
 import { odds as normalizeOdds } from "../../../../packages/domain";
+import { registerComparison } from "./comparison";
+import { legacyGoalInputs } from "./legacy-inputs";
+import { COMPARISON_METHODS } from "../../../../packages/domain/comparison";
 
 export function decimalAmerican(raw: unknown): string | null {
   if (typeof raw !== "string" && typeof raw !== "number") return null;
@@ -24,7 +27,7 @@ export function publicMarkets(odds: any[]) {
         value("away", o.awayTeamOdds?.moneyLine),
       ];
       const total = (side: string) => ({
-        line: o.total?.[side]?.close?.line ?? null,
+        line: totalLine(o.total?.[side]?.close?.line, side),
         odds: decimalAmerican(o.total?.[side]?.close?.odds),
       });
       const spread = (side: string) => ({
@@ -45,6 +48,15 @@ export function publicMarkets(odds: any[]) {
         raw: o,
       };
     });
+}
+export function totalLine(raw: unknown, side: string): string | null {
+  if (typeof raw !== "number" && typeof raw !== "string") return null;
+  const prefix = side === "over" ? "o" : "u";
+  const match = String(raw).match(
+    new RegExp("^(?:" + prefix + ")?([0-9]+(?:\\.[0-9]+)?)$"),
+  );
+  if (!match || !Number.isInteger(Number(match[1]) * 4)) return null;
+  return String(Number(match[1]));
 }
 export function recentGames(summary: any, teamId: string, cutoff: number) {
   const team = (summary.lastFiveGames || []).find(
@@ -140,18 +152,37 @@ export async function freezePublicResearch(
   f: any,
   sourceSnapshotId: string,
   observedAt: number,
+  fetcher: typeof fetch = fetch,
 ) {
   if (f.status !== "SCHEDULED" || f.kickoffAt <= observedAt) return;
   const quote = publicMarkets(f.providerOdds).find((q) =>
     q.prices.every(Boolean),
   );
   if (!quote) return;
+  const featureRow = await stmt(
+    c.db,
+    "SELECT * FROM comparison_features WHERE fixtureId=? ORDER BY observedAt DESC LIMIT 1",
+    f.id,
+  ).first<any>();
   const previous = await stmt(
     c.db,
     "SELECT MAX(observedAt) at FROM quote_sets q JOIN market_definitions m ON m.id=q.marketId WHERE m.fixtureId=?",
     f.id,
   ).first<any>();
-  if (previous?.at && observedAt - previous.at < 300000) return;
+  if (previous?.at && observedAt - previous.at < 300000) {
+    const last = await stmt(
+      c.db,
+      "SELECT b.canonical FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId WHERE r.fixtureId=? ORDER BY b.cutoffAt DESC LIMIT 1",
+      f.id,
+    ).first<any>();
+    if (
+      (JSON.parse(last?.canonical ?? "{}").comparisonFeatures?.featureHash ??
+        null) === (featureRow?.featureHash ?? null)
+    )
+      return;
+  }
+  await registerComparison(c);
+  const goalStats = await legacyGoalInputs(c, f, fetcher);
   const revision = await stmt(
     c.db,
     "SELECT r.id FROM fixture_revisions r JOIN fixtures f ON f.id=r.fixtureId AND f.currentRevision=r.revision WHERE f.id=?",
@@ -167,7 +198,12 @@ export async function freezePublicResearch(
     qs = uid(),
     slot = uid(),
     bundle = uid(),
-    cutoff = Math.max(observedAt, f.detail?.observedAt ?? observedAt);
+    cutoff = Math.max(
+      observedAt,
+      f.detail?.observedAt ?? observedAt,
+      goalStats?.observedAt ?? 0,
+      featureRow?.observedAt ?? 0,
+    );
   if (cutoff >= f.kickoffAt) return;
   const features =
     f.detail?.homeRecent && f.detail?.awayRecent
@@ -199,6 +235,44 @@ export async function freezePublicResearch(
       "PUBLIC_REFERENCE_NOT_EXECUTABLE",
     ],
     ...(features ? { researchFeatures: features } : {}),
+    comparisonFeatures: {
+      competition: f.competition,
+      home: f.home,
+      away: f.away,
+      goalStats,
+      featureRow: featureRow ? JSON.parse(featureRow.payloadJson) : null,
+      featureSources: featureRow
+        ? JSON.parse(featureRow.sourceManifestJson)
+        : [],
+      featureHash: featureRow?.featureHash ?? null,
+      offers: [
+        ...["HOME", "DRAW", "AWAY"].map((selection, i) => ({
+          market: "1X2",
+          selection,
+          lineQ: null,
+          odds: quote.prices[i],
+        })),
+        ...[
+          ["ASIAN_HANDICAP", "HOME", quote.asian.home],
+          ["ASIAN_HANDICAP", "AWAY", quote.asian.away],
+          ["TOTAL_GOALS", "OVER", quote.total.over],
+          ["TOTAL_GOALS", "UNDER", quote.total.under],
+        ]
+          .filter(
+            ([, , v]: any) =>
+              v.line !== null &&
+              v.odds !== null &&
+              /^[-+]?\d+(?:\.\d+)?$/.test(String(v.line)) &&
+              Number.isInteger(Number(v.line) * 4),
+          )
+          .map(([market, selection, v]: any) => ({
+            market,
+            selection,
+            lineQ: Number(v.line) * 4,
+            odds: v.odds,
+          })),
+      ],
+    },
   });
   const manifest = canonical({
     id: "RECENT_FORM_MARKET80_RESEARCH_V1",
@@ -279,6 +353,7 @@ export async function freezePublicResearch(
     ),
     ...[
       "MARKET_PROPORTIONAL_V1",
+      ...COMPARISON_METHODS.map((m) => m.id),
       ...(features &&
       typeof features.neutralSite === "boolean" &&
       features.homeRecent.length >= 3 &&

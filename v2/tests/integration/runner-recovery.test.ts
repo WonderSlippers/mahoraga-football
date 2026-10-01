@@ -31,6 +31,7 @@ test(
     });
     const db = await mf.getD1Database("DB");
     await migrate(db, cfg);
+    const engineOrigin = (await mf.ready).origin;
     let firstComplete = true,
       held: http.ServerResponse | undefined,
       resolveHeld: () => void = () => {},
@@ -48,14 +49,11 @@ test(
           resolveHeld();
           return;
         }
-        const response = await mf.dispatchFetch(
-          "http://127.0.0.1:0" + req.url,
-          {
-            method: req.method,
-            headers: req.headers,
-            body: req.method === "GET" ? undefined : Buffer.concat(chunks),
-          },
-        );
+        const response = await mf.dispatchFetch(engineOrigin + req.url, {
+          method: req.method,
+          headers: req.headers,
+          body: req.method === "GET" ? undefined : Buffer.concat(chunks),
+        });
         res.writeHead(response.status, { "Content-Type": "application/json" });
         res.end(Buffer.from(await response.arrayBuffer()));
       } catch {

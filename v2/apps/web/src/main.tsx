@@ -20,6 +20,16 @@ import {
   LegacyWorkspace,
 } from "./workspace";
 let csrf = "";
+function requestKey() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+    "",
+  );
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 async function api(path: string, body?: unknown, key?: string) {
   const response = await fetch("/api/v2" + path, {
     method: body === undefined ? "GET" : "POST",
@@ -29,7 +39,7 @@ async function api(path: string, body?: unknown, key?: string) {
         : {
             "Content-Type": "application/json",
             "X-CSRF-Token": csrf,
-            "Idempotency-Key": key || crypto.randomUUID(),
+            "Idempotency-Key": key || requestKey(),
           },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -64,7 +74,9 @@ function App() {
       !new URLSearchParams(location.search).has("offline")
     )
       window.location.replace(
-        "http://127.0.0.1:5274" + location.pathname + location.search,
+        `http://${window.location.hostname}:5274` +
+          location.pathname +
+          location.search,
       );
   }, [logged, research, location.pathname, location.search]);
   useEffect(() => {
@@ -160,16 +172,14 @@ function App() {
               自动出票：关闭
               <br />
               {research ? "自动轮转 · 公开来源" : "离线工程演练"}
-              <br />
-              <a
-                href={
-                  research
-                    ? "http://127.0.0.1:5273/workbench?offline=1"
-                    : "http://127.0.0.1:5274/workbench"
-                }
-              >
-                {research ? "打开离线 DEMO" : "打开真实研究"}
-              </a>
+              {!research && (
+                <>
+                  <br />
+                  <a href={`http://${window.location.hostname}:5274/workbench`}>
+                    打开真实研究
+                  </a>
+                </>
+              )}
             </div>
           </nav>
           <main>
@@ -497,7 +507,7 @@ function Detail() {
                   setSelected({
                     ...d,
                     expectedRevision: data.portfolio.revision,
-                    commandKey: crypto.randomUUID(),
+                    commandKey: requestKey(),
                   })
                 }
               >

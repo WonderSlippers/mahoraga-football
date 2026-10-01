@@ -154,6 +154,73 @@
           "minimum": 1
         }
       }
+    },
+    "comparisonFeatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "competition",
+        "home",
+        "away",
+        "goalStats",
+        "featureRow",
+        "featureSources",
+        "featureHash",
+        "offers"
+      ],
+      "properties": {
+        "competition": {
+          "type": "string"
+        },
+        "home": {
+          "type": "string"
+        },
+        "away": {
+          "type": "string"
+        },
+        "goalStats": {
+          "type": ["object", "null"],
+          "maxProperties": 12
+        },
+        "featureRow": {
+          "type": ["object", "null"],
+          "maxProperties": 12
+        },
+        "featureSources": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object"
+          }
+        },
+        "featureHash": {
+          "type": ["string", "null"]
+        },
+        "offers": {
+          "type": "array",
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["market", "selection", "lineQ", "odds"],
+            "properties": {
+              "market": {
+                "enum": ["1X2", "ASIAN_HANDICAP", "TOTAL_GOALS"]
+              },
+              "selection": {
+                "enum": ["HOME", "DRAW", "AWAY", "OVER", "UNDER"]
+              },
+              "lineQ": {
+                "type": ["integer", "null"]
+              },
+              "odds": {
+                "type": "string",
+                "pattern": "^[0-9]+(\\.[0-9]{1,12})?$"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
