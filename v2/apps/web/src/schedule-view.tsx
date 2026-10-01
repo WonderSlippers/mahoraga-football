@@ -64,20 +64,28 @@ export function Recommendations({ data, onSelect }: any) {
     <section className="recommendations" aria-label="比赛推荐">
       <div className="recommendation-tabs">
         {[
-          ["research", "研究推荐", data?.candidateCounts?.research],
+          ["research", "市场＋近期研究", data?.candidateCounts?.research],
           ["strict", "严格前瞻", data?.candidateCounts?.strict],
           ["observe", "待观察", data?.candidateCounts?.observations],
         ].map(([key, label, count]) => (
           <button
             key={String(key)}
+            aria-pressed={tab === key}
             className={tab === key ? "selected" : "secondary"}
             onClick={() => setTab(String(key))}
           >
-            {label} <b>{count ?? "—"}</b>
+            {label} <b>{key === "strict" ? "未启用" : (count ?? "—")}</b>
           </button>
         ))}
         <span>研究排序分 ≠ 命中概率</span>
       </div>
+      <p className="ws-muted">
+        {tab === "research"
+          ? "本栏来源：80%市场去水概率＋20%近期比分推算。属于未验证研究，不是V6或V7的预测。V6与旧V2方向请打开推荐跟踪。"
+          : tab === "strict"
+            ? "严格前瞻是赛前输入、固定规则和记录的验证资格，不是另一个算法名称。"
+            : "没有入选的比赛仍在完整赛程中；等待补证不代表现实没有机会。"}
+      </p>
       <div className="recommendation-rail">
         {groups[tab].slice(0, 6).map((f: any) => (
           <Link
@@ -120,7 +128,7 @@ export function Recommendations({ data, onSelect }: any) {
         {!groups[tab].length && (
           <div className="recommendation-empty">
             {tab === "strict"
-              ? "严格前瞻当前未达资格：V6/V7必要特征与训练时间证据尚未齐备。研究推荐单独展示。"
+              ? "严格推荐尚未启用，当前没有正式资格结果。V6固定研究与旧V2保存方向在推荐跟踪中可查看；不能把本栏为空解释成扫描后没有机会。"
               : tab === "research"
                 ? "本轮没有达到研究门槛的方向。下方所有近期比赛仍可查看报价和具体判断；后台持续刷新。"
                 : "本范围没有等待观察的赛前比赛。"}
