@@ -384,7 +384,8 @@ export function ComparisonPanel({ api, fixture, compact = false }: Props) {
                         } as any
                       )[a.selection]
                     }{" "}
-                    {a.lineQ === null ? "" : a.lineQ / 4} @ {a.odds}
+                    {a.lineQ === null ? "" : a.lineQ / 4} @{" "}
+                    {a.odds == null ? "—" : Number(a.odds).toFixed(2)}
                     <small>
                       {r.methodId.startsWith("V6") ? "压力值" : "保守选择值"}{" "}
                       {pct(a.probability)} · EV {pct(a.estimatedEV)}

@@ -241,7 +241,7 @@ export function FixtureList({ data, onSelect }: any) {
                   {r.actions
                     .map(
                       (a: any) =>
-                        `${({ BROAD_1X2: "广覆盖", FEATURED_BEST_MARKET: "最优玩法", V6_NATIVE: "原生规则" } as any)[a.strategy] ?? a.strategy}：${directionName(a)}${a.lineQ == null ? "" : a.lineQ / 4} @ ${a.odds}`,
+                        `${({ BROAD_1X2: "广覆盖", FEATURED_BEST_MARKET: "最优玩法", V6_NATIVE: "原生规则" } as any)[a.strategy] ?? a.strategy}：${directionName(a)}${a.lineQ == null ? "" : a.lineQ / 4} @ ${a.odds == null ? "—" : Number(a.odds).toFixed(2)}`,
                     )
                     .join(" / ")}
                 </b>
