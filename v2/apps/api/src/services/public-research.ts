@@ -1,4 +1,5 @@
 import { canonical, sha, input } from "../../../../packages/contracts";
+import { modelTeamName } from "../../../../packages/sources/team-identity";
 import { atomic, stmt, uid, rows } from "../repositories/db";
 import type { Context } from "./commands";
 import { boundedBody, evidenceChunks } from "../../../../packages/sources";
@@ -6,6 +7,8 @@ import { odds as normalizeOdds } from "../../../../packages/domain";
 import { registerComparison } from "./comparison";
 import { legacyGoalInputs } from "./legacy-inputs";
 import { COMPARISON_METHODS } from "../../../../packages/domain/comparison";
+import { registerUniversal } from "./universal";
+import { UNIVERSAL_ID } from "../../../../packages/domain/universal";
 
 export function decimalAmerican(raw: unknown): string | null {
   if (typeof raw !== "string" && typeof raw !== "number") return null;
@@ -146,7 +149,7 @@ export async function captureSummary(
     summaryOdds: (j.pickcenter || []).filter(Boolean),
   };
 }
-// These jobs produce frozen research evidence. Portfolios still only accept DEMO tickets.
+// Frozen research jobs and separate reference-price paper policies.
 export async function freezePublicResearch(
   c: Context,
   f: any,
@@ -154,6 +157,8 @@ export async function freezePublicResearch(
   observedAt: number,
   fetcher: typeof fetch = fetch,
 ) {
+  sourceSnapshotId = f.quoteEvidence?.snapshotId ?? sourceSnapshotId;
+  observedAt = f.quoteEvidence?.observedAt ?? observedAt;
   if (f.status !== "SCHEDULED" || f.kickoffAt <= observedAt) return;
   const quote = publicMarkets(f.providerOdds).find((q) =>
     q.prices.every(Boolean),
@@ -172,16 +177,23 @@ export async function freezePublicResearch(
   if (previous?.at && observedAt - previous.at < 300000) {
     const last = await stmt(
       c.db,
-      "SELECT b.canonical FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId WHERE r.fixtureId=? ORDER BY b.cutoffAt DESC LIMIT 1",
+      "SELECT b.id,b.canonical FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId WHERE r.fixtureId=? ORDER BY b.cutoffAt DESC LIMIT 1",
       f.id,
     ).first<any>();
     if (
       (JSON.parse(last?.canonical ?? "{}").comparisonFeatures?.featureHash ??
-        null) === (featureRow?.featureHash ?? null)
+        null) === (featureRow?.featureHash ?? null) &&
+      (await stmt(
+        c.db,
+        "SELECT id FROM jobs WHERE bundleId=? AND modelId=?",
+        last?.id ?? "",
+        UNIVERSAL_ID,
+      ).first())
     )
       return;
   }
   await registerComparison(c);
+  await registerUniversal(c);
   const goalStats = await legacyGoalInputs(c, f, fetcher);
   const revision = await stmt(
     c.db,
@@ -237,8 +249,8 @@ export async function freezePublicResearch(
     ...(features ? { researchFeatures: features } : {}),
     comparisonFeatures: {
       competition: f.competition,
-      home: f.home,
-      away: f.away,
+      home: modelTeamName(f.home, f.competition),
+      away: modelTeamName(f.away, f.competition),
       goalStats,
       featureRow: featureRow ? JSON.parse(featureRow.payloadJson) : null,
       featureSources: featureRow
@@ -353,6 +365,7 @@ export async function freezePublicResearch(
     ),
     ...[
       "MARKET_PROPORTIONAL_V1",
+      UNIVERSAL_ID,
       ...COMPARISON_METHODS.map((m) => m.id),
       ...(features &&
       typeof features.neutralSite === "boolean" &&

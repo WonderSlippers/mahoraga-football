@@ -232,7 +232,7 @@ export function FixtureList({ data, onSelect }: any) {
             {f.state !== "CANDIDATE" && f.tracking && (
               <div className="saved-direction">
                 <b>
-                  赛前研究 · {f.tracking.selectionName} @{" "}
+                  旧市场启发式 · 原方向 {f.tracking.selectionName} @{" "}
                   {Number(f.tracking.decimalOdds).toFixed(2)}
                 </b>
                 <small>
@@ -242,6 +242,21 @@ export function FixtureList({ data, onSelect }: any) {
                 <small>首次入选 {formatDate(f.tracking.cutoffAt)}</small>
               </div>
             )}
+            {f.generalDirections?.map((p: any) => (
+              <div className="saved-direction" key={p.decisionId}>
+                <b>
+                  通用赛前 · {directionName(p)}
+                  {p.lineQ == null
+                    ? ""
+                    : ` ${p.lineQ > 0 ? "+" : ""}${p.lineQ / 4}`}{" "}
+                  @ {Number(p.odds).toFixed(2)}
+                </b>
+                <small>
+                  原概率 {pct(p.probability)} · 保守EV {pct(p.estimatedEV)} ·
+                  冻结 {formatDate(p.cutoffAt)}
+                </small>
+              </div>
+            ))}
             {f.parallelDirections?.map((r: any) => (
               <div className="saved-direction" key={r.id}>
                 <b>

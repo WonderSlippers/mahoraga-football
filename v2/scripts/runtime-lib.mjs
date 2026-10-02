@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { safeState, root } from "./safety.mjs";
+import { migratePaper } from "./migrate-paper.mjs";
+import { migrateMultiLeg } from "./migrate-multileg.mjs";
 export const hash = (s) => crypto.createHash("sha256").update(s).digest("hex");
 export const runtime = () =>
   safeState(path.join(root, ".runtime-v2", process.env.V2_PROFILE || "demo"));
@@ -66,7 +68,7 @@ export function engine(
             ) &&
             /^\?event=\d{3,30}$/.test(u.search)) ||
           (u.host === "site.web.api.espn.com" &&
-            /^\/apis\/v2\/sports\/soccer\/(eng\.1|esp\.1|ita\.1|ger\.1|fra\.1|ned\.1|por\.1|mex\.1|jpn\.1)\/standings$/.test(
+            /^\/apis\/v2\/sports\/soccer\/(?:[a-z]{3}(?:\.w)?\.\d+|usa\.nwsl)\/standings$/.test(
               u.pathname,
             ) &&
             /^\?season=20\d{2}$/.test(u.search))
@@ -142,6 +144,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
     ),
   );
   const immutable = [
+    "universal_observations",
     "comparison_methods",
     "comparison_features",
     "comparison_observations",
@@ -177,6 +180,14 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
     "export_chunks",
     "market_definitions",
   ];
+  await migratePaper(db);
+  await migrateMultiLeg(db);
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0011_universal_paper.sql"),
+      "utf8",
+    ),
+  );
   for (const table of immutable)
     for (const action of ["UPDATE", "DELETE"])
       await db.exec(
@@ -187,7 +198,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
     if (existing.id !== c.installationId || existing.mode !== c.mode)
       throw Error("INSTALLATION_MISMATCH");
     await db
-      .prepare("UPDATE installations SET schemaVersion=10 WHERE id=?")
+      .prepare("UPDATE installations SET schemaVersion=12 WHERE id=?")
       .bind(c.installationId)
       .run();
     return;
@@ -196,7 +207,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
   await db.batch([
     db
       .prepare("INSERT INTO installations VALUES(?,?,?,?,?)")
-      .bind(c.installationId, c.mode, 10, c.appCodeSha, Date.now()),
+      .bind(c.installationId, c.mode, 12, c.appCodeSha, Date.now()),
     ...(c.mode === "DEMO"
       ? [
           db.prepare(

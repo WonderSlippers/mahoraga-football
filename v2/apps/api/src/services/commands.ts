@@ -1,6 +1,8 @@
 import { canonical, sha } from "../../../../packages/contracts/index";
 import { atoms, gross, accountingDay } from "../../../../packages/domain/index";
 import { stmt, one, rows, uid, atomic } from "../repositories/db";
+import Decimal from "decimal.js";
+import { multiplier } from "../../../../packages/domain";
 export type Context = {
   db: D1Database;
   installationId: string;
@@ -43,27 +45,234 @@ export async function place(
     stakeAtoms: string;
     expectedRevision: number;
   },
+  secondDecisionId?: string,
 ) {
-  const r = await receipt(c, "place", key, p);
+  const payload = secondDecisionId ? { ...p, secondDecisionId } : p;
+  const r = await receipt(c, "place", key, payload);
   if (r.old) return { id: r.old.resultRef };
   const stake = Number(atoms(p.stakeAtoms, true));
   const d = await one(
     c.db,
-    `SELECT d.*,e.ev,e.predictionId,e.quoteSelectionId,q.decimalOdds,q.selection,qs.observedAt,qs.suspended,pr.fixtureRevisionId,fr.kickoffAt,f.status FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId JOIN predictions pr ON pr.id=e.predictionId JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId WHERE d.id=?`,
+    `SELECT d.*,e.ev,e.predictionId,e.quoteSelectionId,q.decimalOdds,q.selection,qs.observedAt,qs.suspended,pr.modelId,pr.fixtureRevisionId,fr.fixtureId,fr.kickoffAt,f.status FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId JOIN predictions pr ON pr.id=e.predictionId JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId WHERE d.id=?`,
     p.decisionId,
   );
+  const secondary = secondDecisionId
+    ? await one(
+        c.db,
+        `SELECT d.*,e.ev,e.predictionId,e.quoteSelectionId,q.decimalOdds,q.selection,qs.observedAt,qs.suspended,pr.modelId,pr.fixtureRevisionId,fr.fixtureId,fr.kickoffAt,f.status FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId JOIN predictions pr ON pr.id=e.predictionId JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId WHERE d.id=?`,
+        secondDecisionId,
+      )
+    : null;
   if (!d.accepted) throw new Error(d.reason);
   if (d.observedAt > c.now) throw new Error("QUOTE_TIME_IN_FUTURE");
   if (c.now - d.observedAt > 600000) throw new Error("QUOTE_STALE");
   if (c.now >= d.kickoffAt || d.status !== "SCHEDULED")
     throw new Error("KICKOFF_PASSED");
   if (d.suspended) throw new Error("QUOTE_SUSPENDED");
+  const portfolio = await one(
+    c.db,
+    "SELECT * FROM portfolios WHERE id=?",
+    p.portfolioId,
+  );
+  const installation = await one(
+    c.db,
+    "SELECT mode FROM installations WHERE id=?",
+    c.installationId,
+  );
+  const paper = portfolio.mode === "PAPER_RESEARCH";
+  if (secondary && !paper) throw Error("MODE_MISMATCH");
+  if (
+    paper
+      ? installation.mode !== "LOCAL_RESEARCH"
+      : installation.mode !== "DEMO"
+  )
+    throw Error("MODE_MISMATCH");
+  let marketSpec: any = {
+    market: "1X2",
+    selection: d.selection,
+    lineQ: null,
+    scope: "REGULATION_90",
+  };
+  const legs: any[] = [{ ...d, marketSpec }];
+  let maximum = 100,
+    policyId = "",
+    businessKey = p.decisionId;
+  if (paper) {
+    const policy = await one(
+      c.db,
+      "SELECT * FROM paper_policies WHERE portfolioId=?",
+      p.portfolioId,
+    );
+    if (!policy.enabled) throw Error("POLICY_PAUSED");
+    const latestJob = await stmt(
+      c.db,
+      "SELECT j.state FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId WHERE r.fixtureId=? AND j.modelId=? ORDER BY b.cutoffAt DESC,j.rowid DESC LIMIT 1",
+      d.fixtureId,
+      d.modelId,
+    ).first<any>();
+    if (latestJob?.state === "FAILED" || latestJob?.state === "BLOCKED")
+      throw Error("MODEL_CURRENTLY_FAILED");
+    if ((policy.id === "general-v2-double") !== !!secondary)
+      throw Error("PAPER_POLICY_MISMATCH");
+    if (
+      d.modelId !== "GENERAL_FOOTBALL_RESEARCH_V2" ||
+      d.strategyVersion !== policy.strategyVersion ||
+      stake !== 20000000
+    )
+      throw Error("PAPER_POLICY_MISMATCH");
+    if (c.now < d.kickoffAt - 86400000 || c.now > d.kickoffAt - 600000)
+      throw Error("KICKOFF_PASSED");
+    const observed = await one(
+      c.db,
+      "SELECT outputJson FROM universal_observations WHERE predictionId=?",
+      d.predictionId,
+    );
+    const plan = JSON.parse(observed.outputJson).plans.find(
+      (x: any) => x.decisionId === p.decisionId,
+    );
+    if (
+      !plan ||
+      !plan.accepted ||
+      plan.odds !== d.decimalOdds ||
+      plan.selection !== d.selection
+    )
+      throw Error("PAPER_POLICY_MISMATCH");
+    if (
+      !["general-v2-all-singles", "general-v2-forced-fun"].includes(
+        policy.id,
+      ) &&
+      (!plan.qualified || d.ev < 0.08)
+    )
+      throw Error("PAPER_POLICY_MISMATCH");
+    marketSpec = {
+      market: plan.market,
+      selection: plan.selection,
+      lineQ: plan.lineQ,
+      scope: "REGULATION_90",
+    };
+    legs[0].marketSpec = marketSpec;
+    if (secondary) {
+      const latestOther = await stmt(
+        c.db,
+        "SELECT j.state FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId WHERE r.fixtureId=? AND j.modelId=? ORDER BY b.cutoffAt DESC,j.rowid DESC LIMIT 1",
+        secondary.fixtureId,
+        secondary.modelId,
+      ).first<any>();
+      if (latestOther?.state === "FAILED" || latestOther?.state === "BLOCKED")
+        throw Error("MODEL_CURRENTLY_FAILED");
+      const otherObservation = await one(
+        c.db,
+        "SELECT outputJson FROM universal_observations WHERE predictionId=?",
+        secondary.predictionId,
+      );
+      const otherPlan = JSON.parse(otherObservation.outputJson).plans.find(
+        (x: any) => x.decisionId === secondary.id,
+      );
+      const leagueA = await one(
+        c.db,
+        "SELECT competition FROM fixture_catalog WHERE fixtureId=?",
+        d.fixtureId,
+      );
+      const leagueB = await one(
+        c.db,
+        "SELECT competition FROM fixture_catalog WHERE fixtureId=?",
+        secondary.fixtureId,
+      );
+      if (
+        !secondary.accepted ||
+        secondary.modelId !== d.modelId ||
+        secondary.strategyVersion !== policy.strategyVersion ||
+        !otherPlan?.accepted ||
+        !otherPlan.qualified ||
+        otherPlan.odds !== secondary.decimalOdds ||
+        otherPlan.selection !== secondary.selection ||
+        secondary.ev < 0.08 ||
+        [plan, otherPlan].some(
+          (x) =>
+            x.market !== "1X2" ||
+            x.conservativeProbability < 0.5 ||
+            Number(x.odds) > 2.5,
+        ) ||
+        d.fixtureId === secondary.fixtureId ||
+        leagueA.competition === leagueB.competition ||
+        Math.abs(d.kickoffAt - secondary.kickoffAt) < 12 * 3600000
+      )
+        throw Error("DOUBLE_LEGS_NOT_DIVERSIFIED");
+      if (
+        secondary.observedAt > c.now ||
+        c.now - secondary.observedAt > 600000 ||
+        secondary.suspended
+      )
+        throw Error("QUOTE_STALE");
+      if (
+        secondary.status !== "SCHEDULED" ||
+        c.now < secondary.kickoffAt - 86400000 ||
+        c.now >= secondary.kickoffAt - 600000
+      )
+        throw Error("KICKOFF_PASSED");
+      legs.push({
+        ...secondary,
+        marketSpec: {
+          market: otherPlan.market,
+          selection: otherPlan.selection,
+          lineQ: otherPlan.lineQ,
+          scope: "REGULATION_90",
+        },
+      });
+    }
+    maximum = policy.maximumPerDay;
+    policyId = policy.id;
+    businessKey = [
+      legs
+        .map((l) => l.fixtureId)
+        .sort()
+        .join("+"),
+      d.modelId,
+      d.strategyVersion,
+      ...(policy.id === "general-v2-forced-fun" ? [marketSpec.market] : []),
+    ].join("|");
+    if (
+      secondary &&
+      (await stmt(
+        c.db,
+        "SELECT t.id FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions r ON r.id=l.fixtureRevisionId WHERE t.portfolioId=? AND r.fixtureId IN(?,?)",
+        p.portfolioId,
+        d.fixtureId,
+        secondary.fixtureId,
+      ).first())
+    )
+      throw Error("DUPLICATE_BUSINESS_ACTION");
+    if (
+      await stmt(
+        c.db,
+        "SELECT id FROM tickets WHERE portfolioId=? AND businessKey=?",
+        p.portfolioId,
+        businessKey,
+      ).first()
+    )
+      throw Error("DUPLICATE_BUSINESS_ACTION");
+    if (
+      (
+        await one(
+          c.db,
+          "SELECT COUNT(*) n FROM tickets WHERE portfolioId=? AND placementDay=?",
+          p.portfolioId,
+          accountingDay(c.now, "Europe/Berlin"),
+        )
+      ).n >= maximum
+    )
+      throw Error("DAILY_LIMIT");
+  }
+  const placementDay = accountingDay(
+    c.now,
+    paper ? "Europe/Berlin" : "Asia/Shanghai",
+  );
   const id = uid(),
     cmd = uid();
   const list = [
     stmt(
       c.db,
-      `INSERT INTO command_receipts VALUES(?,?,?,?,CASE WHEN EXISTS(SELECT 1 FROM portfolios WHERE id=? AND revision=? AND available>=? AND frozen=0 AND mode='DEMO') AND EXISTS(SELECT 1 FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id WHERE r.id=? AND f.status='SCHEDULED' AND f.currentRevision=r.revision) THEN 1 ELSE 0 END,?,?)`,
+      `INSERT INTO command_receipts VALUES(?,?,?,?,CASE WHEN EXISTS(SELECT 1 FROM portfolios WHERE id=? AND revision=? AND available>=? AND frozen=0 AND mode=?) AND EXISTS(SELECT 1 FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id WHERE r.id=? AND f.status='SCHEDULED' AND f.currentRevision=r.revision AND r.kickoffAt>?) AND (?=0 OR EXISTS(SELECT 1 FROM paper_policies WHERE id=? AND enabled=1 AND maximumPerDay=? AND (SELECT COUNT(*) FROM tickets WHERE portfolioId=? AND placementDay=?)<maximumPerDay)) ${secondary ? "AND EXISTS(SELECT 1 FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id WHERE r.id=? AND f.status='SCHEDULED' AND f.currentRevision=r.revision AND r.kickoffAt>?) AND NOT EXISTS(SELECT 1 FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions fr ON fr.id=l.fixtureRevisionId WHERE t.portfolioId=? AND fr.fixtureId IN(?,?))" : ""} ${paper ? legs.map(() => "AND COALESCE((SELECT j.state FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId WHERE fr.fixtureId=? AND j.modelId=? ORDER BY b.cutoffAt DESC,j.rowid DESC LIMIT 1),'BLOCKED') NOT IN('FAILED','BLOCKED')").join(" ") : ""} THEN 1 ELSE 0 END,?,?)`,
       cmd,
       r.scope,
       key,
@@ -71,7 +280,24 @@ export async function place(
       p.portfolioId,
       p.expectedRevision,
       stake,
+      portfolio.mode,
       d.fixtureRevisionId,
+      c.now,
+      paper ? 1 : 0,
+      policyId,
+      maximum,
+      p.portfolioId,
+      placementDay,
+      ...(secondary
+        ? [
+            secondary.fixtureRevisionId,
+            c.now + 600000,
+            p.portfolioId,
+            d.fixtureId,
+            secondary.fixtureId,
+          ]
+        : []),
+      ...(paper ? legs.flatMap((leg) => [leg.fixtureId, leg.modelId]) : []),
       id,
       c.now,
     ),
@@ -83,26 +309,23 @@ export async function place(
       p.decisionId,
       stake,
       c.now,
-      p.decisionId,
-      accountingDay(c.now, "Asia/Shanghai"),
-      "DEMO",
+      businessKey,
+      placementDay,
+      portfolio.mode,
     ),
-    stmt(
-      c.db,
-      "INSERT INTO ticket_legs VALUES(?,?,?,?,?,?,?,?)",
-      uid(),
-      id,
-      d.fixtureRevisionId,
-      d.quoteSelectionId,
-      d.predictionId,
-      d.decimalOdds,
-      d.selection,
-      canonical({
-        market: "1X2",
-        selection: d.selection,
-        lineQ: null,
-        scope: "REGULATION_90",
-      }),
+    ...legs.map((leg) =>
+      stmt(
+        c.db,
+        "INSERT INTO ticket_legs VALUES(?,?,?,?,?,?,?,?)",
+        uid(),
+        id,
+        leg.fixtureRevisionId,
+        leg.quoteSelectionId,
+        leg.predictionId,
+        leg.decimalOdds,
+        leg.selection,
+        canonical(leg.marketSpec),
+      ),
     ),
     stmt(c.db, "INSERT INTO ticket_state VALUES(?,0,'OPEN',0,NULL)", id),
     stmt(
@@ -126,20 +349,43 @@ export async function place(
   try {
     await atomic(c.db, list, c.failAt);
   } catch {
-    const again = await receipt(c, "place", key, p);
+    const again = await receipt(c, "place", key, payload);
     if (again.old) return { id: again.old.resultRef };
     if (
       await stmt(
         c.db,
         "SELECT id FROM tickets WHERE portfolioId=? AND businessKey=?",
         p.portfolioId,
-        p.decisionId,
+        businessKey,
       ).first()
     )
       throw new Error("DUPLICATE_BUSINESS_ACTION");
     throw new Error("REVISION_CONFLICT");
   }
   return { id };
+}
+export async function placeDouble(
+  c: Context,
+  key: string,
+  p: { decisionIds: string[]; portfolioId: string; expectedRevision: number },
+) {
+  if (
+    !Array.isArray(p.decisionIds) ||
+    p.decisionIds.length !== 2 ||
+    new Set(p.decisionIds).size !== 2
+  )
+    throw Error("DOUBLE_LEGS_INVALID");
+  return place(
+    c,
+    key,
+    {
+      decisionId: p.decisionIds[0],
+      portfolioId: p.portfolioId,
+      stakeAtoms: "20000000",
+      expectedRevision: p.expectedRevision,
+    },
+    p.decisionIds[1],
+  );
 }
 export async function settle(
   c: Context,
@@ -150,7 +396,7 @@ export async function settle(
   if (r.old) return { id: r.old.resultRef };
   const t = await one(
     c.db,
-    "SELECT t.*,l.fixtureRevisionId,l.frozenOdds,l.marketSpecJson,s.currentStatus,s.gross,s.revision AS ticketRevision,s.currentSettlementId FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id JOIN ticket_state s ON s.ticketId=t.id WHERE t.id=?",
+    "SELECT t.*,s.currentStatus,s.gross,s.revision AS ticketRevision,s.currentSettlementId FROM tickets t JOIN ticket_state s ON s.ticketId=t.id WHERE t.id=?",
     p.ticketId,
   );
   const a = await one(
@@ -158,12 +404,13 @@ export async function settle(
     "SELECT * FROM result_adjudications WHERE id=?",
     p.adjudicationId,
   );
-  const fr = await one(
+  const legs = await rows(
     c.db,
-    "SELECT * FROM fixture_revisions WHERE id=?",
-    t.fixtureRevisionId,
+    "SELECT l.*,r.fixtureId FROM ticket_legs l JOIN fixture_revisions r ON r.id=l.fixtureRevisionId WHERE l.ticketId=?",
+    t.id,
   );
-  if (a.fixtureId !== fr.fixtureId) throw new Error("MARKET_MISMATCH");
+  if (!legs.some((l) => a.fixtureId === l.fixtureId))
+    throw new Error("MARKET_MISMATCH");
   const duplicate = await stmt(
     c.db,
     "SELECT id FROM settlement_events WHERE ticketId=? AND adjudicationId=?",
@@ -196,19 +443,46 @@ export async function settle(
     }
     return { id: duplicate.id };
   }
-  const terminal = ["ACCEPTED_REGULATION", "VOID_BY_RULE"].includes(a.state);
+  const latest = await Promise.all(
+    legs.map((l) =>
+      stmt(
+        c.db,
+        "SELECT * FROM result_adjudications WHERE fixtureId=? ORDER BY revision DESC LIMIT 1",
+        l.fixtureId,
+      ).first<any>(),
+    ),
+  );
+  const terminal = latest.every(
+    (result) =>
+      result && ["ACCEPTED_REGULATION", "VOID_BY_RULE"].includes(result.state),
+  );
+  const needsReview =
+    legs.length === 1 || latest.some((result) => result?.state === "REVIEW");
   const was = t.currentStatus === "SETTLED";
+  const returnFactor = terminal
+    ? legs.reduce<Decimal>(
+        (factor, leg, i) =>
+          latest[i]!.state === "VOID_BY_RULE"
+            ? factor
+            : factor.mul(
+                multiplier(
+                  JSON.parse(leg.marketSpecJson),
+                  JSON.parse(latest[i]!.regulationJson),
+                  leg.frozenOdds,
+                ),
+              ),
+        new Decimal(1),
+      )
+    : new Decimal(0);
   const nextGross = terminal
-    ? a.state === "VOID_BY_RULE"
-      ? t.stakeAtoms
-      : Number(
-          gross(
-            String(t.stakeAtoms),
-            JSON.parse(t.marketSpecJson),
-            JSON.parse(a.regulationJson),
-            t.frozenOdds,
-          ),
-        )
+    ? Number(
+        atoms(
+          new Decimal(String(t.stakeAtoms))
+            .mul(returnFactor)
+            .toDecimalPlaces(0, Decimal.ROUND_HALF_UP)
+            .toFixed(0),
+        ),
+      )
     : 0;
   const delta = nextGross - (was ? t.gross : 0);
   const openDelta = terminal
@@ -224,7 +498,7 @@ export async function settle(
   const list = [
     stmt(
       c.db,
-      `INSERT INTO command_receipts VALUES(?,?,?,?,CASE WHEN EXISTS(SELECT 1 FROM portfolios WHERE id=? AND revision=?) AND EXISTS(SELECT 1 FROM ticket_state WHERE ticketId=? AND revision=?) AND ?=(SELECT MAX(revision) FROM result_adjudications WHERE fixtureId=?) THEN 1 ELSE 0 END,?,?)`,
+      `INSERT INTO command_receipts VALUES(?,?,?,?,CASE WHEN EXISTS(SELECT 1 FROM portfolios WHERE id=? AND revision=?) AND EXISTS(SELECT 1 FROM ticket_state WHERE ticketId=? AND revision=?) AND ?=(SELECT MAX(revision) FROM result_adjudications WHERE fixtureId=?) ${legs.map((leg, i) => (latest[i] ? "AND ?=(SELECT MAX(revision) FROM result_adjudications WHERE fixtureId=?)" : "AND NOT EXISTS(SELECT 1 FROM result_adjudications WHERE fixtureId=?)")).join(" ")} THEN 1 ELSE 0 END,?,?)`,
       cmd,
       r.scope,
       key,
@@ -235,6 +509,9 @@ export async function settle(
       t.ticketRevision,
       a.revision,
       a.fixtureId,
+      ...legs.flatMap((leg, i) =>
+        latest[i] ? [latest[i]!.revision, leg.fixtureId] : [leg.fixtureId],
+      ),
       id,
       c.now,
     ),
@@ -250,7 +527,7 @@ export async function settle(
       nextGross,
       delta,
       c.now,
-      "RETURN_V1_HALF_UP_6",
+      legs.length === 1 ? "RETURN_V1_HALF_UP_6" : "PARLAY_PRODUCT_V1_HALF_UP_6",
     ),
     stmt(
       c.db,
@@ -268,7 +545,7 @@ export async function settle(
     stmt(
       c.db,
       "UPDATE ticket_state SET revision=revision+1,currentStatus=?,gross=?,currentSettlementId=? WHERE ticketId=?",
-      terminal ? "SETTLED" : "REVIEW",
+      terminal ? "SETTLED" : needsReview ? "REVIEW" : "OPEN",
       nextGross,
       id,
       t.id,

@@ -26,6 +26,13 @@ import {
   modelLaboratory,
 } from "./services/workspace";
 import { automationTick } from "./services/automation";
+import { generalMetrics } from "./services/general-metrics";
+import {
+  completeUniversal,
+  universalReport,
+  autoPaper,
+  configurePaper,
+} from "./services/universal";
 import {
   comparisonFeatures,
   comparisonReport,
@@ -199,6 +206,29 @@ export default {
         const researchComplete = path.match(
           /^\/internal\/v2\/model-jobs\/([^/]+)\/complete-comparison$/,
         );
+        const universalComplete = path.match(
+          /^\/internal\/v2\/model-jobs\/([^/]+)\/complete-universal$/,
+        );
+        if (universalComplete) {
+          exactFields(body, [
+            "owner",
+            "fencingToken",
+            "bundleHash",
+            "modelHash",
+            "featureCanonical",
+            "output",
+          ]);
+          const completed = await completeUniversal(
+            context,
+            universalComplete[1],
+            body,
+          );
+          return ok(completed);
+        }
+        if (path === "/internal/v2/paper/step") {
+          exactFields(body, []);
+          return ok(await autoPaper(context));
+        }
         if (researchComplete) {
           exactFields(body, [
             "owner",
@@ -374,6 +404,18 @@ export default {
           return ok(await modelLaboratory(context, url.searchParams));
         if (path === "/api/v2/workspace/comparison")
           return ok(await comparisonReport(context, url.searchParams));
+        if (path === "/api/v2/workspace/universal")
+          return ok(await universalReport(context, url.searchParams));
+        if (path === "/api/v2/workspace/universal-metrics")
+          return ok(await generalMetrics(context));
+        if (path === "/api/v2/workspace/paper-policies") {
+          return ok(
+            await rows(
+              env.DB,
+              "SELECT pp.*,p.available,p.openStake,p.realized,p.initial,p.revision accountRevision,(SELECT COUNT(*) FROM tickets WHERE portfolioId=p.id) ticketN FROM paper_policies pp JOIN portfolios p ON p.id=pp.portfolioId ORDER BY pp.rowid",
+            ),
+          );
+        }
         if (path === "/api/v2/workspace/settings")
           return ok(await workspaceMetadata(env.DB));
         if (path === "/api/v2/workspace/status")
@@ -620,7 +662,12 @@ export default {
               "SELECT component,lastSeenAt FROM runtime_health",
             ),
             network: env.MODE === "DEMO" ? "DISABLED" : "OPENLIGADB_ALLOWLIST",
-            autoPaper: false,
+            autoPaper:
+              env.MODE === "LOCAL_RESEARCH" &&
+              !!(await stmt(
+                env.DB,
+                "SELECT id FROM paper_policies WHERE enabled=1 LIMIT 1",
+              ).first()),
             jobs: await rows(
               env.DB,
               "SELECT state,COUNT(*) AS count FROM jobs GROUP BY state",
@@ -824,6 +871,15 @@ export default {
           });
       }
       if (req.method === "POST") {
+        if (path === "/api/v2/workspace/paper-policies") {
+          exactFields(body, [
+            "id",
+            "enabled",
+            "maximumPerDay",
+            "expectedRevision",
+          ]);
+          return ok(await configurePaper(context, key, body));
+        }
         if (path === "/api/v2/workspace/refresh") {
           exactFields(body, []);
           return ok(await automationTick(context, env.MODE, true));

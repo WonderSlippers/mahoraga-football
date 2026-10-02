@@ -136,7 +136,13 @@ export async function legacyGoalInputs(
   f: any,
   fetcher: typeof fetch = fetch,
 ) {
-  if (!LEGACY_GOAL_LEAGUES.includes(f.competition)) return null;
+  // Try exact competition standings beyond the old nine-league restriction.
+  // National team/cup aggregate tables are not interchangeable league evidence.
+  if (
+    !/^[a-z]{3}(?:\.w)?\.\d+$/.test(f.competition) &&
+    f.competition !== "usa.nwsl"
+  )
+    return null;
   const season = new Date(f.kickoffAt).getUTCFullYear();
   const current = await standings(c, f.competition, season, fetcher),
     previous = await standings(c, f.competition, season - 1, fetcher);

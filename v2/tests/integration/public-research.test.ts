@@ -13,6 +13,7 @@ import {
   autoSettle,
 } from "../../apps/api/src/services/automation";
 import { claim, complete } from "../../apps/api/src/services/observations";
+import { completeUniversal } from "../../apps/api/src/services/universal";
 import {
   completeComparison,
   comparisonReport,
@@ -71,11 +72,12 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
         {
           competitors,
           status: { type: { state: "pre", name: "STATUS_SCHEDULED" } },
-          odds: [null, odds],
+          odds: [null],
         },
       ],
     };
     const summary = {
+      pickcenter: [odds],
       header: {
         id: "123456",
         competitions: [{ competitors, neutralSite: true }],
@@ -95,23 +97,36 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       standings: { groups: [] },
       news: { articles: [] },
     };
-    const fetcher: any = async (url: any) =>
-      Response.json(
+    let summaryFetches = 0;
+    const fetcher: any = async (url: any) => {
+      if (String(url).includes("summary?")) summaryFetches++;
+      return Response.json(
         String(url).includes("summary?") ? summary : { events: [event] },
       );
+    };
     await captureESPN(c, "fifa.friendly", day, fetcher);
     assert.equal((await rows(db, "SELECT * FROM quote_sets")).length, 1);
     assert.equal((await rows(db, "SELECT * FROM quote_selections")).length, 3);
-    assert.equal((await rows(db, "SELECT * FROM jobs")).length, 4);
+    assert.equal((await rows(db, "SELECT * FROM jobs")).length, 5);
     assert.equal((await rows(db, "SELECT * FROM source_snapshots")).length, 2);
-    for (let i = 0; i < 4; i++) {
+    const savedQuote = (await rows(db, "SELECT * FROM quote_sets"))[0];
+    const priceEvidence = (
+      await rows(
+        db,
+        "SELECT * FROM source_snapshots WHERE id=?",
+        savedQuote.sourceSnapshotId,
+      )
+    )[0];
+    assert.ok(priceEvidence.resourceKey.includes("/summary?"));
+    assert.equal(savedQuote.observedAt, priceEvidence.observedAt);
+    for (let i = 0; i < 5; i++) {
       const job = await claim({ ...c, now: Date.now() }, "python-test");
       assert.ok(job);
       const p = spawnSync(
         path.resolve(".venv/Scripts/python.exe"),
         [
           "-c",
-          "import json,sys;sys.stdin.reconfigure(encoding='utf-8');from runner import predict,validate;from comparison_models import predict_comparison,IDS;j=json.load(sys.stdin);print(json.dumps(predict_comparison(j,validate(json.loads(j['canonical']))) if j['modelId'] in IDS else predict(j)))",
+          "import json,sys;sys.stdin.reconfigure(encoding='utf-8');from runner import predict,validate;from comparison_models import predict_comparison,IDS;from universal_model_v2 import predict_universal,MODEL_ID;j=json.load(sys.stdin);print(json.dumps(predict_universal(j,validate(json.loads(j['canonical']))) if j['modelId']==MODEL_ID else predict_comparison(j,validate(json.loads(j['canonical']))) if j['modelId'] in IDS else predict(j)))",
         ],
         {
           cwd: path.resolve("model-runner"),
@@ -123,20 +138,23 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       assert.equal(p.status, 0, p.stderr);
       const comparison =
         job.modelId.startsWith("V6_C388_FROZEN") ||
-        job.modelId.startsWith("LEGACY_20260920");
-      const result = await (comparison ? completeComparison : complete)(
-        { ...c, now: Date.now() },
-        job.id,
-        {
-          owner: "python-test",
-          fencingToken: job.fencingToken,
-          bundleHash: job.bundleHash,
-          modelHash: job.modelHash,
-          central: JSON.parse(p.stdout),
-          ...(comparison ? { output: JSON.parse(p.stdout) } : {}),
-          featureCanonical: job.canonical,
-        },
-      );
+        job.modelId.startsWith("LEGACY_20260920") ||
+        job.modelId === "GENERAL_FOOTBALL_RESEARCH_V2";
+      const result = await (
+        job.modelId === "GENERAL_FOOTBALL_RESEARCH_V2"
+          ? completeUniversal
+          : comparison
+            ? completeComparison
+            : complete
+      )({ ...c, now: Date.now() }, job.id, {
+        owner: "python-test",
+        fencingToken: job.fencingToken,
+        bundleHash: job.bundleHash,
+        modelHash: job.modelHash,
+        central: JSON.parse(p.stdout),
+        ...(comparison ? { output: JSON.parse(p.stdout) } : {}),
+        featureCanonical: job.canonical,
+      });
       assert.equal(
         result.state,
         job.modelId.startsWith("V6") ? "BLOCKED" : "DONE",
@@ -146,7 +164,7 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       { ...c, now: Date.now() },
       "espn:fifa.friendly:123456",
     );
-    assert.equal(detail.predictions.length, 2);
+    assert.equal(detail.predictions.length, 3);
     const compared = await comparisonReport({ ...c, now: Date.now() });
     assert.equal(compared.totalRecords, 2);
     assert.equal(compared.commonFixtureN, 0);
@@ -174,10 +192,27 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       { ...c, now: Date.now() },
       new URLSearchParams("view=ACTIVE"),
     );
-    assert.equal(failedPrimary.items[0].state, "MODEL_FAILED");
+    assert.notEqual(
+      failedPrimary.items[0].state,
+      "MODEL_FAILED",
+      "Demoted market80 cannot poison the general model",
+    );
+    await stmt(
+      db,
+      "UPDATE jobs SET state='FAILED' WHERE modelId='GENERAL_FOOTBALL_RESEARCH_V2'",
+    ).run();
+    const failedGeneral = await workspaceSchedule(
+      { ...c, now: Date.now() },
+      new URLSearchParams("view=ACTIVE"),
+    );
+    assert.equal(failedGeneral.items[0].state, "MODEL_FAILED");
     await stmt(
       db,
       "UPDATE jobs SET state='DONE' WHERE modelId='RECENT_FORM_MARKET80_RESEARCH_V1'",
+    ).run();
+    await stmt(
+      db,
+      "UPDATE jobs SET state='DONE' WHERE modelId='GENERAL_FOOTBALL_RESEARCH_V2'",
     ).run();
     const recoveredPrimary = await workspaceSchedule(
       { ...c, now: Date.now() },
@@ -208,8 +243,41 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       /IMMUTABLE_FACT/,
     );
     assert.equal((await rows(db, "SELECT * FROM tickets")).length, 0);
-    assert.equal((await rows(db, "SELECT * FROM portfolios")).length, 0);
+    assert.equal((await rows(db, "SELECT * FROM portfolios")).length, 6);
+    const fixtureId = "espn:fifa.friendly:123456";
+    const cached = (
+      await rows(
+        db,
+        "SELECT * FROM fixture_catalog WHERE fixtureId=?",
+        fixtureId,
+      )
+    )[0];
+    const cachedData = JSON.parse(cached.dataJson);
+    const cachedAt = Date.now() - 360000;
+    cachedData.detail.observedAt = cachedAt;
+    await stmt(
+      db,
+      "UPDATE fixture_catalog SET dataJson=? WHERE fixtureId=?",
+      JSON.stringify(cachedData),
+      fixtureId,
+    ).run();
+    const beforeSummaryFetches = summaryFetches;
     await captureESPN({ ...c, now: Date.now() }, "fifa.friendly", day, fetcher);
+    assert.equal(
+      summaryFetches,
+      beforeSummaryFetches + 1,
+      "Quotes carried by summary must refresh before the 10-minute expiry, even while other context is cached",
+    );
+    const refreshedData = JSON.parse(
+      (
+        await rows(
+          db,
+          "SELECT dataJson FROM fixture_catalog WHERE fixtureId=?",
+          fixtureId,
+        )
+      )[0].dataJson,
+    );
+    assert.ok(refreshedData.detail.observedAt > cachedAt);
     assert.equal((await rows(db, "SELECT * FROM quote_sets")).length, 1);
     await migrate(db, cfg);
     const schedule = await workspaceSchedule(

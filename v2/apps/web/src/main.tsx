@@ -11,6 +11,7 @@ import {
 } from "react-router-dom";
 import "./style.css";
 import "./workspace.css";
+import { StrategiesWorkspace } from "./universal-view";
 import {
   ScheduleWorkspace,
   FixtureWorkspace,
@@ -166,10 +167,15 @@ function App() {
             <NavLink to="/legacy">
               06 旧档案与设置 <span>↗</span>
             </NavLink>
+            {research && (
+              <NavLink to="/strategies">
+                07 模拟策略 <span>↗</span>
+              </NavLink>
+            )}
             <div className="navnote">
               {research ? "真实研究独立数据库" : "DEMO 专用数据库"}
               <br />
-              自动出票：关闭
+              {research ? "自动纸面策略：独立虚拟账本" : "DEMO离线工程演练"}
               <br />
               {research ? "自动轮转 · 公开来源" : "离线工程演练"}
               {!research && (
@@ -211,6 +217,10 @@ function App() {
               <Route
                 path="/legacy"
                 element={<LegacyWorkspace api={api} mode={mode} />}
+              />
+              <Route
+                path="/strategies"
+                element={<StrategiesWorkspace api={api} />}
               />
               <Route path="/demo-workbench" element={<Workbench />} />
               <Route

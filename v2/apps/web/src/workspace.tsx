@@ -16,6 +16,7 @@ import {
   Scoreboard,
 } from "./schedule-view";
 import { ComparisonPanel } from "./comparison-view";
+import { UniversalPanel, GeneralLaboratory } from "./universal-view";
 type Client = (path: string, body?: unknown, key?: string) => Promise<any>;
 type Props = { api: Client; mode?: string };
 const pct = (x: any) =>
@@ -341,6 +342,7 @@ export function ScheduleWorkspace({ api, mode }: Props) {
     sessionStorage.removeItem("v2-schedule-scroll");
   }, [data]);
   const [notice, setNotice] = useState("");
+  const [showComparison, setShowComparison] = useState(false);
   const change = (fn: any) => (v: string) => {
     setOffset(0);
     fn(v);
@@ -416,22 +418,37 @@ export function ScheduleWorkspace({ api, mode }: Props) {
           </button>
         ))}
       </nav>
-      {["ACTIVE", "UPCOMING", "ALL"].includes(view) && (
-        <Recommendations
-          data={data}
-          onSelect={(filter?: string) => {
-            if (typeof filter === "string") {
-              setView("UPCOMING");
-              change(setStatus)(filter);
-            } else
-              sessionStorage.setItem(
-                "v2-schedule-scroll",
-                String(window.scrollY),
-              );
-          }}
-        />
-      )}
-      <section className="ws-panel">
+      <a className="ws-tool-link schedule-jump" href="#fixtures">
+        跳到完整赛程与筛选 ↓
+      </a>
+      {["ACTIVE", "UPCOMING", "ALL"].includes(view) &&
+        (mode === "LOCAL_RESEARCH" ? (
+          <>
+            <UniversalPanel api={api} />
+            <details className="ws-panel">
+              <summary>旧市场 / 近期战绩启发式研究</summary>
+              <p>
+                该方法未调整对手强度，容易将高赔率方向排在前列；仅保留对照。
+              </p>
+              <Recommendations
+                data={data}
+                onSelect={(filter?: string) => {
+                  if (typeof filter === "string") {
+                    setView("UPCOMING");
+                    change(setStatus)(filter);
+                  } else
+                    sessionStorage.setItem(
+                      "v2-schedule-scroll",
+                      String(window.scrollY),
+                    );
+                }}
+              />
+            </details>
+          </>
+        ) : (
+          <Recommendations data={data} onSelect={() => {}} />
+        ))}
+      <section className="ws-panel" id="fixtures">
         <div className="ws-section-head">
           <h2>
             {view === "LIVE"
@@ -479,6 +496,7 @@ export function ScheduleWorkspace({ api, mode }: Props) {
           <div className="tracking-model-tabs ws-pills" aria-label="推荐算法">
             {[
               ["ALL", "全部算法"],
+              ["GENERAL", "通用赛前分析"],
               ["V6", "V6 配置388"],
               ["V2", "9月20日 V2"],
               ["RESEARCH", "市场 / 近期赛况"],
@@ -612,7 +630,15 @@ export function ScheduleWorkspace({ api, mode }: Props) {
       <p role="status" className="ws-notice">
         {notice}
       </p>
-      {mode === "LOCAL_RESEARCH" && <ComparisonPanel api={api} compact />}
+      {mode === "LOCAL_RESEARCH" && (
+        <details
+          className="comparison-summary"
+          onToggle={(e) => setShowComparison(e.currentTarget.open)}
+        >
+          <summary>V6 与9月20日 V2 · 展开并行统计</summary>
+          {showComparison && <ComparisonPanel api={api} compact />}
+        </details>
+      )}
       {mode === "DEMO" && (
         <Link className="ws-tool-link" to="/demo-workbench">
           打开离线观察与纸面出票演练 →
@@ -621,7 +647,7 @@ export function ScheduleWorkspace({ api, mode }: Props) {
     </div>
   );
 }
-export function FixtureWorkspace({ api }: Props) {
+export function FixtureWorkspace({ api, mode }: Props) {
   const [market, setMarket] = useState("1X2");
   const { id } = useParams();
   const state = useData(api, "/workspace/fixtures/" + encodeURIComponent(id!));
@@ -697,6 +723,7 @@ export function FixtureWorkspace({ api }: Props) {
         赛前预测与报价永久冻结。赛后新增赛果与更正，不根据比分重算概率。实时来源不足时，历史记录仍可查看。
       </div>
       <ComparisonPanel api={api} fixture={id} />
+      {mode === "LOCAL_RESEARCH" && <UniversalPanel api={api} fixture={id} />}
       <div className="ws-detail-grid">
         <section className="ws-panel">
           <div className="ws-section-head">
@@ -882,7 +909,11 @@ export function FixtureWorkspace({ api }: Props) {
                     ? "市场基准 · 比例去水"
                     : p.modelId === "RECENT_FORM_MARKET80_RESEARCH_V1"
                       ? "市场80%＋近期赛况20% · 未验证研究"
-                      : p.modelId}
+                      : p.modelId === "GENERAL_FOOTBALL_RESEARCH_V2"
+                        ? "通用赛前模型 · 当前固定研究方法"
+                        : p.modelId === "GENERAL_FOOTBALL_RESEARCH_V1"
+                          ? "通用初版 · 已停止新增，保留审计"
+                          : p.modelId}
                 </h3>
                 <div className="ws-probability">
                   {(p.central || []).map((v: number, i: number) => (
@@ -1067,9 +1098,12 @@ const periods = [
 export function HistoryWorkspace({
   api,
   ledger = false,
+  mode,
 }: Props & { ledger?: boolean }) {
   const [filters, setFilters] = useState<Record<string, string>>(() => ({
-      mode: "LEGACY_IMPORT",
+      mode:
+        new URLSearchParams(window.location.search).get("mode") ||
+        "LEGACY_IMPORT",
       period: "ALL",
       league: "ALL",
       model: "ALL",
@@ -1213,7 +1247,9 @@ export function HistoryWorkspace({
         <div className="ws-ledger-modes">
           {[
             ["LEGACY_IMPORT", "历史票 / Legacy"],
-            ["PAPER", "2.0纸面票"],
+            ...(mode === "LOCAL_RESEARCH"
+              ? [["PAPER_RESEARCH", "2.0自动纸面票"]]
+              : [["PAPER", "DEMO测试票"]]),
           ].map(([v, l]) => (
             <button
               key={v}
@@ -1235,9 +1271,16 @@ export function HistoryWorkspace({
         {filters.mode === "USER_REPORTED" && ledger
           ? "用户自行声明的成交与返还，不等同于服务器验证的输赢。"
           : ledger && filters.mode === "PAPER"
-            ? "PAPER独立测试账本；不与旧票或实际记录相加。"
-            : "LEGACY / HISTORICAL / NON-PROSPECTIVE · 原始票据与模型观测保留，不补造时间与缺失金额。"}{" "}
-        数据截止：{fmt(data?.sourceCutoffAt)}
+            ? "DEMO合成测试票；不与真实赛程的研究票或历史票相加。"
+            : ledger && filters.mode === "PAPER_RESEARCH"
+              ? "自动研究纸面票 · 每票20虚拟单位，按公开展示价假设记录。广覆盖对照与精选价值按策略独立筛选，不等于真实投注。"
+              : "LEGACY / HISTORICAL / NON-PROSPECTIVE · 原始票据与模型观测保留，不补造时间与缺失金额。"}{" "}
+        {ledger &&
+        ["PAPER", "PAPER_RESEARCH", "USER_REPORTED"].includes(filters.mode) ? (
+          <>账本读取截止：{fmt(data?.asOf)}</>
+        ) : (
+          <>旧档案导出截止：{fmt(data?.sourceCutoffAt)}</>
+        )}
       </div>
       {ledger && (
         <>
@@ -1260,7 +1303,7 @@ export function HistoryWorkspace({
                 ?.map((v: string) =>
                   v === "UNKNOWN"
                     ? "原币种未记录"
-                    : v === "PAPER"
+                    : v === "PAPER" || v === "VIRTUAL_UNITS"
                       ? "纸面单位"
                       : v,
                 )
@@ -1471,6 +1514,7 @@ export function HistoryWorkspace({
                       RESEARCH_OBSERVATION: "研究观测",
                       REFERENCE_FILE: "原始档案",
                       PAPER: "纸面票",
+                      PAPER_RESEARCH: "自动研究纸面票",
                       LEGACY_IMPORT: "历史导入",
                     } as any
                   )[r.kind || r.mode] ??
@@ -1676,6 +1720,7 @@ export function LaboratoryWorkspace({ api }: Props) {
         </Link>
       </Head>
       <div id="parallel">
+        <GeneralLaboratory api={api} />
         <ComparisonPanel api={api} />
       </div>
       <LoadState {...state} />
@@ -2155,16 +2200,16 @@ export function RuntimeWorkspace({ api, mode }: Props) {
                   : i === 2
                     ? "必要输入满足才冻结"
                     : i === 3
-                      ? "V6 / V2 固定并行研究"
+                      ? "通用分析 / V6 / V2 并行研究"
                       : i === 7
-                        ? "原子幂等；不自动新出票"
+                        ? "原子幂等 · 独立自动纸面票"
                         : "自动 / 事件驱动"}
               </small>
             </div>
           ))}
         </div>
         <p className="ws-note">
-          手动刷新用于立即读取、重试或复核。正常真实研究模式自动轮转已迁移的联赛清单；来源失败不会成为“无机会”。新纸面出票仍需用户明确动作。
+          手动刷新用于立即读取、重试或复核。正常研究模式自动发现比赛、补取报价和特征、分析与记录纸面票，再核对90分钟结果并结算。来源失败不会成为“无机会”；纸面策略可在“模拟策略”暂停和恢复。
         </p>
         <p role="status">{message}</p>
         {automation?.reason && (

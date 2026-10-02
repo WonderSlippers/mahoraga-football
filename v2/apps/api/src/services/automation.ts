@@ -10,7 +10,12 @@ import {
   evidenceChunks,
 } from "../../../../packages/sources/index";
 import { canonical, sha } from "../../../../packages/contracts/index";
-import { captureSummary, freezePublicResearch } from "./public-research";
+import {
+  captureSummary,
+  freezePublicResearch,
+  publicMarkets,
+} from "./public-research";
+import { autoPaper } from "./universal";
 
 export function espnUrl(league: string, day: string) {
   if (!/^[a-z0-9_.]{3,50}$/.test(league) || !/^\d{4}-\d{2}-\d{2}$/.test(day))
@@ -175,6 +180,15 @@ export async function captureESPN(
       : normalizeESPN(JSON.parse(text.replace(/^\uFEFF/, "")), league, day);
     let detailBudget = 4;
     for (const f of data) {
+      if (
+        publicMarkets((f as any).providerOdds).some((q) =>
+          q.prices.every(Boolean),
+        )
+      )
+        (f as any).quoteEvidence = {
+          snapshotId: snapshot,
+          observedAt: observed,
+        };
       if ((f as any).score) (f as any).scoreObservedAt = observed;
       const old = await stmt(
         c.db,
@@ -211,13 +225,24 @@ export async function captureESPN(
         f.kickoffAt > observed &&
         f.kickoffAt - observed < 7 * 86400000 &&
         detailBudget > 0 &&
-        (!previousDetail || observed - previousDetail.observedAt > 1800000)
+        (!previousDetail ||
+          observed - previousDetail.observedAt >
+            (f.kickoffAt - observed <= 86400000 ? 300000 : 1800000))
       ) {
         detailBudget--;
         try {
           (f as any).detail = await captureSummary(c, f, fetcher);
-          if (!(f as any).providerOdds.length)
+          if (
+            !publicMarkets((f as any).providerOdds).some((q) =>
+              q.prices.every(Boolean),
+            )
+          ) {
             (f as any).providerOdds = (f as any).detail.summaryOdds;
+            (f as any).quoteEvidence = {
+              snapshotId: (f as any).detail.snapshotId,
+              observedAt: (f as any).detail.observedAt,
+            };
+          }
         } catch (e) {
           (f as any).detailError = String(e).slice(0, 160);
         }
@@ -342,7 +367,7 @@ export async function captureESPN(
 export async function autoSettle(c: Context) {
   const fixtures = await rows(
     c.db,
-    "SELECT f.id,a.id adjudicationId,json_array_length(a.evidenceRefs) evidenceCount,COALESCE(a.revision,0) revision FROM fixtures f LEFT JOIN result_adjudications a ON a.fixtureId=f.id AND a.revision=(SELECT MAX(b.revision) FROM result_adjudications b WHERE b.fixtureId=f.id) WHERE EXISTS(SELECT 1 FROM result_observations o WHERE o.fixtureId=f.id) AND (a.id IS NULL OR json_array_length(a.evidenceRefs)<>(SELECT COUNT(*) FROM result_observations o WHERE o.fixtureId=f.id) OR a.state='ACCEPTED_REGULATION' AND EXISTS(SELECT 1 FROM ticket_legs l JOIN fixture_revisions r ON r.id=l.fixtureRevisionId WHERE r.fixtureId=f.id AND NOT EXISTS(SELECT 1 FROM settlement_events e WHERE e.ticketId=l.ticketId AND e.adjudicationId=a.id))) ORDER BY f.id LIMIT 1000",
+    "SELECT f.id,a.id adjudicationId,json_array_length(a.evidenceRefs) evidenceCount,COALESCE(a.revision,0) revision FROM fixtures f LEFT JOIN result_adjudications a ON a.fixtureId=f.id AND a.revision=(SELECT MAX(b.revision) FROM result_adjudications b WHERE b.fixtureId=f.id) WHERE EXISTS(SELECT 1 FROM result_observations o WHERE o.fixtureId=f.id) AND (a.id IS NULL OR json_array_length(a.evidenceRefs)<>(SELECT COUNT(*) FROM result_observations o WHERE o.fixtureId=f.id) OR a.state IN('ACCEPTED_REGULATION','REVIEW','VOID_BY_RULE') AND EXISTS(SELECT 1 FROM ticket_legs l JOIN fixture_revisions r ON r.id=l.fixtureRevisionId WHERE r.fixtureId=f.id AND NOT EXISTS(SELECT 1 FROM settlement_events e WHERE e.ticketId=l.ticketId AND e.adjudicationId=a.id))) ORDER BY f.id LIMIT 1000",
   );
   let reviewed = 0,
     settled = 0;
@@ -380,7 +405,8 @@ export async function autoSettle(c: Context) {
       ).first<any>();
       if (adjud?.state !== "ACCEPTED_REGULATION") {
         reviewed++;
-        continue;
+        if (!adjud || !["REVIEW", "VOID_BY_RULE"].includes(adjud.state))
+          continue;
       }
       const tickets = await rows(
         c.db,
@@ -457,15 +483,11 @@ export async function automationTick(
     )
       .filter((d) => [0, 6].includes(new Date(d + "T00:00:00Z").getUTCDay()))
       .flatMap((day) =>
-        leagues
-          .filter((l: any) =>
-            ["eng.1", "ger.1", "ita.1", "esp.1", "fra.1"].includes(l.code),
-          )
-          .map((league: any) => ({
-            league,
-            day,
-            url: espnUrl(league.code, day),
-          })),
+        leagues.map((league: any) => ({
+          league,
+          day,
+          url: espnUrl(league.code, day),
+        })),
       );
     const wideSeen = await rows(
       c.db,
@@ -613,10 +635,7 @@ export async function automationTick(
         leagues.map((league: any) => ({ league, offset })),
       );
       for (let offset = 7; offset < 29; offset++)
-        for (const league of leagues.filter((l: any) =>
-          ["eng.1", "ger.1", "ita.1", "esp.1", "fra.1"].includes(l.code),
-        ))
-          calendar.push({ league, offset });
+        for (const league of leagues) calendar.push({ league, offset });
       advanceCursor = Math.min(4, leagues.length);
       initialDiscovery = true;
       const result = await Promise.allSettled(
@@ -645,7 +664,8 @@ export async function automationTick(
       capture?.results?.some((r: any) =>
         ["EMPTY", "DEGRADED", "CAPTURED"].includes(r.state),
       );
-    const settled = await autoSettle(c);
+    const paper = await autoPaper({ ...c, now: Date.now() });
+    const settled = await autoSettle({ ...c, now: Date.now() });
     const prepared = await stmt(
       c.db,
       "SELECT DISTINCT cat.competition,cat.sourceUrl FROM fixture_catalog cat JOIN fixtures f ON f.id=cat.fixtureId JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision WHERE f.status='SCHEDULED' AND r.kickoffAt>? AND cat.lastCapturedAt<? AND EXISTS(SELECT 1 FROM comparison_features cf WHERE cf.fixtureId=f.id) AND EXISTS(SELECT 1 FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId WHERE fr.fixtureId=f.id) AND COALESCE((SELECT json_extract(b.canonical,'$.comparisonFeatures.featureHash') FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId WHERE fr.fixtureId=f.id ORDER BY b.cutoffAt DESC LIMIT 1),'')<>(SELECT cf.featureHash FROM comparison_features cf WHERE cf.fixtureId=f.id ORDER BY cf.observedAt DESC LIMIT 1) ORDER BY r.kickoffAt LIMIT 1",
@@ -682,10 +702,11 @@ export async function automationTick(
         quoteRefresh: "PUBLIC_REFERENCE_ONLY_WHEN_AVAILABLE",
         features: "FROZEN_V6_RAW_HISTORY_AND_LEGACY_V2_SHADOW",
         predictions: "EXISTING_PULL_JOBS",
-        automaticNewTickets: false,
+        automaticNewTickets: "REFERENCE_PRICE_PAPER_ONLY",
+        paper,
       }),
     ).run();
-    return { capture, settled };
+    return { capture, settled, paper };
   } catch (e) {
     await stmt(
       c.db,

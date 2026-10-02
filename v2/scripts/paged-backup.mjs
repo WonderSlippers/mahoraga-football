@@ -99,7 +99,17 @@ export async function restorePaged(db, dir, identity) {
     metadata.sourceInstallation?.schemaVersion === 7
       ? ["workspace_imports", "fixture_catalog", "automation_state"]
       : [];
-  const expectedTables = tables.filter((t) => !missingWorkspace.includes(t));
+  const missingNew = [
+    ...(metadata.sourceInstallation?.schemaVersion < 9
+      ? ["comparison_methods", "comparison_features", "comparison_observations"]
+      : []),
+    ...(metadata.sourceInstallation?.schemaVersion < 11
+      ? ["universal_observations", "paper_policies"]
+      : []),
+  ].filter((t) => !metadata.tables[t]);
+  const expectedTables = tables.filter(
+    (t) => ![...missingWorkspace, ...missingNew].includes(t),
+  );
   if (
     metadata.format !== "MAHORAGA_OFFLINE_PAGED_BACKUP_V1" ||
     metadata.state !== "COMPLETE" ||
@@ -108,7 +118,7 @@ export async function restorePaged(db, dir, identity) {
       [...expectedTables].sort().join()
   )
     throw Error("BACKUP_FORMAT_INVALID");
-  for (const table of missingWorkspace)
+  for (const table of [...missingWorkspace, ...missingNew])
     if ((await db.prepare(`SELECT COUNT(*) n FROM ${table}`).first()).n)
       throw Error("RESTORE_REQUIRES_EMPTY_DATABASE");
   for (const table of expectedTables) {
@@ -132,7 +142,7 @@ export async function restorePaged(db, dir, identity) {
         throw Error("BACKUP_SCHEMA_MISMATCH");
       const row =
         table === "installations"
-          ? { ...original, id: identity.installationId, schemaVersion: 8 }
+          ? { ...original, id: identity.installationId, schemaVersion: 12 }
           : original;
       batch.push(
         db
@@ -154,16 +164,25 @@ export async function restorePaged(db, dir, identity) {
   return verifyPaged(db, metadata);
 }
 export async function verifyPaged(db, metadata) {
+  const missingWorkspace =
+    metadata.sourceInstallation?.schemaVersion === 7
+      ? ["workspace_imports", "fixture_catalog", "automation_state"]
+      : [];
+  const missingNew = [
+    ...(metadata.sourceInstallation?.schemaVersion < 9
+      ? ["comparison_methods", "comparison_features", "comparison_observations"]
+      : []),
+    ...(metadata.sourceInstallation?.schemaVersion < 11
+      ? ["universal_observations", "paper_policies"]
+      : []),
+  ];
   let rows = 0;
   for (const table of tables) {
     const actual = await visit(db, table, async () => {});
     rows += actual.rows;
     if (
       !metadata.tables[table] &&
-      metadata.sourceInstallation?.schemaVersion === 7 &&
-      ["workspace_imports", "fixture_catalog", "automation_state"].includes(
-        table,
-      )
+      [...missingWorkspace, ...missingNew].includes(table)
     ) {
       if (actual.rows !== 0) throw Error("RESTORE_HASH_MISMATCH");
       continue;

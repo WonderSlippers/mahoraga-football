@@ -1,3 +1,63 @@
+## 2026-10-02 通用分析、自动纸面与可用性：本轮最终验收
+
+本节替代下方旧阶段数字。实际软件/模型可执行用例共 **145（67单元+62完整D1+3离线E2E+6原模型parity+7新模型）**，没有跳过。针对读取/来源/冻结的11例复跑属于62例的子集，不重复计数。浏览器另有 **38项检查、21页面（七页面×1440/1024/390）、30真实PNG、0页面JS异常**。不以静态边界、截图或DEMO合成赛果冒充真实模型验证。
+
+| 验证         | 实际命令（v2目录）                                                                                                                                                                                                                                                                        | 退出码 | 数量                    | 完整证据                     |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------- | ---------------------------- |
+| check        | `C:\Program Files\nodejs\node.exe scripts/check.mjs`                                                                                                                                                                                                                                      | 0      | 非模型测试              | check-check.json/.log        |
+| unit         | `C:\Program Files\nodejs\node.exe node_modules/tsx/dist/cli.mjs --test tests/unit/*.test.ts`                                                                                                                                                                                              | 0      | 67                      | check-unit.json/.log         |
+| integration  | `C:\Program Files\nodejs\node.exe node_modules/tsx/dist/cli.mjs --test --test-concurrency=1 tests/integration/*.test.ts`                                                                                                                                                                  | 0      | 62                      | check-integration.json/.log  |
+| e2e          | `C:\Program Files\nodejs\node.exe node_modules/@playwright/test/cli.js test`                                                                                                                                                                                                              | 0      | 3                       | check-e2e.json/.log          |
+| model        | `C:\Program Files\nodejs\node.exe scripts/run-python.mjs model-parity`                                                                                                                                                                                                                    | 0      | 6                       | check-model.json/.log        |
+| generalModel | `C:\Program Files\nodejs\node.exe scripts/test-general-model.mjs`                                                                                                                                                                                                                         | 0      | 7                       | check-generalModel.json/.log |
+| targeted     | `C:\Program Files\nodejs\node.exe node_modules/tsx/dist/cli.mjs --test --test-concurrency=1 tests/integration/live-refresh.test.ts tests/integration/public-research.test.ts tests/integration/comparison.test.ts tests/integration/rotation.test.ts tests/integration/workspace.test.ts` | 0      | 11                      | check-targeted.json/.log     |
+| build        | `C:\Program Files\nodejs\node.exe scripts/build.mjs`                                                                                                                                                                                                                                      | 0      | 非模型测试              | check-build.json/.log        |
+| browser      | `C:\Program Files\nodejs\node.exe scripts/verify-universal-browser.mjs`                                                                                                                                                                                                                   | 0      | 38交互 / 21页面 / 0异常 | check-browser.json/.log      |
+
+各check JSON记录实际命令、开始/完成UTC、退出码、测试数量和日志路径；失败历史保存于check-history。证据原目录 `.runtime-v2/universal`；用户副本在聊天根 `outputs/general-20261002`。截图没有API拦截，没有往研究库塞合成赛事。
+
+### 实际功能链路与页面
+
+当前通用方法固定为GENERAL_FOOTBALL_RESEARCH_V2：国家队友谊赛训练4384、2024校准241、2025–2026-07-18留出427；独立重新计算LogLoss0.9668183/Brier0.5775481，原数据/权重SHA校验通过。没有历史价格，ROI=null；正式国家队赛事迁移仍未验证。俱乐部读取本赛事可核实进球/失球/积分，不借用五大联赛均值冒充其他赛事证据；女性/青年不使用男子国家队参数。MLS、NWSL、英格兰女足积分源的真实原文与SHA见standings-source-proof.json。
+
+真实浏览器取样截止 2026-10-02T06:43:43.654Z：通用目录200场、完成53场、独立攻防49场、实际完成11类赛事；发现26类（发现不当作已预测），当前价值方向2。当时未入选不等于现实无机会，缺口/价格/窗口原因仍可在完整赛程和详情查看。开赛后首次冻结方向可跟踪，GET浏览不会改变原Prediction哈希与概率。
+
+最后补取后07:00 UTC实际截图：205通用目录、53完成、49独立攻防、11已完成赛事类、4个国家队研究方向；报价采集更新至06:58 UTC。详见recommendation-proof.json及recommendations-1440/390.png，数量随新捕获和10分钟过期变化，不能把截图数量宣称为永久推荐数。
+
+六策略有独立虚拟账户：广覆盖单场、精选价值、让球、最优玩法、各玩法对照、分散双场。正常自动发现→报价→冻结→Python领取→决策→参考价纸面→结果裁定→结算；暂停/恢复通过实际页面写入并在finally恢复原状态。双场当前若没有满足独立赛事/时间条件的两腿，维持0票，不造组合。
+
+初期共同已核验5场：通用LogLoss0.7311/Brier0.4086，市场0.5922/0.3083；前两张精选已结均亏损，ROI=-100%。这些是实际观测，不是盈利证明，不以当前小样本宣布优胜，也未自动晋升。V6C388/V7/9月20日旧V2原计算文件保持原字节，parity与新模型留出验证分列。
+
+七页面：完整赛程、冻结比赛详情、历史中心、独立纸面账本、模型实验室、数据运行、模拟策略。截图schedule/match/history/ledger/models/runtime/strategies-<宽度>.png；另有开赛跟踪和详情分析截图。实际检查日期/入口、无横向溢出、六策略控制、新账读取截止与旧档导出截止分开、局域网入口。手机尺寸和本机LAN验证不是实体手机已测。
+
+### 失败、纠错和复验
+
+所有失败保留日志，不计通过。早期备份出现missingWorkspace未定义，已改为完整表清单并由全量/分页备份测试验证。新增General任务后旧测试依赖固定领取顺序/任务数量、fixtures轮转索引发生变化：按真实模型ID/URL及实际优先窗口检查，保留原函数推断与保护断言。来源别名试图向严格输入加入sourceHome/sourceAway，契约真实拒绝FEATURE_SCHEMA_MISMATCH；删除多余字段，原来源名称/ID在原证据保留，11例专项重跑通过。
+
+真实浏览器首次策略重复展示导致14卡而不是6，已去掉重复内容；手机详情418/390溢出已改独立卡片；标题竖排按实际截图修复。一次新库跟踪页60秒超时，小库测试未暴露：把相关子查询改为一次汇总；另将最新预测提前筛选再关联决策，同真实库1233行结果完全一致，原生SQLite读取0.889→0.171秒（见read-query-proof.json，不当作HTTP性能）。列表不再从D1读取全部新闻/积分/摘要盘口；详情和源证据未删除，专门测试核对原文未变且阵容/战绩完整度保留。最终HTTP延迟以latency.json实际测量为准，不宣称长期性能达标。
+
+高EV初版还发现1X2融合概率与AH纯进球格分布不一致：初版V1停止新纸面动作，原预测/票/账不改；固定V2让同一比分格匹配中心概率，所有市场共享同一冻结分布。测试验证赔率/EV不能由客户端伪造，超过20%偏差和高赔率不当精选价值。
+
+最后性能复验：首次工作台约10.84秒，追踪接口随后0.58秒。真实请求跟踪定位到首页同时计算全历史并行比较，阻塞工作线程约9.58秒。改为展开才请求，自动后台推断不变；最终首次打开1.18秒、跟踪0.727秒、通用0.036秒（单次本机测量，非长期SLA）。浏览器检查首页没有发出比较请求；实际展开HTTP200并显示原比较、收起后卸载停止轮询，见recommendation-proof.json。第一次收起立即数DOM断言失败1≠0，改为等待React提交后复验；失败记录capture-expand-failed.json保留。模型实验室主动打开全历史比较仍需计算等待。
+
+持续观察还发现摘要内盘口缓存30分钟，而报价10分钟过期：修复24小时内比赛摘要5分钟主动重读，远期上下文仍30分钟；录制来源集成测试验证真实调用fetcher、采集时间更新及原冻结不变，不只是检查源码字符串。补用例首次缺fixtureId声明导致类型检查退出2，修复后check/11专项通过。实时补取结果见推荐/刷新证据，未以计算时间换旧报价时间。
+
+补报价时不再以含null的数组非空判断已有数据；摘要盘口引用实际摘要原文快照/采集时间。录制来源→D1→原Python原函数的集成例实际检查resourceKey与quote.observedAt；该来源断言首跑误写sourceUrl字段退出1，修复为真实契约resourceKey后全11及完整62例通过。四场实际国家队报价更新至06:58–06:59 UTC，均与包含价格的真实来源快照时点相等；这四场价格来自scoreboard，不能称它们验证了live summary-only分支，后者只有录制来源软件验证。
+
+格式检查失败（含最后读取优化）已经格式化后复跑；原日志保留。外部网络/Windows socket偶发中断在运行日志中保留并按来源退避/任务重试，不能称跨日/无人值守稳定性已经验收。
+
+### 保护、启动与未完成
+
+旧HEAD/dirty status/diff与本轮基线相同；五个旧任务动作相同。旧5173 PID由9036变为24644，不能说进程全程不变；没有发旧HTTP、连接旧D1、控制旧进程或修改旧任务。这是操作记录与基线比对证据，不是系统级写审计，也不禁止旧站自己的任务写库。
+
+新库使用research-general/demo-general：来自停止自己的原安装后复制到从未运行的新目录，原自有目录没有覆盖。保护报告逐行SHA核对本轮前和多腿升级前的不可变事实全部保留；两个quick_check=ok，FK失败0。新研究票是新独立虚拟账本，不写旧票旧余额。
+
+已运行：http://127.0.0.1:5274/workbench；同网入口http://192.168.2.130:5274/workbench。本目录 `npm run dev:research` 启动；独立DEMO `npm run dev` →5273/demo-workbench。没有登录口令，电脑重启需一次启动。没有push、部署或入口切换。
+
+功能统计27完整/4部分/3退役。仍需V7实时输入、严格前瞻资格、原三固定方法统一跨季共同输入、全部来源/联赛/金额配置编辑；稀有国家队/部分杯赛独立攻防不足，多日稳定/实体手机未证明。见FEATURE-PARITY.md、BLOCKERS.md。
+
+---
+
 # 可用性恢复：实际验收报告
 
 2026-10-01。功能代码本地提交 **9e43c07**，无push/部署/正式切换。旧阶段原报告保留在 docs/mahoraga-2/TEST-REPORT.md，其中旧任务动作全同结论已明确纠错。
@@ -88,18 +148,18 @@ V6配置388真实归档250行由原函数检查；V7固定融合真实共同115�
 
 本节覆盖本轮新增代码，更新此前“实时V6仍BLOCKED”的结论。工作目录 `v2/`；机器命令逐项记录在 `.runtime-v2/parallel-models/check-*.json/.log`，包含开始/结束UTC、实际命令、退出码与数量。最终源码版本/运行身份以交付包运行证据为准，未push或部署。
 
-| 验证 | 实际命令 | 结果 | 证据 |
-| --- | --- | --- | --- |
-| TypeScript/格式/边界 | `node scripts/verify-comparison.mjs check` | 退出0；边界源码检查不是模型验证 | check-check |
-| 单元与真实LAN代理 | `node scripts/verify-comparison.mjs unit` | 59/59，退出0，0跳过 | check-unit |
-| 完整D1集成 | `node scripts/verify-comparison.mjs integration` | 50/50，退出0；租约、原子、幂等、结算、更正、故障恢复等 | check-integration |
-| 补充队列/来源故障 | `node scripts/verify-comparison.mjs queue` | 2/2，退出0；其中1例与完整集成重合，另1例新增 | check-queue |
-| V6/旧V2固定函数与特征 | `node scripts/verify-comparison.mjs comparison` | 10/10，退出0；10条真实归档特征310数值，最大误差6.023e-13；旧V2独立公式oracle与原时间窗 | check-comparison、feature-parity.json |
-| 原模型包parity | `node scripts/verify-comparison.mjs model` | 6/6，退出0；V6原250行、V7原115共同历史行，不是实时盈利验证 | check-model |
-| 市场/近期比分研究软件 | `node scripts/verify-comparison.mjs publicmodel` | 5/5，退出0；不是V6或真实收益验证 | check-publicmodel |
-| 原离线浏览器全链路 | `node scripts/verify-comparison.mjs e2e` | 3/3，退出0；真实Python、D1、票据、结算、更正、重启/子进程恢复，DEMO明确合成 | check-e2e、test-results/e2e-report.json |
-| 构建 | `node scripts/verify-comparison.mjs build` | 退出0 | check-build |
-| 实际研究网站浏览器 | `node scripts/verify-comparison.mjs browser` | 13项实际检查通过，12个六页面桌面/手机尺寸检查，应用错误0；另两套V6实方向详情及真实私网会话截图 | browser-verification.json、16张真实PNG |
+| 验证                  | 实际命令                                         | 结果                                                                                           | 证据                                    |
+| --------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------- | --------------------------------------- |
+| TypeScript/格式/边界  | `node scripts/verify-comparison.mjs check`       | 退出0；边界源码检查不是模型验证                                                                | check-check                             |
+| 单元与真实LAN代理     | `node scripts/verify-comparison.mjs unit`        | 59/59，退出0，0跳过                                                                            | check-unit                              |
+| 完整D1集成            | `node scripts/verify-comparison.mjs integration` | 50/50，退出0；租约、原子、幂等、结算、更正、故障恢复等                                         | check-integration                       |
+| 补充队列/来源故障     | `node scripts/verify-comparison.mjs queue`       | 2/2，退出0；其中1例与完整集成重合，另1例新增                                                   | check-queue                             |
+| V6/旧V2固定函数与特征 | `node scripts/verify-comparison.mjs comparison`  | 10/10，退出0；10条真实归档特征310数值，最大误差6.023e-13；旧V2独立公式oracle与原时间窗         | check-comparison、feature-parity.json   |
+| 原模型包parity        | `node scripts/verify-comparison.mjs model`       | 6/6，退出0；V6原250行、V7原115共同历史行，不是实时盈利验证                                     | check-model                             |
+| 市场/近期比分研究软件 | `node scripts/verify-comparison.mjs publicmodel` | 5/5，退出0；不是V6或真实收益验证                                                               | check-publicmodel                       |
+| 原离线浏览器全链路    | `node scripts/verify-comparison.mjs e2e`         | 3/3，退出0；真实Python、D1、票据、结算、更正、重启/子进程恢复，DEMO明确合成                    | check-e2e、test-results/e2e-report.json |
+| 构建                  | `node scripts/verify-comparison.mjs build`       | 退出0                                                                                          | check-build                             |
+| 实际研究网站浏览器    | `node scripts/verify-comparison.mjs browser`     | 13项实际检查通过，12个六页面桌面/手机尺寸检查，应用错误0；另两套V6实方向详情及真实私网会话截图 | browser-verification.json、16张真实PNG  |
 
 共134项不同可执行测试通过（D1为完整50例加新增1例，专项重合例只计一次）。相同测试重跑不增加数量；0跳过。后续修改的比较显示字段/导出及队列分别有5例和2例针对性重跑，不用源码字符串、合成收益或截图充当原模型验证。
 
@@ -111,16 +171,16 @@ V6配置388真实归档250行由原函数检查；V7固定融合真实共同115�
 
 ### 本轮失败与修复（保留，不算通过）
 
-| 失败 | 真实结果与原因 | 修复/证据 |
-| --- | --- | --- |
-| 初始纯函数提取/特征 | clamp提取不适配、最少3历史限制与原配方不符；初始数值测试失败 | 修正建立r1；保留 `.models-local/frozen/20261001` 失败快照及 failed-initial-assets.json；原测试过程输出，不伪造历史日志 |
-| 初始格式检查 | 退出1，4文件需格式化 | 原失败check-check保存在check-history；修正重跑退出0 |
-| 远期发现回归 | 50例49过1败，原测试期望纯ROTATION | 查明远期优先可能延迟常规更新，改交替并实际测两次wide/two rotation/urgent；失败check-history完整保留 |
-| 快照时间专项 | 6例5过1败；控制时点晚1000ms的观察不应出现在早时点 | 调整测试为早/晚两快照并验证导出上界；原过程输出，后比较5/5通过 |
-| 随机端口 | 50例49过1败，Fetch bad port | 本机动态TCP1024–15000含Fetch禁用端口。独立未指定端口实例用安全范围，不改系统配置；windows-dynamic-port-range.txt和失败check-history |
-| 端口适配首轮 | 50例47过3败，测试仍向虚构127.0.0.1:0分派，触发Host守卫 | 测试改取真实Miniflare端点，认证/来源/Python恢复实际重跑完整50/50；未放宽Host或认证 |
-| 新队列故障场景 | 2例1过1败，积分来源失败时把reason放进snapshotId导致FK错误 | 修正失败写入列，保留reason、snapshotId=null和退避；队列2/2实际重跑。最初过程输出，未伪造失败日志 |
-| 服务启动前浏览器 | 退出1，0检查，connection refused | 确认新服务READY后实际重跑；browser-failed-startup.json与check-history保留 |
+| 失败                | 真实结果与原因                                               | 修复/证据                                                                                                                           |
+| ------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 初始纯函数提取/特征 | clamp提取不适配、最少3历史限制与原配方不符；初始数值测试失败 | 修正建立r1；保留 `.models-local/frozen/20261001` 失败快照及 failed-initial-assets.json；原测试过程输出，不伪造历史日志              |
+| 初始格式检查        | 退出1，4文件需格式化                                         | 原失败check-check保存在check-history；修正重跑退出0                                                                                 |
+| 远期发现回归        | 50例49过1败，原测试期望纯ROTATION                            | 查明远期优先可能延迟常规更新，改交替并实际测两次wide/two rotation/urgent；失败check-history完整保留                                 |
+| 快照时间专项        | 6例5过1败；控制时点晚1000ms的观察不应出现在早时点            | 调整测试为早/晚两快照并验证导出上界；原过程输出，后比较5/5通过                                                                      |
+| 随机端口            | 50例49过1败，Fetch bad port                                  | 本机动态TCP1024–15000含Fetch禁用端口。独立未指定端口实例用安全范围，不改系统配置；windows-dynamic-port-range.txt和失败check-history |
+| 端口适配首轮        | 50例47过3败，测试仍向虚构127.0.0.1:0分派，触发Host守卫       | 测试改取真实Miniflare端点，认证/来源/Python恢复实际重跑完整50/50；未放宽Host或认证                                                  |
+| 新队列故障场景      | 2例1过1败，积分来源失败时把reason放进snapshotId导致FK错误    | 修正失败写入列，保留reason、snapshotId=null和退避；队列2/2实际重跑。最初过程输出，未伪造失败日志                                    |
+| 服务启动前浏览器    | 退出1，0检查，connection refused                             | 确认新服务READY后实际重跑；browser-failed-startup.json与check-history保留                                                           |
 
 ### 保存、保护与交付边界
 
@@ -136,18 +196,18 @@ V6配置388真实归档250行由原函数检查；V7固定融合真实共同115�
 
 范围：实际旧前端/API对照、比赛生命周期导航、来源比分/分钟、冻结方向、直播优先刷新、重复赛果、人工更正后自动结算、直接阻塞页面的查询性能。保留既有核心、模型封存和旧站边界。命令在v2目录执行；本节覆盖此前本轮“验收进行中”的状态。
 
-|验证|实际命令|最终结果|证据（.runtime-v2/lifecycle）|
-|---|---|---|---|
-|类型/格式/边界|`node scripts/verify-lifecycle.mjs check`|退出0；边界字符串检查不是模型验证|check-check.json/.log|
-|单元|`node scripts/verify-lifecycle.mjs unit`|63/63，退出0，0跳过|check-unit.json/.log|
-|完整D1集成|`node scripts/verify-lifecycle.mjs integration`|52/52，退出0，0跳过；最后完成21:50:58 UTC|check-integration.json/.log|
-|最终变更专项|`node scripts/verify-lifecycle.mjs targeted`|9/9，退出0；已包含于完整D1，不重复计数|check-targeted.json/.log|
-|离线端到端|`node scripts/verify-lifecycle.mjs e2e`|3/3，退出0；真实Python领取/D1/票据/结算/更正/重启，数据明确DEMO|check-e2e.json/.log|
-|封存模型历史parity|`node scripts/verify-lifecycle.mjs model`|6/6，退出0；原V6 250行、V7原共同历史样本与篡改/缺输入/固定变体检查|check-model.json/.log|
-|构建|`node scripts/verify-lifecycle.mjs build`|退出0|check-build.json/.log|
-|实际研究网站浏览器|`node scripts/verify-lifecycle.mjs browser`|14项检查通过，六页面×1440/390共12页面检查，应用错误0，退出0|check-browser.json/.log、browser-report.json、真实PNG|
-|自有数据保留|`.venv/Scripts/python.exe .runtime-v2/lifecycle/preserve.py after`|退出0；原行hash不变、两库quick_check=ok、4封存执行文件不变|own-preservation.json|
-|旧站连续性|`pwsh -NoProfile -File .runtime-v2/lifecycle/protect.ps1`|退出1：原旧PID在机器重启后不存在；不得标PASS|legacy-before/after.json、resumed-environment.json、legacy-continuity-audit.json|
+| 验证               | 实际命令                                                           | 最终结果                                                           | 证据（.runtime-v2/lifecycle）                                                    |
+| ------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| 类型/格式/边界     | `node scripts/verify-lifecycle.mjs check`                          | 退出0；边界字符串检查不是模型验证                                  | check-check.json/.log                                                            |
+| 单元               | `node scripts/verify-lifecycle.mjs unit`                           | 63/63，退出0，0跳过                                                | check-unit.json/.log                                                             |
+| 完整D1集成         | `node scripts/verify-lifecycle.mjs integration`                    | 52/52，退出0，0跳过；最后完成21:50:58 UTC                          | check-integration.json/.log                                                      |
+| 最终变更专项       | `node scripts/verify-lifecycle.mjs targeted`                       | 9/9，退出0；已包含于完整D1，不重复计数                             | check-targeted.json/.log                                                         |
+| 离线端到端         | `node scripts/verify-lifecycle.mjs e2e`                            | 3/3，退出0；真实Python领取/D1/票据/结算/更正/重启，数据明确DEMO    | check-e2e.json/.log                                                              |
+| 封存模型历史parity | `node scripts/verify-lifecycle.mjs model`                          | 6/6，退出0；原V6 250行、V7原共同历史样本与篡改/缺输入/固定变体检查 | check-model.json/.log                                                            |
+| 构建               | `node scripts/verify-lifecycle.mjs build`                          | 退出0                                                              | check-build.json/.log                                                            |
+| 实际研究网站浏览器 | `node scripts/verify-lifecycle.mjs browser`                        | 14项检查通过，六页面×1440/390共12页面检查，应用错误0，退出0        | check-browser.json/.log、browser-report.json、真实PNG                            |
+| 自有数据保留       | `.venv/Scripts/python.exe .runtime-v2/lifecycle/preserve.py after` | 退出0；原行hash不变、两库quick_check=ok、4封存执行文件不变         | own-preservation.json                                                            |
+| 旧站连续性         | `pwsh -NoProfile -File .runtime-v2/lifecycle/protect.ps1`          | 退出1：原旧PID在机器重启后不存在；不得标PASS                       | legacy-before/after.json、resumed-environment.json、legacy-continuity-audit.json |
 
 共124项不同软件测试通过（63+52+3+6），专项9为重复验证。14项实际浏览器检查单列，12页面不是新增单元测试。新增集成实际运行D1和Python，不以源码字符串、跳过、合成收益充当原模型验证；封存模型历史一致性不等于实时输入充分或未来盈利。
 
@@ -159,15 +219,15 @@ V6配置388真实归档250行由原函数检查；V7固定融合真实共同115�
 
 ### 失败记录保留
 
-|失败|原因与处理|最终验证|
-|---|---|---|
-|专项首轮9项2失败|测试错误字段outputSha256，实际为outputHash；修正字段与多余投影|最终9/9；check-history保留原结果|
-|浏览器赛程超时|旧逐行相关查询拖慢真实大库；聚合读取、每场最新cutoff及覆盖索引直接修复|真实页面14检查通过；原slow-query证据保留|
-|浏览器动态数量比较失败|比赛在两次读取间终场，跨时刻数量断言错误；改为各快照状态条件和实际渲染核对|实际重跑通过，动态来源失败JSON保留|
-|浏览器导航load超时|外部队徽加载/运行器同时繁忙；等待DOM及实际页面数据，不等待无关外部资源|实际页面截图重拍，不沿用未渲染旧页面|
-|两次完整集成51/52|Windows workerd启动std::terminate、Socket other side closed；过程保留，未标全过|机器重启后完整52/52，最终专项9/9；长期运行稳定仍未证明|
-|新读取索引首次bootstrap退出1|D1.exec逐行执行，SQL注释造成失败；删除注释，不改模型或财务表|research及demo真实bootstrap退出0；只写独立两库|
-|旧保护检查退出1|21:21:52 UTC机器重启；旧站原任务恢复PID9036，原三层PID已消失|如实保留非连续结果；未操作旧进程/任务|
+| 失败                         | 原因与处理                                                                      | 最终验证                                               |
+| ---------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| 专项首轮9项2失败             | 测试错误字段outputSha256，实际为outputHash；修正字段与多余投影                  | 最终9/9；check-history保留原结果                       |
+| 浏览器赛程超时               | 旧逐行相关查询拖慢真实大库；聚合读取、每场最新cutoff及覆盖索引直接修复          | 真实页面14检查通过；原slow-query证据保留               |
+| 浏览器动态数量比较失败       | 比赛在两次读取间终场，跨时刻数量断言错误；改为各快照状态条件和实际渲染核对      | 实际重跑通过，动态来源失败JSON保留                     |
+| 浏览器导航load超时           | 外部队徽加载/运行器同时繁忙；等待DOM及实际页面数据，不等待无关外部资源          | 实际页面截图重拍，不沿用未渲染旧页面                   |
+| 两次完整集成51/52            | Windows workerd启动std::terminate、Socket other side closed；过程保留，未标全过 | 机器重启后完整52/52，最终专项9/9；长期运行稳定仍未证明 |
+| 新读取索引首次bootstrap退出1 | D1.exec逐行执行，SQL注释造成失败；删除注释，不改模型或财务表                    | research及demo真实bootstrap退出0；只写独立两库         |
+| 旧保护检查退出1              | 21:21:52 UTC机器重启；旧站原任务恢复PID9036，原三层PID已消失                    | 如实保留非连续结果；未操作旧进程/任务                  |
 
 失败/重跑命令、退出码、测试数量与时间在check-history逐项保存；部分初始过程只有原工具输出，不补造日志。查询原生SQLite耗时改善不冒充HTTP长期SLO。重复检查不增加测试总数。
 

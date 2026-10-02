@@ -10,6 +10,7 @@ import {
   automationTick,
 } from "../../apps/api/src/services/automation";
 import { importWorkspace } from "../../apps/api/src/services/workspace";
+import { calendarDay } from "../../packages/display";
 import { rows, stmt } from "../../apps/api/src/repositories/db";
 test("normal rotation covers consecutive leagues, advances across dates and isolates a failed provider", async () => {
   await workerBuild();
@@ -26,7 +27,7 @@ test("normal rotation covers consecutive leagues, advances across dates and isol
     const db = await mf.getD1Database("DB"),
       now = Date.now(),
       c = { db, installationId: cfg.installationId, now },
-      day = new Date(now).toISOString().slice(0, 10),
+      day = calendarDay(now),
       codes = ["eng.1", "ger.1", "fra.1", "ita.1", "esp.1"];
     await migrate(db, cfg);
     await importWorkspace(c, {
@@ -127,9 +128,7 @@ test("normal rotation covers consecutive leagues, advances across dates and isol
       8,
     );
     const tomorrowUTC =
-      new Date(
-        new Date(now).toISOString().slice(0, 10) + "T00:30:00Z",
-      ).getTime() + 86400000;
+      new Date(calendarDay(now) + "T00:30:00Z").getTime() + 86400000;
     const event = {
       id: "555555",
       date: new Date(tomorrowUTC).toISOString(),

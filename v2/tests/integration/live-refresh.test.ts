@@ -13,6 +13,7 @@ import {
   importWorkspace,
   workspaceSchedule,
 } from "../../apps/api/src/services/workspace";
+import { calendarDay } from "../../packages/display";
 import { rows, stmt } from "../../apps/api/src/repositories/db";
 
 test("live priority refresh reuses provider day, preserves unknown scores, and alternates with fixture discovery", async () => {
@@ -40,7 +41,7 @@ test("live priority refresh reuses provider day, preserves unknown scores, and a
       metadata: { leagues: [{ code: "fifa.friendly", name: "测试专用" }] },
       study: { models: [] },
     });
-    const day = new Date(now).toISOString().slice(0, 10);
+    const day = calendarDay(now);
     const event: any = {
       id: "987654",
       date: new Date(now - 30 * 60000).toISOString(),
@@ -152,10 +153,15 @@ test("live priority refresh reuses provider day, preserves unknown scores, and a
       true,
       async () => Response.json({ events: [] }),
     );
-    assert.equal(rotation.capture.state, "ROTATION_BATCH");
+    assert.ok(
+      ["ROTATION_BATCH", "WIDE_MODEL_DISCOVERY"].includes(
+        rotation.capture.state,
+      ),
+      "Live refresh alternates with discovery including national competitions beyond seven days",
+    );
     assert.equal(
       (await rows(db, "SELECT cursor FROM automation_state"))[0].cursor,
-      1,
+      rotation.capture.state === "WIDE_MODEL_DISCOVERY" ? 0 : 1,
     );
     await assert.rejects(
       workspaceSchedule(c, new URLSearchParams("view=TYPO")),

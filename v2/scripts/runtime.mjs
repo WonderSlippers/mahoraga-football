@@ -13,6 +13,12 @@ import { startLanGateway } from "./lan-gateway.mjs";
 process.chdir(root);
 const command = process.argv[2];
 const mode = process.env.V2_MODE || "DEMO";
+if (
+  mode === "DEMO" &&
+  !process.env.V2_PROFILE &&
+  fs.existsSync(path.join(root, ".runtime-v2/demo-general/manifest.json"))
+)
+  process.env.V2_PROFILE = "demo-general";
 modeGuard(mode, process.env.V2_HOST || "127.0.0.1");
 const webPort = Number(
   process.env.V2_WEB_PORT || (mode === "DEMO" ? 5273 : 5274),
@@ -140,7 +146,11 @@ if (command === "doctor") {
     await mf.dispose();
     throw Error("INSTALLATION_MISMATCH");
   }
-  if (["demo", "research"].includes(process.env.V2_PROFILE || "demo")) {
+  if (
+    ["demo", "research", "demo-general", "research-general"].includes(
+      process.env.V2_PROFILE || "demo",
+    )
+  ) {
     try {
       console.log(
         "LEGACY_AUTO_IMPORT",

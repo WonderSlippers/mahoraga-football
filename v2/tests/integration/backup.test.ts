@@ -100,7 +100,7 @@ test("A70 bounded paged backup crosses multiple SQL pages and verifies restored 
     assert.equal(
       (await b.prepare("SELECT schemaVersion FROM installations").first())
         .schemaVersion,
-      8,
+      12,
     );
     assert.equal(
       (await b.prepare("SELECT COUNT(*) n FROM fixture_catalog").first()).n,

@@ -4,3 +4,9 @@ model-runner/comparison_models.py -text -eol whitespace=blank-at-eol,blank-at-eo
 model-runner/prepare_comparison_features.py -text -eol whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 model-runner/research_adapters.py -text -eol whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 model-runner/legacy-bridge.mjs -text -eol whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# General research variants and aggregate weights also have exact byte pins.
+model-runner/universal_model.py -text -eol
+model-runner/universal_model_v2.py -text -eol
+model-runner/universal-goals.mjs -text -eol
+model-runner/build_national_model.py -text -eol
+model-runner/assets/national-v1.json -text -eol

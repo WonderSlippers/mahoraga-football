@@ -223,6 +223,24 @@ test("full schedule retains noncandidate fixtures and auto capture publishes sou
     await captureESPN(c, "eng.1", "2026-10-01", async () =>
       Response.json(recorded),
     );
+    const liveCatalog = (await rows(db, "SELECT * FROM fixture_catalog")).find(
+      (r) => r.fixtureId === "espn:eng.1:12345",
+    )!;
+    const catalogData = JSON.parse(liveCatalog.dataJson);
+    catalogData.detail = {
+      news: [{ headline: "TEST_ONLY", body: "x".repeat(10000) }],
+      standings: [{ name: "TEST_ONLY" }],
+      rosters: [{ roster: [{ starter: true }] }],
+      homeRecent: [{ home: 1, away: 0 }],
+      awayRecent: [{ home: 0, away: 1 }],
+    };
+    const originalCatalogJson = JSON.stringify(catalogData);
+    await stmt(
+      db,
+      "UPDATE fixture_catalog SET dataJson=? WHERE fixtureId=?",
+      originalCatalogJson,
+      liveCatalog.fixtureId,
+    ).run();
     const schedule = await workspaceSchedule(
       c,
       new URLSearchParams("from=2026-10-01&to=2026-10-01"),
@@ -230,6 +248,24 @@ test("full schedule retains noncandidate fixtures and auto capture publishes sou
     assert.equal(schedule.total, 1);
     assert.equal(schedule.items[0].state, "MISSING_DATA");
     assert.equal(schedule.strictCandidates.length, 0);
+    assert.equal(schedule.items[0].evidence.lineup, true);
+    assert.equal(schedule.items[0].evidence.recentForm, true);
+    assert.equal(schedule.items[0].publicData.detail.news, undefined);
+    assert.equal(
+      (await workspaceFixture(c, liveCatalog.fixtureId)).publicData.detail
+        .news[0].body.length,
+      10000,
+    );
+    assert.equal(
+      (
+        await rows(
+          db,
+          "SELECT dataJson FROM fixture_catalog WHERE fixtureId=?",
+          liveCatalog.fixtureId,
+        )
+      )[0].dataJson,
+      originalCatalogJson,
+    );
     assert.equal((await rows(db, "SELECT * FROM source_chunks")).length, 2);
     await captureESPN(c, "eng.1", "2026-10-02", async () =>
       Response.json({ events: [] }),

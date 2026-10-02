@@ -1970,9 +1970,12 @@ button.secondary {
     display: none;
   }
   .shell > nav {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    overflow: visible !important;
+    display: flex !important;
+    flex-wrap: nowrap;
+    overflow-x: auto !important;
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
     gap: 4px;
     padding: 8px 12px !important;
     height: auto !important;
@@ -1982,6 +1985,7 @@ button.secondary {
     display: none;
   }
   .shell > nav > a {
+    flex: 0 0 auto;
     min-width: 0 !important;
     min-height: 44px;
     padding: 8px !important;
@@ -2544,5 +2548,250 @@ body {
   }
   .comparison-record {
     padding: 14px;
+  }
+}
+.general-panel {
+  margin: 24px 0;
+}
+.general-intro,
+.general-footnote {
+  color: var(--ws-muted);
+  max-width: 900px;
+  line-height: 1.8;
+}
+.general-broad {
+  margin-top: 22px;
+}
+.general-broad summary {
+  padding: 14px 0;
+  cursor: pointer;
+  color: var(--ws-muted);
+}
+.schedule-jump {
+  display: inline-block;
+  margin-bottom: 22px;
+}
+#fixtures {
+  scroll-margin-top: 90px;
+}
+.general-panel td small {
+  display: block;
+  font-size: 10px;
+  color: var(--ws-muted);
+  overflow-wrap: anywhere;
+}
+.general-evaluated-table table {
+  min-width: 900px;
+}
+.general-market-cards {
+  display: none;
+}
+.general-market-card {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--ws-line);
+}
+.general-market-card > strong {
+  display: block;
+  font-size: 15px;
+  margin-bottom: 5px;
+}
+.general-market-card > span {
+  font-size: 11px;
+  color: var(--ws-muted);
+}
+.general-market-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 15px 0;
+}
+.general-market-card dt {
+  color: var(--ws-muted);
+  font-size: 10px;
+}
+.general-market-card dd {
+  margin: 7px 0 0;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.general-market-card p {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.general-coverage {
+  display: flex;
+  gap: 12px 28px;
+  flex-wrap: wrap;
+  margin: 20px 0 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--ws-line);
+  font-size: 13px;
+  color: var(--ws-muted);
+}
+.general-coverage b {
+  color: var(--ws-ink);
+  font-size: 20px;
+  margin: 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+.general-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr));
+  gap: 16px;
+}
+.general-card {
+  min-width: 0;
+  padding: 22px;
+  background: var(--ws-panel);
+  border: 1px solid var(--ws-line);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+.general-card:hover {
+  border-color: var(--ws-accent);
+  transform: translateY(-2px);
+}
+.general-card.value {
+  border-color: var(--ws-accent);
+}
+.general-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--ws-muted);
+  font-size: 11px;
+}
+.general-card-top h3 {
+  margin: 0;
+  color: var(--ws-ink);
+}
+.general-card h3 {
+  font-size: 17px;
+  margin: 0;
+  line-height: 1.5;
+}
+.general-card h3 span {
+  font-size: 11px;
+  color: var(--ws-muted);
+}
+.general-selection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  line-height: 1.5;
+}
+.general-selection b {
+  font-size: 23px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.general-card dl {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--ws-line);
+  border-bottom: 1px solid var(--ws-line);
+}
+.general-card dl div {
+  flex: 1;
+  min-width: 0;
+}
+.general-card dt {
+  font-size: 10px;
+  color: var(--ws-muted);
+  margin-bottom: 6px;
+}
+.general-card dd {
+  font-size: 19px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.general-card p,
+.general-card small {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ws-muted);
+  line-height: 1.7;
+}
+.general-card .general-action {
+  color: var(--ws-ink);
+  font-weight: 600;
+}
+.general-card .positive {
+  color: var(--ws-accent);
+}
+.general-details {
+  margin-top: auto;
+  font-size: 12px;
+}
+.general-empty {
+  padding: 20px 0;
+  line-height: 1.8;
+}
+.general-empty p {
+  color: var(--ws-muted);
+  font-size: 13px;
+}
+.general-subtitle {
+  margin: 26px 0 16px;
+  font-size: 16px;
+}
+.general-subtitle span {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--ws-muted);
+  font-weight: 400;
+}
+.general-audit {
+  margin: 20px 0;
+}
+.general-audit pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+.general-footnote {
+  font-size: 11px;
+  margin-top: 22px;
+}
+@media (max-width: 600px) {
+  .general-evaluated-table {
+    display: none;
+  }
+  .general-market-cards {
+    display: block;
+  }
+  .general-card {
+    padding: 18px;
+  }
+  .general-coverage {
+    gap: 12px 20px;
+  }
+  .general-panel .ws-section-head {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .general-subtitle span {
+    margin-left: 0;
+    display: block;
+    margin-top: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .general-card {
+    transition: none;
+  }
+  .general-card:hover {
+    transform: none;
   }
 }
