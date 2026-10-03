@@ -335,7 +335,13 @@ if (command === "doctor") {
     res.end("stopping");
     void close();
   });
-  await new Promise((resolve) => control.listen(0, "127.0.0.1", resolve));
+  // Node fetch rejects port 10080 even for the authenticated local stop endpoint.
+  // Windows can return it for listen(0); keep the supervisor reachable by its CLI.
+  do {
+    await new Promise((resolve) => control.listen(0, "127.0.0.1", resolve));
+    if (control.address().port !== 10080) break;
+    await new Promise((resolve) => control.close(resolve));
+  } while (true);
   record = {
     runId,
     pid: process.pid,
