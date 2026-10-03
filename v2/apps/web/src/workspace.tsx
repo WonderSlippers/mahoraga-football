@@ -8,6 +8,7 @@ import {
   DISPLAY_TIME_ZONE,
 } from "../../../packages/display";
 import { LedgerReview } from "./ledger-review";
+import { TicketCards, StrategyBalances, DailyLedger } from "./ticket-cards";
 import { CurrentMarkets, MatchContext, QuoteHistory } from "./match-evidence";
 import {
   FixtureList,
@@ -378,6 +379,12 @@ export function ScheduleWorkspace({ api, mode }: Props) {
           立即刷新 <span>↗</span>
         </button>
         <small>自动读取 · 每30秒更新视图</small>
+        <Link
+          className="ws-button secondary"
+          to="/ledger?mode=PAPER_RESEARCH&period=YESTERDAY&basis=PLACED"
+        >
+          昨天投了什么、赢没赢 →
+        </Link>
         {mode === "LOCAL_RESEARCH" && (
           <Link className="ws-tool-link" to="/models#parallel">
             V6 与旧版V2并行比较 →
@@ -1089,6 +1096,7 @@ export function FixtureWorkspace({ api, mode }: Props) {
   );
 }
 const periods = [
+  ["YESTERDAY", "昨天"],
   ["TODAY", "今日"],
   ["WEEK", "本周"],
   ["MONTH", "本月"],
@@ -1103,14 +1111,23 @@ export function HistoryWorkspace({
   const [filters, setFilters] = useState<Record<string, string>>(() => ({
       mode:
         new URLSearchParams(window.location.search).get("mode") ||
-        "LEGACY_IMPORT",
-      period: "ALL",
+        (ledger && mode === "LOCAL_RESEARCH"
+          ? "PAPER_RESEARCH"
+          : "LEGACY_IMPORT"),
+      period:
+        ledger &&
+        mode === "LOCAL_RESEARCH" &&
+        !new URLSearchParams(window.location.search).has("mode")
+          ? "YESTERDAY"
+          : "ALL",
+      basis: "PLACED",
       league: "ALL",
       model: "ALL",
       market: "ALL",
       strategy:
         new URLSearchParams(window.location.search).get("strategy") || "ALL",
       currency: "ALL",
+      ticketType: "ALL",
       odds: "ALL",
       score: "ALL",
       status: "ALL",
@@ -1221,7 +1238,12 @@ export function HistoryWorkspace({
   };
   const options = (key: string) => [
     ["ALL", "全部 / 含未知"],
-    ...(data?.dimensions?.[key] || []).map((v: any) => [v, v]),
+    ...(data?.dimensions?.[key] || []).map((v: any) => [
+      v,
+      key === "strategy"
+        ? (data?.strategies?.find((s: any) => s.id === v)?.name ?? v)
+        : v,
+    ]),
   ];
   return (
     <div className="workspace-page">
@@ -1230,7 +1252,7 @@ export function HistoryWorkspace({
         title={ledger ? "账本与复盘" : "历史中心"}
         text={
           ledger
-            ? "投入、结算、回撤，各有来源与分母。"
+            ? "哪场投了什么、赔率多少、赢了还是输了，逐票逐场展开。"
             : "保留过去的全部信息。历史可阅读，资格单独判断。"
         }
       >
@@ -1254,7 +1276,21 @@ export function HistoryWorkspace({
             <button
               key={v}
               className={filters.mode === v ? "selected" : ""}
-              onClick={() => change("mode")(v)}
+              onClick={() => {
+                setFilters((f) => ({
+                  ...f,
+                  mode: v,
+                  period: v === "LEGACY_IMPORT" ? "ALL" : "YESTERDAY",
+                  basis: "PLACED",
+                  strategy: "ALL",
+                  from: "",
+                  to: "",
+                  status: "ALL",
+                  record: "",
+                }));
+                setOffset(0);
+                setDetail(undefined);
+              }}
             >
               {l}
             </button>
@@ -1295,6 +1331,31 @@ export function HistoryWorkspace({
               </button>
             ))}
           </div>
+          <div className="ledger-date-basis" aria-label="战绩日期口径">
+            {[
+              ["PLACED", "按投注日期 · 那天投了什么"],
+              ["SETTLED", "按结算日期 · 那天赢了什么"],
+            ].map(([v, label]) => (
+              <button
+                key={v}
+                aria-pressed={filters.basis === v}
+                className={filters.basis === v ? "selected" : "secondary"}
+                onClick={() => change("basis")(v)}
+              >
+                {label}
+              </button>
+            ))}
+            <span>
+              {filters.period === "YESTERDAY"
+                ? "昨天"
+                : periods.find(([v]) => v === filters.period)?.[1]}{" "}
+              ·{" "}
+              {data?.accounting?.timeZone === "Asia/Shanghai"
+                ? "原北京时间08:00账日"
+                : "柏林自然日"}{" "}
+              · 赢 {s?.wins ?? "—"} / 输 {s?.losses ?? "—"}
+            </span>
+          </div>
           <div className="ws-summary six">
             <Stat
               label="投入"
@@ -1331,7 +1392,8 @@ export function HistoryWorkspace({
               detail="以结算时间排序"
             />
           </div>
-          <section className="ws-panel ws-chart-panel">
+          <details className="ws-panel ws-chart-panel">
+            <summary>资金曲线、回撤与跨期未结票</summary>
             <div className="ws-bottom-links">
               <button
                 className="secondary"
@@ -1381,7 +1443,7 @@ export function HistoryWorkspace({
               </span>
             </div>
             <Curve points={s?.curve || []} label="当前筛选已结净收益曲线" />
-          </section>
+          </details>
           {s?.currencyMixed && (
             <p role="alert">
               当前包含多种币种，金额总计和ROI已禁用。请选择单一币种。
@@ -1390,6 +1452,29 @@ export function HistoryWorkspace({
         </>
       )}
       {ledger && <LedgerReview review={data?.review} />}
+      {ledger && (
+        <DailyLedger
+          days={data?.daily}
+          onSelect={(day: string) => {
+            setFilters((f) => ({
+              ...f,
+              period: "ALL",
+              from: day,
+              to: day,
+              basis: "SETTLED",
+              record: "",
+            }));
+            setOffset(0);
+          }}
+        />
+      )}
+      {ledger && (
+        <StrategyBalances
+          strategies={data?.strategies}
+          selected={filters.strategy}
+          onSelect={change("strategy")}
+        />
+      )}
       <section className="ws-panel">
         <div className="ws-section-head">
           <h2>
@@ -1397,6 +1482,56 @@ export function HistoryWorkspace({
           </h2>
           <span>统计基于完整筛选集合，分页不改指标</span>
         </div>
+        {ledger && (
+          <div className="ws-pills" aria-label="票型筛选">
+            {[
+              ["ALL", "全部票型"],
+              ["SINGLE", "单场"],
+              ["DOUBLE", "二串一"],
+              ["MULTI", "全部串关"],
+            ].map(([v, label]) => (
+              <button
+                key={v}
+                aria-pressed={filters.ticketType === v}
+                className={filters.ticketType === v ? "selected" : "secondary"}
+                onClick={() => change("ticketType")(v)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {ledger && (
+          <div className="ws-pills" aria-label="输赢筛选">
+            {[
+              ["ALL", "全部结果"],
+              ["WIN", "赢"],
+              ["LOSS", "输"],
+              ["OPEN", "未结"],
+              ["REVIEW", "待复核"],
+              ["VOID", "退款"],
+            ].map(([v, label]) => (
+              <button
+                key={v}
+                aria-pressed={filters.status === v}
+                className={filters.status === v ? "selected" : "secondary"}
+                onClick={() => {
+                  if (v === "OPEN" || v === "REVIEW") {
+                    setFilters((f) => ({
+                      ...f,
+                      status: v,
+                      basis: "PLACED",
+                      record: "",
+                    }));
+                    setOffset(0);
+                  } else change("status")(v);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <details className="schedule-filters">
           <summary>筛选日期、策略、模型、赔率与状态</summary>
           <div className="ws-filters wrap">
@@ -1499,63 +1634,71 @@ export function HistoryWorkspace({
             ]}
           />
         </details>
-        <div className="ws-records">
-          {data?.items.map((r: any) => (
-            <button
-              className="ws-record-row"
-              key={r.id}
-              onClick={() => setDetail(r)}
-            >
-              <div>
-                <span className="ws-record-tag">
-                  {(
-                    {
-                      TICKET: "历史票",
-                      RESEARCH_OBSERVATION: "研究观测",
-                      REFERENCE_FILE: "原始档案",
-                      PAPER: "纸面票",
-                      PAPER_RESEARCH: "自动研究纸面票",
-                      LEGACY_IMPORT: "历史导入",
-                    } as any
-                  )[r.kind || r.mode] ??
-                    r.kind ??
-                    r.mode}
-                </span>
-                <small>{fmt(r.at)}</small>
-              </div>
-              <div>
-                <strong>{r.title}</strong>
-                <small>
-                  {r.portfolio} · {r.leagues.join(" / ") || "联赛未知"} ·{" "}
-                  {r.markets.join(" / ")}
-                </small>
-              </div>
-              <div>
-                <strong>
-                  {r.odds == null ? "—" : Number(r.odds).toFixed(3)}
-                </strong>
-                <small>赔率 · {r.legCount ?? "—"} 腿</small>
-              </div>
-              <div>
-                <strong>{amount(r.pnlAtoms)}</strong>
-                <small>
-                  {(
-                    {
-                      WIN: "赢",
-                      LOSS: "输",
-                      VOID: "退票",
-                      OPEN: "未结",
-                      REVIEW: "待复核",
-                      NON_PROSPECTIVE: "非前瞻",
-                    } as any
-                  )[String(r.status).toUpperCase()] ?? r.status}{" "}
-                  · {r.currency === "UNKNOWN" ? "原币种未记录" : r.currency}
-                </small>
-              </div>
-              <b>↗</b>
-            </button>
-          ))}
-        </div>
+        {ledger ? (
+          <TicketCards
+            records={data?.items}
+            basis={filters.basis}
+            onDetail={setDetail}
+          />
+        ) : (
+          <div className="ws-records">
+            {data?.items.map((r: any) => (
+              <button
+                className="ws-record-row"
+                key={r.id}
+                onClick={() => setDetail(r)}
+              >
+                <div>
+                  <span className="ws-record-tag">
+                    {(
+                      {
+                        TICKET: "历史票",
+                        RESEARCH_OBSERVATION: "研究观测",
+                        REFERENCE_FILE: "原始档案",
+                        PAPER: "纸面票",
+                        PAPER_RESEARCH: "自动研究纸面票",
+                        LEGACY_IMPORT: "历史导入",
+                      } as any
+                    )[r.kind || r.mode] ??
+                      r.kind ??
+                      r.mode}
+                  </span>
+                  <small>{fmt(r.at)}</small>
+                </div>
+                <div>
+                  <strong>{r.title}</strong>
+                  <small>
+                    {r.portfolio} · {r.leagues.join(" / ") || "联赛未知"} ·{" "}
+                    {r.markets.join(" / ")}
+                  </small>
+                </div>
+                <div>
+                  <strong>
+                    {r.odds == null ? "—" : Number(r.odds).toFixed(3)}
+                  </strong>
+                  <small>赔率 · {r.legCount ?? "—"} 腿</small>
+                </div>
+                <div>
+                  <strong>{amount(r.pnlAtoms)}</strong>
+                  <small>
+                    {(
+                      {
+                        WIN: "赢",
+                        LOSS: "输",
+                        VOID: "退票",
+                        OPEN: "未结",
+                        REVIEW: "待复核",
+                        NON_PROSPECTIVE: "非前瞻",
+                      } as any
+                    )[String(r.status).toUpperCase()] ?? r.status}{" "}
+                    · {r.currency === "UNKNOWN" ? "原币种未记录" : r.currency}
+                  </small>
+                </div>
+                <b>↗</b>
+              </button>
+            ))}
+          </div>
+        )}
         {data?.total === 0 && (
           <div className="ws-empty">
             当前筛选无记录。可清除筛选查看全历史；未知字段不会填0。
@@ -1608,31 +1751,34 @@ export function HistoryWorkspace({
               </Link>
             ))}
           </div>
-          {(detail.raw.legs || (detail.raw.leg ? [detail.raw.leg] : []))?.map(
-            (l: any, i: number) => (
-              <article className="ws-leg" key={i}>
-                <h3>
-                  {teamName(l.home, l.competition || l.leagueCode)} —{" "}
-                  {teamName(l.away, l.competition || l.leagueCode)}
-                </h3>
-                <p>
-                  注项{" "}
-                  {l.pickName ??
-                    (["主胜", "平局", "客胜"][Number(l.pick)] || l.pick) ??
-                    "未知"}{" "}
-                  · 赔率 {l.odds ?? "未记录"} ·{" "}
-                  {l.marketType ?? l.market ?? "1X2"} · 盘口{" "}
-                  {l.line ?? l.handicap ?? l.total ?? "未记录"}
-                </p>
-                <p>
-                  报价：{l.provider || "来源未知"} · {fmt(l.priceCapturedAt)} ·{" "}
-                  {l.phase || "时相未知"}
-                </p>
-                <p>{l.rationale?.join("；")}</p>
-                <Json value={l} label="本腿原始预测、盘口与结算证据" />
-              </article>
-            ),
-          )}
+          {(
+            detail.legs ||
+            detail.raw.legs ||
+            (detail.raw.leg ? [detail.raw.leg] : [])
+          )?.map((l: any, i: number) => (
+            <article className="ws-leg" key={i}>
+              <h3>
+                {teamName(l.home, l.competition || l.leagueCode)} —{" "}
+                {teamName(l.away, l.competition || l.leagueCode)}
+              </h3>
+              <p>
+                注项{" "}
+                {l.selectionLabel ??
+                  l.pickName ??
+                  (["主胜", "平局", "客胜"][Number(l.pick)] || l.pick) ??
+                  "未知"}{" "}
+                · 赔率 {l.odds ?? "未记录"} ·{" "}
+                {l.marketType ?? l.market ?? "1X2"} · 盘口{" "}
+                {l.line ?? l.handicap ?? l.total ?? "未记录"}
+              </p>
+              <p>
+                报价：{l.provider || "来源未知"} · {fmt(l.priceCapturedAt)} ·{" "}
+                {l.phase || "时相未知"}
+              </p>
+              <p>{l.rationale?.join("；")}</p>
+              <Json value={l} label="本腿原始预测、盘口与结算证据" />
+            </article>
+          ))}
           <Json value={detail} label="完整原始记录与内容hash" />
           <details className="ws-audit">
             <summary>只读换腿复盘 · 原票不变</summary>
@@ -2324,7 +2470,7 @@ export function LegacyWorkspace({ api }: Props) {
       <div className="ws-legacy-nav">
         <Link to="/workbench">找比赛 ↗</Link>
         <Link to="/history">看历史研究 ↗</Link>
-        <Link to="/ledger">模拟与统计 ↗</Link>
+        <Link to="/ledger?mode=LEGACY_IMPORT&period=ALL">旧十策略账本 ↗</Link>
         <Link to="/models">模型实验室 ↗</Link>
       </div>
       <section className="ws-panel">
@@ -2342,7 +2488,12 @@ export function LegacyWorkspace({ api }: Props) {
                 {p.legs} 腿 · 旧开关 {p.enabled ? "启用" : "关闭"} · 均注{" "}
                 {p.stake} · 上限 {p.maxTickets}
               </small>
-              <Link to={"/ledger?strategy=" + encodeURIComponent(p.id)}>
+              <Link
+                to={
+                  "/ledger?mode=LEGACY_IMPORT&period=ALL&strategy=" +
+                  encodeURIComponent(p.id)
+                }
+              >
                 在历史账本查看 →
               </Link>
             </article>

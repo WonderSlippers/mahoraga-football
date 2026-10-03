@@ -696,7 +696,12 @@ export function StrategiesWorkspace({ api }: { api: Client }) {
                     {p.maxTickets ?? "—"} 单/日
                   </td>
                   <td>
-                    <Link to={"/ledger?strategy=" + encodeURIComponent(p.id)}>
+                    <Link
+                      to={
+                        "/ledger?mode=LEGACY_IMPORT&period=ALL&strategy=" +
+                        encodeURIComponent(p.id)
+                      }
+                    >
                       查看原票 →
                     </Link>
                   </td>

@@ -143,6 +143,20 @@ test("paired reports require the same frozen bundle and repeated refresh never i
   const report = await comparisonReport(later);
   assert.equal(report.commonFixtureN, 1);
   assert.equal(report.totalRecords, 4);
+  const scoped = await comparisonReport(
+    later,
+    new URLSearchParams({ fixture: f.id }),
+  );
+  assert.equal(scoped.totalRecords, report.totalRecords);
+  assert.deepEqual(
+    scoped.records.map((r: any) => r.id),
+    report.records.map((r: any) => r.id),
+  );
+  assert.equal(
+    (await comparisonReport(later, new URLSearchParams({ fixture: "absent" })))
+      .totalRecords,
+    0,
+  );
   assert.equal(report.successfulRecords.length, 2);
   const exportPage = await comparisonReport(
     later,
@@ -174,6 +188,99 @@ test("paired reports require the same frozen bundle and repeated refresh never i
   await assert.rejects(
     stmt(c.db, "UPDATE comparison_methods SET label='changed'").run(),
     /IMMUTABLE_FACT/,
+  );
+});
+
+test("comparison review crosses a 1000-row page without losing chronology, double-counting fixtures or changing capture bounds", async () => {
+  await runBoth();
+  const seed = await one(
+    c.db,
+    "SELECT * FROM comparison_observations ORDER BY rowid LIMIT 1",
+  );
+  for (let start = 0; start < 1001; start += 50) {
+    const statements = [];
+    for (let i = start; i < Math.min(start + 50, 1001); i++) {
+      const slot = uid(),
+        bundleId = uid(),
+        jobId = uid(),
+        at = c.now - i - 1;
+      statements.push(
+        stmt(
+          c.db,
+          "INSERT INTO observation_slots VALUES(?,?,'CONTRACT_TEST_PAGING',?,?,'DONE',NULL)",
+          slot,
+          seed.fixtureRevisionId,
+          at,
+          c.now + 300000,
+        ),
+        stmt(
+          c.db,
+          "INSERT INTO input_bundles VALUES(?,?,?,?,?,?,'READY')",
+          bundleId,
+          slot,
+          q.quoteSetId,
+          at,
+          q.manifestHash,
+          q.canonical,
+        ),
+        stmt(
+          c.db,
+          "INSERT INTO jobs(id,bundleId,modelId,state,deadlineAt) VALUES(?,?,?,'DONE',?)",
+          jobId,
+          bundleId,
+          seed.methodId,
+          c.now + 300000,
+        ),
+        stmt(
+          c.db,
+          "INSERT INTO comparison_observations VALUES(?,?,?,?,?,'DONE',?,?,?)",
+          uid(),
+          jobId,
+          seed.methodId,
+          seed.fixtureRevisionId,
+          bundleId,
+          seed.outputJson,
+          seed.outputHash,
+          at,
+        ),
+      );
+    }
+    await atomic(c.db, statements);
+  }
+  const report = await comparisonReport(
+    c,
+    new URLSearchParams({ fixture: f.id, export: "1" }),
+  );
+  assert.equal(report.totalRecords, 1003);
+  assert.equal(report.commonFixtureN, 1);
+  const records = [...report.records];
+  for (let offset = report.exportNextOffset; offset !== null; ) {
+    const page = await comparisonReport(
+      c,
+      new URLSearchParams({
+        fixture: f.id,
+        export: "1",
+        offset: String(offset),
+        before: String(report.recordCaptureBeforeAt),
+        sequence: String(report.observationSequence),
+        adjudicationSequence: String(report.adjudicationSequence),
+      }),
+    );
+    records.push(...page.records);
+    offset = page.exportNextOffset;
+  }
+  assert.equal(new Set(records.map((r) => r.id)).size, 1003);
+  assert.ok(
+    records.every((r, i) => i === 0 || records[i - 1].cutoffAt <= r.cutoffAt),
+  );
+  assert.equal(
+    (
+      await comparisonReport(
+        c,
+        new URLSearchParams({ before: String(c.now - 1000), fixture: f.id }),
+      )
+    ).totalRecords,
+    2,
   );
 });
 test("completion is atomic, lease fenced, idempotent and original predictions stay empty", async () => {

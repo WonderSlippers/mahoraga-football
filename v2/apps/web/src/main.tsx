@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import {
   BrowserRouter,
   NavLink,
+  Navigate,
   Routes,
   Route,
   Link,
@@ -156,7 +157,7 @@ function App() {
               02 历史中心 <span>↗</span>
             </NavLink>
             <NavLink to="/ledger">
-              03 账本与复盘 <span>↗</span>
+              03 昨日战绩与账本 <span>↗</span>
             </NavLink>
             <NavLink to="/models">
               04 模型实验室 <span>↗</span>
@@ -190,6 +191,38 @@ function App() {
           </nav>
           <main>
             <Routes>
+              {["/review", "/review.html"].map((path) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={<HistoryWorkspace api={api} mode={mode} ledger />}
+                />
+              ))}
+              {["/simulation", "/lab"].map((path) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={<StrategiesWorkspace api={api} />}
+                />
+              ))}
+              <Route
+                path="/results"
+                element={
+                  <Navigate
+                    to="/workbench?view=RESULTS&period=RECENT"
+                    replace
+                  />
+                }
+              />
+              <Route
+                path="/research"
+                element={<Navigate to="/models" replace />}
+              />
+              <Route path="/scan" element={<Navigate to="/system" replace />} />
+              <Route
+                path="/legacy.html"
+                element={<LegacyWorkspace api={api} mode={mode} />}
+              />
               <Route
                 path="/fixtures/:id"
                 element={research ? <ResearchDetail /> : <Detail />}

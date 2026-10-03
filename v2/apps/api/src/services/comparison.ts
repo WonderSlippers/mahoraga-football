@@ -278,20 +278,29 @@ export async function comparisonReport(
   )
     throw Error("INVALID_FIELDS");
   const records: any[] = [];
-  for (let offset = 0; ; offset += 100) {
+  for (let cursor = 0; ; ) {
     const page = await rows(
       c.db,
-      "SELECT o.*,b.cutoffAt,b.quoteSetId,q.observedAt quoteObservedAt,q.providerUpdatedAt quoteProviderUpdatedAt,q.providerId quoteProviderId,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,(SELECT a.state FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) resultState,(SELECT a.regulationJson FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) regulationJson,(SELECT a.id FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) adjudicationId FROM comparison_observations o JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE o.calculatedAt<=? AND o.rowid<=? ORDER BY b.cutoffAt,o.calculatedAt,o.id LIMIT 100 OFFSET ?",
+      "SELECT o.*,o.rowid reportRowId,b.cutoffAt,b.quoteSetId,q.observedAt quoteObservedAt,q.providerUpdatedAt quoteProviderUpdatedAt,q.providerId quoteProviderId,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,(SELECT a.state FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) resultState,(SELECT a.regulationJson FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) regulationJson,(SELECT a.id FROM result_adjudications a WHERE a.fixtureId=r.fixtureId AND a.rowid<=? ORDER BY a.revision DESC LIMIT 1) adjudicationId FROM comparison_observations o JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE o.calculatedAt<=? AND o.rowid<=? AND o.rowid>? AND (?='' OR r.fixtureId=?) ORDER BY o.rowid LIMIT 1000",
       adjudicationSequence,
       adjudicationSequence,
       adjudicationSequence,
       captureBefore,
       observationSequence,
-      offset,
+      cursor,
+      params.get("fixture") ?? "",
+      params.get("fixture") ?? "",
     );
     records.push(...page);
-    if (page.length < 100) break;
+    if (page.length < 1000) break;
+    cursor = page[page.length - 1].reportRowId;
   }
+  records.sort(
+    (a, b) =>
+      a.cutoffAt - b.cutoffAt ||
+      a.calculatedAt - b.calculatedAt ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
   const filtered: any[] = records
     .filter(
       (r) =>

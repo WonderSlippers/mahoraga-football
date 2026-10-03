@@ -36,6 +36,7 @@ import { adjudicate } from "../../apps/api/src/services/adjudications";
 import { autoSettle } from "../../apps/api/src/services/automation";
 import {
   ledgerRows,
+  workspaceReport,
   workspaceSchedule,
 } from "../../apps/api/src/services/workspace";
 import { generalMetrics } from "../../apps/api/src/services/general-metrics";
@@ -591,6 +592,11 @@ test("two-leg automatic paper is atomic, distinct, idempotent, grouped once and 
   assert.equal(ledger[0].stakeAtoms, "20000000");
   assert.equal(ledger[0].odds, 4);
   assert.equal(ledger[0].leagues.length, 2);
+  assert.equal(ledger[0].legCount, 2);
+  assert.equal(ledger[0].outcome, "OPEN");
+  assert.equal(ledger[0].legs[0].selectionLabel, "主胜");
+  assert.equal(ledger[0].legs[0].odds, legs[0].frozenOdds);
+  assert.equal(ledger[0].legs[0].finalScore, null);
   f = first;
   await result(1, 0);
   await autoSettle(c);
@@ -600,6 +606,15 @@ test("two-leg automatic paper is atomic, distinct, idempotent, grouped once and 
     "OPEN",
   );
   f = second;
+  const partial = (await ledgerRows(c.db, "PAPER_RESEARCH")).find(
+    (t) => t.id === ticket.id,
+  )!;
+  assert.equal(partial.outcome, "OPEN");
+  assert.equal(partial.grossAtoms, null);
+  assert.deepEqual(
+    partial.legs.map((l: any) => l.outcome),
+    ["WIN", "OPEN"],
+  );
   await result(1, 0);
   await autoSettle(c);
   assert.equal(
@@ -609,7 +624,22 @@ test("two-leg automatic paper is atomic, distinct, idempotent, grouped once and 
   );
   f = first;
   const contrary = await result(0, 1);
+  const won = (await ledgerRows(c.db, "PAPER_RESEARCH")).find(
+    (t) => t.id === ticket.id,
+  )!;
+  assert.equal(won.outcome, "WIN");
+  assert.equal(won.grossAtoms, "80000000");
+  assert.equal(won.pnlAtoms, "60000000");
+  assert.deepEqual(
+    won.legs.map((l: any) => l.finalScore),
+    ["1–0", "1–0"],
+  );
   await autoSettle(c);
+  const review = (await ledgerRows(c.db, "PAPER_RESEARCH")).find(
+    (t) => t.id === ticket.id,
+  )!;
+  assert.equal(review.outcome, "REVIEW");
+  assert.equal(review.pnlAtoms, null);
   assert.equal(
     (await one(c.db, "SELECT * FROM ticket_state WHERE ticketId=?", ticket.id))
       .currentStatus,
@@ -628,6 +658,15 @@ test("two-leg automatic paper is atomic, distinct, idempotent, grouped once and 
     reason: "CONTRACT_TEST_CORRECTION",
   });
   await autoSettle(c);
+  const corrected = (await ledgerRows(c.db, "PAPER_RESEARCH")).find(
+    (t) => t.id === ticket.id,
+  )!;
+  assert.equal(corrected.outcome, "LOSS");
+  assert.equal(corrected.pnlAtoms, "-20000000");
+  assert.deepEqual(
+    corrected.legs.map((l: any) => l.outcome),
+    ["LOSS", "WIN"],
+  );
   assert.equal(
     (await one(c.db, "SELECT * FROM ticket_state WHERE ticketId=?", ticket.id))
       .gross,

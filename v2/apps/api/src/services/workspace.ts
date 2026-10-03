@@ -11,6 +11,8 @@ import {
 import { reviewLedger, savedCounterfactuals } from "./ledger-review";
 import { publicMarkets } from "./public-research";
 import { UNIVERSAL_ID } from "../../../../packages/domain/universal";
+import { accountingDay } from "../../../../packages/domain";
+import { paperLeg, legacyTicket, ticketOutcome } from "./ticket-presentation";
 
 const parse = (s: any, fallback: any = null) => {
   try {
@@ -31,6 +33,12 @@ export function rangeStart(period: string, now: number) {
   const day = localDay(now),
     start = zonedStart(day);
   if (period === "TODAY") return start;
+  if (period === "YESTERDAY")
+    return zonedStart(
+      new Date(Date.parse(day + "T00:00:00Z") - 86400000)
+        .toISOString()
+        .slice(0, 10),
+    );
   if (period === "WEEK")
     return zonedStart(
       new Date(
@@ -70,6 +78,17 @@ export function zonedStart(day: string, zone = "Europe/Berlin") {
   return at;
 }
 export function rowMatches(r: any, p: URLSearchParams, now: number) {
+  const ticketType = p.get("ticketType");
+  if (
+    ticketType &&
+    ticketType !== "ALL" &&
+    (ticketType === "SINGLE"
+      ? r.legCount !== 1
+      : ticketType === "DOUBLE"
+        ? r.legCount !== 2
+        : r.legCount < 2)
+  )
+    return false;
   const status = p.get("status");
   if (
     status &&
@@ -89,8 +108,18 @@ export function rowMatches(r: any, p: URLSearchParams, now: number) {
         ? !["OPEN", "REVIEW", "REOPENED", "PENDING", "UNSETTLED"].includes(
             String(r.status).toUpperCase(),
           )
-        : String(r.status).toUpperCase() !== status)
+        : status === "WIN"
+          ? !["WIN", "HALF_WIN"].includes(
+              r.outcome ?? String(r.status).toUpperCase(),
+            )
+          : status === "LOSS"
+            ? !["LOSS", "HALF_LOSS"].includes(
+                r.outcome ?? String(r.status).toUpperCase(),
+              )
+            : (r.outcome ?? String(r.status).toUpperCase()) !== status)
   )
+    return false;
+  if (p.get("period") === "YESTERDAY" && r.at >= zonedStart(localDay(now)))
     return false;
   if (
     p.get("period") &&
@@ -424,7 +453,9 @@ export async function historyRows(db: D1Database) {
 }
 export async function ledgerRows(db: D1Database, mode: string) {
   if (mode === "LEGACY_IMPORT")
-    return (await historyRows(db)).filter((r) => r.kind === "TICKET");
+    return (await historyRows(db))
+      .filter((r) => r.kind === "TICKET")
+      .map(legacyTicket);
   if (mode === "USER_REPORTED") {
     const x = await rows(
       db,
@@ -456,21 +487,13 @@ export async function ledgerRows(db: D1Database, mode: string) {
   }
   const x = await rows(
     db,
-    "SELECT t.*,s.currentStatus,s.gross,l.predictionId,l.frozenOdds,l.selection,l.marketSpecJson,r.fixtureId,f.home,f.away,p.modelId,c.competition,d.strategyVersion,(SELECT MAX(at) FROM settlement_events se WHERE se.ticketId=t.id) settledAt FROM tickets t JOIN ticket_state s ON s.ticketId=t.id JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions r ON r.id=l.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN predictions p ON p.id=l.predictionId JOIN decisions d ON d.id=t.decisionId LEFT JOIN fixture_catalog c ON c.fixtureId=f.id WHERE t.origin=? ORDER BY t.createdAt LIMIT 10001",
+    "SELECT t.*,s.currentStatus,s.gross,l.predictionId,l.frozenOdds,l.selection,l.marketSpecJson,r.fixtureId,r.kickoffAt,f.home,f.away,p.modelId,c.competition,d.strategyVersion,pp.label strategyLabel,a.id adjudicationId,a.state adjudicationState,a.regulationJson,q.providerId quoteProvider,q.observedAt quoteObservedAt,(SELECT MAX(at) FROM settlement_events se WHERE se.ticketId=t.id) settledAt FROM tickets t JOIN ticket_state s ON s.ticketId=t.id JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions r ON r.id=l.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN predictions p ON p.id=l.predictionId JOIN decisions d ON d.id=t.decisionId JOIN quote_selections qs ON qs.id=l.quoteSelectionId JOIN quote_sets q ON q.id=qs.quoteSetId LEFT JOIN fixture_catalog c ON c.fixtureId=f.id LEFT JOIN paper_policies pp ON pp.portfolioId=t.portfolioId LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(ar.revision) FROM result_adjudications ar WHERE ar.fixtureId=r.fixtureId) WHERE t.origin=? ORDER BY t.createdAt,l.rowid LIMIT 10001",
     mode === "PAPER_RESEARCH" ? "PAPER_RESEARCH" : "DEMO",
   );
   if (x.length > 10000) throw Error("LEDGER_CAPACITY_REQUIRES_PAGING");
   const grouped = new Map<string, any>();
   for (const r of x) {
-    const leg = {
-      fixtureId: r.fixtureId,
-      title: r.home + " — " + r.away,
-      league: r.competition,
-      model: r.modelId,
-      market: JSON.parse(r.marketSpecJson).market,
-      odds: Number(r.frozenOdds),
-      marketSpec: JSON.parse(r.marketSpecJson),
-    };
+    const leg = { ...paperLeg(r), title: r.home + " — " + r.away };
     const existing = grouped.get(r.id);
     if (existing) existing.legs.push(leg);
     else grouped.set(r.id, { ...r, legs: [leg] });
@@ -483,10 +506,21 @@ export async function ledgerRows(db: D1Database, mode: string) {
     mode: r.origin === "PAPER_RESEARCH" ? "PAPER_RESEARCH" : "PAPER",
     portfolio: r.portfolioId,
     strategy: r.portfolioId,
+    strategyLabel: r.strategyLabel ?? r.portfolioId,
     leagues: [...new Set(r.legs.map((l: any) => l.league ?? "DEMO"))],
     models: [...new Set(r.legs.map((l: any) => l.model))],
     markets: [...new Set(r.legs.map((l: any) => l.market))],
     odds: r.legs.reduce((factor: number, l: any) => factor * l.odds, 1),
+    legs: r.legs,
+    legCount: r.legs.length,
+    grossAtoms: r.currentStatus === "SETTLED" ? String(r.gross) : null,
+    outcome: ticketOutcome(
+      r.currentStatus,
+      r.currentStatus === "SETTLED"
+        ? String(BigInt(r.gross) - BigInt(r.stakeAtoms))
+        : null,
+      r.legs,
+    ),
     score: null,
     stakeAtoms: String(r.stakeAtoms),
     pnlAtoms: ["OPEN", "REVIEW", "REOPENED"].includes(r.currentStatus)
@@ -512,28 +546,53 @@ export async function workspaceReport(
   const all =
     type === "history" ? await historyRows(c.db) : await ledgerRows(c.db, mode);
   const ledgerMode = type === "ledger";
+  const basis = p.get("basis") ?? "SETTLED";
+  if (!["PLACED", "SETTLED"].includes(basis)) throw Error("INVALID_FILTER");
+  const metadata = await workspaceMetadata(c.db);
+  for (const r of all)
+    if (r.mode === "LEGACY_IMPORT")
+      r.strategyLabel =
+        metadata.strategies?.find((s: any) => s.id === r.strategy)?.name ??
+        r.strategy;
+  const reportDay = (at: number) =>
+    mode === "LEGACY_IMPORT"
+      ? accountingDay(at, "Asia/Shanghai", 8)
+      : localDay(at);
+  const days = [
+    ...new Set(
+      all.flatMap((r) => [
+        ...(r.at ? [reportDay(r.at)] : []),
+        ...(r.settledAt ? [reportDay(r.settledAt)] : []),
+      ]),
+    ),
+  ]
+    .sort()
+    .reverse()
+    .slice(0, 14);
   const dateMatch = (r: any, at: number | null) => {
     if (!ledgerMode || mode !== "LEGACY_IMPORT")
       return rowMatches({ ...r, at }, p, c.now);
-    const currentDay = new Date(c.now).toISOString().slice(0, 10);
-    const sourceDay = at ? new Date(at).toISOString().slice(0, 10) : null;
+    const currentDay = accountingDay(c.now, "Asia/Shanghai", 8);
+    const sourceDay = at ? accountingDay(at, "Asia/Shanghai", 8) : null;
     const period = p.get("period") || "ALL";
     let from = p.get("from") || "";
     if (period !== "ALL") {
       const calendar = new Date(currentDay + "T00:00:00Z");
       const first =
-        period === "TODAY"
-          ? currentDay
-          : period === "WEEK"
-            ? new Date(
-                calendar.getTime() -
-                  ((calendar.getUTCDay() + 6) % 7) * 86400000,
-              )
-                .toISOString()
-                .slice(0, 10)
-            : period === "MONTH"
-              ? currentDay.slice(0, 7) + "-01"
-              : `${calendar.getUTCFullYear() - (calendar.getUTCMonth() < 6 ? 1 : 0)}-07-01`;
+        period === "YESTERDAY"
+          ? new Date(calendar.getTime() - 86400000).toISOString().slice(0, 10)
+          : period === "TODAY"
+            ? currentDay
+            : period === "WEEK"
+              ? new Date(
+                  calendar.getTime() -
+                    ((calendar.getUTCDay() + 6) % 7) * 86400000,
+                )
+                  .toISOString()
+                  .slice(0, 10)
+              : period === "MONTH"
+                ? currentDay.slice(0, 7) + "-01"
+                : `${calendar.getUTCFullYear() - (calendar.getUTCMonth() < 6 ? 1 : 0)}-07-01`;
       if (first > from) from = first;
     }
     const dimensions = new URLSearchParams(p);
@@ -542,19 +601,26 @@ export async function workspaceReport(
     dimensions.delete("to");
     return (
       rowMatches(r, dimensions, c.now) &&
+      (period !== "YESTERDAY" || (!!sourceDay && sourceDay < currentDay)) &&
       (!from || (!!sourceDay && sourceDay >= from)) &&
       (!p.get("to") || (!!sourceDay && sourceDay <= p.get("to")!))
     );
   };
   const openStates = ["OPEN", "REVIEW", "REOPENED", "PENDING", "UNSETTLED"];
   const placed = all.filter((r) => dateMatch(r, r.at));
-  const filtered = all.filter((r) =>
-    dateMatch(
-      r,
-      ledgerMode && !openStates.includes(String(r.status).toUpperCase())
-        ? r.settledAt
-        : r.at,
-    ),
+  const filtered = all.filter(
+    (r) =>
+      (!ledgerMode ||
+        p.get("basis") !== "SETTLED" ||
+        !openStates.includes(String(r.status).toUpperCase())) &&
+      dateMatch(
+        r,
+        ledgerMode &&
+          basis === "SETTLED" &&
+          !openStates.includes(String(r.status).toUpperCase())
+          ? r.settledAt
+          : r.at,
+      ),
   );
   const summary = summarizeRecords(filtered);
   const exposureFilters = new URLSearchParams(p);
@@ -567,14 +633,19 @@ export async function workspaceReport(
     ),
   );
   if (ledgerMode) {
-    summary.stakeAtoms = summarizeRecords(placed).stakeAtoms;
+    summary.stakeAtoms = summarizeRecords(
+      basis === "PLACED" ? filtered : placed,
+    ).stakeAtoms;
     (summary as any).placedCount = placed.length;
   }
   const offset = Number(p.get("offset") || 0);
   if (!Number.isSafeInteger(offset) || offset < 0)
     throw Error("INVALID_CURSOR");
   const sorted = [...filtered].sort(
-    (a, b) => (b.at ?? 0) - (a.at ?? 0) || a.id.localeCompare(b.id),
+    (a, b) =>
+      ((basis === "SETTLED" ? b.settledAt : b.at) ?? b.at ?? 0) -
+        ((basis === "SETTLED" ? a.settledAt : a.at) ?? a.at ?? 0) ||
+      a.id.localeCompare(b.id),
   );
   const dimensions: any = {};
   for (const k of [
@@ -596,18 +667,27 @@ export async function workspaceReport(
     items: (p.get("export") === "1"
       ? sorted
       : sorted.slice(offset, offset + 40)
-    ).map((r) => ({ ...r, counterfactuals: savedCounterfactuals(r.raw) })),
+    ).map((r) => ({
+      ...r,
+      placedDay: r.at
+        ? mode === "LEGACY_IMPORT"
+          ? accountingDay(r.at, "Asia/Shanghai", 8)
+          : localDay(r.at)
+        : null,
+      settledDay: r.settledAt
+        ? mode === "LEGACY_IMPORT"
+          ? accountingDay(r.settledAt, "Asia/Shanghai", 8)
+          : localDay(r.settledAt)
+        : null,
+      counterfactuals: savedCounterfactuals(r.raw),
+    })),
     total: sorted.length,
     nextOffset: offset + 40 < sorted.length ? offset + 40 : null,
     summary,
     exposure,
     review:
       ledgerMode && mode === "LEGACY_IMPORT"
-        ? reviewLedger(
-            filtered,
-            c.now,
-            (await workspaceMetadata(c.db)).strategies,
-          )
+        ? reviewLedger(filtered, c.now, metadata.strategies)
         : null,
     accounting:
       ledgerMode && mode === "LEGACY_IMPORT"
@@ -627,7 +707,33 @@ export async function workspaceReport(
           },
     dimensions,
     asOf: c.now,
-    sourceCutoffAt: (await workspaceMetadata(c.db)).sourceCutoffAt,
+    sourceCutoffAt: metadata.sourceCutoffAt,
+    basis,
+    daily: days.map((day) => {
+      const placements = all.filter((r) => r.at && reportDay(r.at) === day),
+        closed = all.filter(
+          (r) =>
+            r.settledAt &&
+            reportDay(r.settledAt) === day &&
+            !openStates.includes(r.status),
+        );
+      return {
+        day,
+        createdCount: placements.length,
+        placedStakeAtoms: summarizeRecords(placements).stakeAtoms,
+        ...summarizeRecords(closed),
+      };
+    }),
+    strategies: (mode === "LEGACY_IMPORT"
+      ? (metadata.strategies ?? [])
+      : await rows(
+          c.db,
+          "SELECT portfolioId id,label name,enabled,maximumPerDay FROM paper_policies",
+        )
+    ).map((s: any) => ({
+      ...s,
+      ...summarizeRecords(all.filter((r) => r.strategy === s.id)),
+    })),
     scope: type === "history" ? "LEGACY_NON_PROSPECTIVE" : mode,
   };
 }

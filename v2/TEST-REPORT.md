@@ -1,4 +1,41 @@
-## 2026-10-02 通用分析、自动纸面与可用性：本轮最终验收
+## 2026-10-03 昨日战绩、原票与二串一真实验收
+
+本轮141项软件用例：74单元、64隔离D1集成、3浏览器端到端，全通过，0跳过。另38项全站浏览器检查（21页面/3视口）和24项本轮票据交互（17+7），0浏览器异常。静态检查/build不计模型验证；本轮未改模型数学。
+
+| v2目录执行的命令                                                                                                | 退出码 | 数量                                                   | 原始证据                                          |
+| --------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------ | ------------------------------------------------- |
+| `node scripts/verify-universal.mjs check` → `node scripts/check.mjs`                                            | 0      | 106文件静态边界，非模型测试                            | .runtime-v2/universal/check-check.json/.log       |
+| `node scripts/verify-universal.mjs unit` → `tsx --test tests/unit/*.test.ts`                                    | 0      | 74                                                     | check-unit.json/.log                              |
+| `node scripts/verify-universal.mjs integration` → `tsx --test --test-concurrency=1 tests/integration/*.test.ts` | 0      | 64，完成11:02:07Z                                      | check-integration.json/.log                       |
+| `node scripts/verify-universal.mjs e2e` → `playwright test`                                                     | 0      | 3                                                      | check-e2e.json/.log、test-results/e2e-report.json |
+| `node scripts/verify-universal.mjs build` → `node scripts/build.mjs`                                            | 0      | 构建，非模型测试                                       | check-build.json/.log                             |
+| `node scripts/verify-universal.mjs browser`                                                                     | 0      | 38交互、21页面                                         | .runtime-v2/universal/browser/browser-report.json |
+| `node scripts/verify-ticket-review-browser.mjs`                                                                 | 0      | 17交互、13次页面读取                                   | .runtime-v2/restore-ledger/browser.json           |
+| `node scripts/verify-ticket-review-visible.mjs`                                                                 | 0      | 7交互                                                  | .runtime-v2/restore-ledger/visible-check.json     |
+| `python .runtime-v2/restore-ledger/audit.py after`                                                              | 0      | 6类原事实hash、旧HEAD/diff/status；quick_check=ok/FK=0 | audit-before.json、audit-after.json               |
+
+Wrapper JSON保存实际完整命令、UTC开始/结束、退出码、数量和log。票据脚本对现有LOCAL_RESEARCH及已导入旧票执行，没有API拦截或合成生产记录。DEMO端到端明确为合成软件链路：浏览器→Python→D1→票→结算→冲突→追加更正→重启；不算模型盈利验证。
+
+截至2026-10-03T11:00:03Z：昨天出票168票，54赢/88输/26未结；6独立虚拟策略重复同一场，不能当作168独立比赛或实际成交。昨天实际结算93票，30赢/63输/0未结。昨天出票批次当前已知净收益−762.215428、已结风险投入2840、ROI−26.84%；按昨日结算净收益−773.190051，口径不同，未结不记假盈亏。
+
+原双场38票。截图第一张原25单位、组合赔率3.773，两腿主−0.5@2.45/主+0.5@1.54，保存比分1—1/3—1，腿输/赢，整票输25/返还0。格式化显示3.77，审计保留原精度。旧498票/570腿0漏票/0原票变化，最新旧出票及结算9月24日。
+
+实际载入：昨天账本1.527秒、旧二串一1.905秒、比赛详情3.976秒、历史1.918秒、通用实验室2.415秒、状态1.897秒、策略0.247秒；不是跨日性能SLA。截图目录 `.runtime-v2/restore-ledger`：
+
+- `ledger-overview.png`、`yesterday-ticket.png`、`yesterday-winner.png`：昨日汇总及输/赢原票。
+- `legacy-double-ticket.png`、`legacy-double-light.png`：旧二串一两腿/组合价/整票收益，浅深色。
+- `yesterday-mobile-visible.png`、`double-mobile-visible.png`：390像素手机，无页面横向溢出。
+- `schedule.png`、`match.png`、`history.png`、`models.png`、`runtime.png`、`strategies.png`、`legacy.png`：真实常用页面。
+
+用户副本在聊天根 `outputs/restore-ledger-20261003`；不复制私有原库备份、完整原票导出、服务token或停止nonce。启动方法见PROGRESS，实际服务保持在5274/8789及5273/8788。
+
+失败已保留：初次完整集成62/63因测试误把原“2.00”期望为“2”，修正原字符串断言，未改原票（check-history）；初次浏览器6项后错误定位无关折叠table（browser-first-failure.json）；第二次11项后详情等待60秒（browser-match-timeout.json），修复56,104比较观测重复OFFSET排序/先读全库再筛单场。分页修改遗漏offset绑定导致check退出2、针对6例4通过/2失败；改cursor绑定后6/6。最终1003观测跨1000边界与200导出页验证无漏重复、原时间顺序、共同N和截止边界；完整64/64通过。新增显式结算日期排除未结后，跨日及原工作台3/3回归也通过；其用例已包含在64项内。
+
+保护：根据原进程persist-to确认活动D1，以mode=ro/query_only只读备份到新隔离目录。本轮确实连接旧库只读核对，不能说从未连接。旧HEAD325a5087、dirty diff SHA256 `87acee2a8239e7b8620c3b7595005d544c795e1e5e313a4cf54a87bfd6aceffa`不变，5173原PID24644保留。新库原240票/240腿/47321预测/146结算事件/386账目/705档案逐行hash保留，只有新自动预测追加。未控制旧服务、写旧库、改旧任务、push或部署。
+
+V7实时、严格资格、原三方法统一跨季输入及部分配置编辑仍见BLOCKERS；不把账本恢复宣称为全站全部完成。
+
+## 2026-10-02 通用分析、自动纸面与可用性：旧轮验收
 
 本节替代下方旧阶段数字。实际软件/模型可执行用例共 **145（67单元+62完整D1+3离线E2E+6原模型parity+7新模型）**，没有跳过。针对读取/来源/冻结的11例复跑属于62例的子集，不重复计数。浏览器另有 **38项检查、21页面（七页面×1440/1024/390）、30真实PNG、0页面JS异常**。不以静态边界、截图或DEMO合成赛果冒充真实模型验证。
 

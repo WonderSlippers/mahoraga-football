@@ -2795,3 +2795,186 @@ body {
     transform: none;
   }
 }
+/* Ticket review keeps every saved selection and result visible on mobile. */
+.ledger-date-basis {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+.ledger-date-basis span {
+  color: var(--ws-muted);
+  font-size: 13px;
+}
+.ticket-cards {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+.ticket-card {
+  border: 1px solid var(--ws-line);
+  border-radius: 14px;
+  padding: 22px;
+  background: var(--ws-panel);
+}
+.ticket-card header {
+  position: static;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 0 0 16px;
+  border: 0;
+  background: transparent;
+}
+.ticket-card header p {
+  font-size: 12px;
+  color: var(--ws-muted);
+  margin: 7px 0 0;
+}
+.ticket-outcome {
+  font-size: 23px;
+  text-align: right;
+}
+.ticket-outcome small {
+  display: block;
+  font-size: 13px;
+  margin-top: 6px;
+}
+.outcome-WIN .ticket-outcome,
+.outcome-HALF_WIN .ticket-outcome,
+.leg-result.outcome-WIN,
+.leg-result.outcome-HALF_WIN {
+  color: var(--ws-accent);
+}
+.outcome-LOSS .ticket-outcome,
+.outcome-HALF_LOSS .ticket-outcome,
+.leg-result.outcome-LOSS,
+.leg-result.outcome-HALF_LOSS {
+  color: #ef9393;
+}
+:root[data-theme="light"] .outcome-LOSS .ticket-outcome,
+:root[data-theme="light"] .outcome-HALF_LOSS .ticket-outcome,
+:root[data-theme="light"] .leg-result.outcome-LOSS,
+:root[data-theme="light"] .leg-result.outcome-HALF_LOSS {
+  color: #aa3434;
+}
+.ticket-leg {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 20px;
+  border-top: 1px solid var(--ws-line);
+  padding: 18px 0;
+}
+.ticket-leg b {
+  font-size: 16px;
+}
+.ticket-leg b span {
+  font-size: 12px;
+  color: var(--ws-muted);
+  margin: 0 6px;
+}
+.ticket-selection {
+  margin: 9px 0;
+  font-size: 16px;
+}
+.ticket-selection strong {
+  margin-left: 12px;
+  color: var(--ws-accent);
+}
+.ticket-leg small,
+.ticket-leg a {
+  font-size: 12px;
+  color: var(--ws-muted);
+}
+.leg-result {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 68px;
+}
+.leg-result > b {
+  font-size: 24px;
+}
+.ticket-card footer {
+  position: static;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--ws-line);
+  font-size: 13px;
+  background: transparent;
+}
+.ticket-card footer span {
+  white-space: nowrap;
+}
+.ticket-card footer button {
+  margin-left: auto;
+}
+.ticket-card details {
+  margin-top: 15px;
+  font-size: 12px;
+  color: var(--ws-muted);
+  overflow-wrap: anywhere;
+}
+.strategy-balances > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.strategy-balances button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.strategy-balances button span,
+.strategy-balances button small {
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .ticket-card {
+    padding: 16px;
+  }
+  .ticket-card header {
+    gap: 8px;
+  }
+  .ticket-card header b {
+    font-size: 14px;
+  }
+  .ticket-outcome {
+    font-size: 19px;
+  }
+  .ticket-outcome small {
+    font-size: 11px;
+  }
+  .ticket-leg {
+    gap: 10px;
+  }
+  .ticket-leg b {
+    font-size: 14px;
+  }
+  .ticket-leg small {
+    line-height: 1.8;
+  }
+  .ticket-card footer {
+    gap: 10px 18px;
+  }
+  .ticket-card footer button {
+    margin-left: 0;
+  }
+  .strategy-balances > div {
+    grid-template-columns: 1fr;
+  }
+  .ledger-date-basis button {
+    font-size: 12px;
+  }
+}
