@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useReport } from "./use-report";
 import { TicketCards } from "./ticket-cards";
 import { formatDate } from "../../../packages/display";
@@ -122,7 +122,95 @@ export function ProfitChart({ series, selected, onSelect }: any) {
     </div>
   );
 }
+function StrategyRecords({ api, strategy, period }: any) {
+  const [offset, setOffset] = useState(0);
+  const container = useRef<HTMLDivElement>(null);
+  const positioned = useRef(false);
+  const navigate = useNavigate();
+  const query = new URLSearchParams({
+    mode: "PAPER_RESEARCH",
+    period,
+    basis: "PLACED",
+    strategy: strategy.portfolioId,
+    offset: String(offset),
+  });
+  const { data, error, busy, refresh } = useReport(
+    api,
+    "/workspace/ledger?" + query,
+  );
+  useEffect(() => {
+    if (!data || positioned.current) return;
+    positioned.current = true;
+    const frame = requestAnimationFrame(() =>
+      container.current?.closest("section")?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+        block: "start",
+      }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, [!!data]);
+  return (
+    <div
+      ref={container}
+      data-testid="strategy-records"
+      data-loaded={!!data}
+      aria-busy={busy}
+    >
+      <p className="arena-caption" role="status">
+        {data
+          ? `共 ${data.total} 张 · 未结、赢、输全部显示 · 按出票日期筛选`
+          : "正在读取该策略的完整记录…"}
+      </p>
+      {error && (
+        <div role="alert" className="arena-error">
+          {data ? "显示上次快照 · " : "读取失败 · "}
+          {error}
+          <button onClick={refresh}>重试</button>
+        </div>
+      )}
+      {data?.items.length > 0 ? (
+        <TicketCards
+          records={data.items}
+          basis="PLACED"
+          compact
+          onDetail={(r: any) =>
+            navigate("/ledger?" + query + "&record=" + encodeURIComponent(r.id))
+          }
+        />
+      ) : data ? (
+        <div className="chart-empty">
+          这个日期范围内尚未出票。
+          <Link to="/workbench">查看比赛和入选原因 →</Link>
+        </div>
+      ) : (
+        <div className="arena-skeleton" aria-label="正在读取模拟记录" />
+      )}
+      {data && (
+        <div className="ws-pagination" aria-label="策略记录分页">
+          <span>第 {Math.floor(offset / 40) + 1} 页 · 每页最多 40 张</span>
+          <button
+            className="secondary"
+            disabled={!offset || busy}
+            onClick={() => setOffset(Math.max(0, offset - 40))}
+          >
+            上一页
+          </button>
+          <button
+            className="secondary"
+            disabled={data.nextOffset == null || busy}
+            onClick={() => setOffset(data.nextOffset)}
+          >
+            下一页
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 export function StrategiesWorkspace({ api }: any) {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState("ALL"),
     [selected, setSelected] = useState(""),
     [settings, setSettings] = useState(false);
@@ -142,7 +230,13 @@ export function StrategiesWorkspace({ api }: any) {
   );
   const leader = ranked.find((s: any) => s.metrics.settled > 0);
   const focus = strategies.find((s: any) => s.id === selected);
-  const latest = focus?.latest ?? data?.latest ?? [];
+  const latest = data?.latest ?? [];
+  const recordsQuery = new URLSearchParams({
+    mode: "PAPER_RESEARCH",
+    period: focus ? period : "ALL",
+    basis: "PLACED",
+    ...(focus ? { strategy: focus.portfolioId } : {}),
+  });
   const auto = data?.automation?.[0];
   const recent =
     auto?.lastSuccessAt &&
@@ -229,6 +323,16 @@ export function StrategiesWorkspace({ api }: any) {
           <span>↗</span>
         </Link>
       </div>
+      {data && (
+        <p className="arena-caption">
+          后台自动获取比赛和报价、生成预测、模拟出票及结算，不需要一直打开网页。
+          {auto?.lastSuccessAt
+            ? " 最近完成 " + formatDate(auto.lastSuccessAt) + "。"
+            : " 尚无成功运行记录。"}
+          {auto?.stage === "RUNNING" ? " 当前正在执行下一轮。" : ""}
+          {!auto?.enabled ? " 自动任务已暂停，前往运行状态检查。" : ""}
+        </p>
+      )}
       {error && (
         <div role="alert" className="arena-error">
           {data ? "显示上次快照 · " : "读取失败 · "}
@@ -330,7 +434,7 @@ export function StrategiesWorkspace({ api }: any) {
             <p className="eyebrow">THE CONTENDERS</p>
             <h2>策略排行榜</h2>
           </div>
-          <span>点击策略，对照曲线与最近战绩</span>
+          <span>点击策略，查看曲线和完整模拟记录</span>
         </div>
         <div className="arena-rank-scroll">
           <table>
@@ -352,8 +456,12 @@ export function StrategiesWorkspace({ api }: any) {
                   <td>
                     <button
                       className="rank-select"
-                      onClick={() => setSelected(selected === s.id ? "" : s.id)}
+                      onClick={() => {
+                        const next = selected === s.id ? "" : s.id;
+                        setSelected(next);
+                      }}
                       aria-pressed={selected === s.id}
+                      aria-controls="strategy-actions"
                     >
                       <span className="rank-number">
                         {s.metrics.settled
@@ -399,7 +507,7 @@ export function StrategiesWorkspace({ api }: any) {
                       to={
                         "/ledger?mode=PAPER_RESEARCH&period=" +
                         period +
-                        "&basis=SETTLED&strategy=" +
+                        "&basis=PLACED&strategy=" +
                         encodeURIComponent(s.portfolioId)
                       }
                     >
@@ -437,32 +545,43 @@ export function StrategiesWorkspace({ api }: any) {
             {focus.lifetimeN
               ? `累计${focus.lifetimeN}票，最新出票${formatDate(focus.lastTicketAt)}。`
               : "尚未出票；系统保留比赛并继续检查条件，不伪造战绩。"}
+            {` 每日新增上限 ${focus.maximumPerDay} 张，只在满足策略条件时出票。`}
           </p>
           <button className="secondary" onClick={() => setSelected("")}>
             显示全部策略
           </button>
         </aside>
       )}
-      <section className="arena-feed">
+      <section className="arena-feed" id="strategy-actions">
         <div className="ws-section-head">
           <div>
             <p className="eyebrow">THE ACTION</p>
             <h2>
               {focus
-                ? (names[focus.id] ?? focus.label) + " · 最近模拟"
-                : "最近模拟"}
+                ? (names[focus.id] ?? focus.label) + " · 全部模拟记录"
+                : "最近模拟 · 6张预览"}
             </h2>
           </div>
-          <Link to="/ledger?mode=PAPER_RESEARCH&period=ALL">全部战绩 ↗</Link>
+          <Link to={"/ledger?" + recordsQuery}>打开完整账本 ↗</Link>
         </div>
-        {latest.length ? (
+        {focus ? (
+          <StrategyRecords
+            key={focus.id + ":" + period}
+            api={api}
+            strategy={focus}
+            period={period}
+          />
+        ) : latest.length ? (
           <TicketCards
             records={latest}
             compact
             onDetail={(r: any) => {
-              window.location.href =
-                "/ledger?mode=PAPER_RESEARCH&period=ALL&record=" +
-                encodeURIComponent(r.id);
+              navigate(
+                "/ledger?" +
+                  recordsQuery +
+                  "&record=" +
+                  encodeURIComponent(r.id),
+              );
             }}
           />
         ) : data ? (

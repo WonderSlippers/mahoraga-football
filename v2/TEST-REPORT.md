@@ -358,3 +358,11 @@ current.json是实际HTTP快照，00:39柏林研究候选14、V6方向2、旧V2�
 旧站5173的workerd PID24644及创建时间不变；旧HEAD325a5087、dirty diff SHA87acee2a和完整status SHA5eabb78b前后相同。没有连接旧D1、调用旧HTTP、控制旧进程、改旧任务、push/部署。旧站自身可能正常写入；这是本次操作范围和身份比较，未冒充系统级旧DB写审计。自身旧原票/预测不改，正常新结算或更正只追加。
 
 最后运行观察追加：Node定时内部调用出现UND_ERR_SOCKET，使用新连接的同一自动接口实际返回200（1.94秒，DEGRADED来源结果如实保留）。定时调用加Connection: close；重跑端到端及实际服务/自动时钟，最终证据记录为runtime-current/restart-result及browser-latest。未承诺消除所有外部来源失败。
+
+## 2026-10-04：完整策略记录专项
+
+node scripts/verify-strategy-records.mjs check/build/integration/browser最终全部退出0；12个真实D1测试（0跳过），22项实装Chrome浏览器检查，7张验收截图（另保留失败截图），无API替换/合成赛事。涵盖18策略/3版本、真实全量总数、40票翻页、页二复盘、日期与策略链接、未结票、每日上限、点击定位、手机及运行状态。脚本逐次保留命令/起止时间/退出码/完整日志，路径.runtime-v2/strategy-records-20261004。检查和构建不计测试数量，也不代表模型盈利验证。
+
+初次runtime查询不存在的tickets.status列退出1，修正只读统计后退出0；初次格式检查退出1，重格式化后0，失败check日志保留。当前scope仅UI，不重复先前167测试的统计。runtime before/after断言旧HEAD/diff/status和研究PID不变、自动成功时钟推进；没有连接旧D1。完整结果与证据索引见STRATEGY-RECORDS-20261004.md。
+
+新增定位断言后实测发现异步载入前的滚动被列表高度变化打断，browser退出1；改为首批真实数据渲染后定位，保留browser失败日志与截图再运行完整专项。完整软件测试计数不因重跑增加。
