@@ -14,6 +14,8 @@ import {
 } from "../../apps/api/src/services/automation";
 import { claim, complete } from "../../apps/api/src/services/observations";
 import { completeUniversal } from "../../apps/api/src/services/universal";
+import { completeVersion } from "../../apps/api/src/services/versions";
+import { SEPTEMBER_ID } from "../../packages/domain/versions";
 import {
   completeComparison,
   comparisonReport,
@@ -107,7 +109,7 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
     await captureESPN(c, "fifa.friendly", day, fetcher);
     assert.equal((await rows(db, "SELECT * FROM quote_sets")).length, 1);
     assert.equal((await rows(db, "SELECT * FROM quote_selections")).length, 3);
-    assert.equal((await rows(db, "SELECT * FROM jobs")).length, 5);
+    assert.equal((await rows(db, "SELECT * FROM jobs")).length, 6);
     assert.equal((await rows(db, "SELECT * FROM source_snapshots")).length, 2);
     const savedQuote = (await rows(db, "SELECT * FROM quote_sets"))[0];
     const priceEvidence = (
@@ -119,14 +121,14 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
     )[0];
     assert.ok(priceEvidence.resourceKey.includes("/summary?"));
     assert.equal(savedQuote.observedAt, priceEvidence.observedAt);
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const job = await claim({ ...c, now: Date.now() }, "python-test");
       assert.ok(job);
       const p = spawnSync(
         path.resolve(".venv/Scripts/python.exe"),
         [
           "-c",
-          "import json,sys;sys.stdin.reconfigure(encoding='utf-8');from runner import predict,validate;from comparison_models import predict_comparison,IDS;from universal_model_v2 import predict_universal,MODEL_ID;j=json.load(sys.stdin);print(json.dumps(predict_universal(j,validate(json.loads(j['canonical']))) if j['modelId']==MODEL_ID else predict_comparison(j,validate(json.loads(j['canonical']))) if j['modelId'] in IDS else predict(j)))",
+          "import json,sys;sys.stdin.reconfigure(encoding='utf-8');from runner import predict,validate;from comparison_models import predict_comparison,IDS;from universal_model_v2 import predict_universal,MODEL_ID;from legacy_full import predict_legacy_full,MODEL_ID as LEGACY_ID;j=json.load(sys.stdin);print(json.dumps(predict_legacy_full(j,validate(json.loads(j['canonical']))) if j['modelId']==LEGACY_ID else predict_universal(j,validate(json.loads(j['canonical']))) if j['modelId']==MODEL_ID else predict_comparison(j,validate(json.loads(j['canonical']))) if j['modelId'] in IDS else predict(j)))",
         ],
         {
           cwd: path.resolve("model-runner"),
@@ -141,11 +143,13 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
         job.modelId.startsWith("LEGACY_20260920") ||
         job.modelId === "GENERAL_FOOTBALL_RESEARCH_V2";
       const result = await (
-        job.modelId === "GENERAL_FOOTBALL_RESEARCH_V2"
-          ? completeUniversal
-          : comparison
-            ? completeComparison
-            : complete
+        job.modelId === SEPTEMBER_ID
+          ? completeVersion
+          : job.modelId === "GENERAL_FOOTBALL_RESEARCH_V2"
+            ? completeUniversal
+            : comparison
+              ? completeComparison
+              : complete
       )({ ...c, now: Date.now() }, job.id, {
         owner: "python-test",
         fencingToken: job.fencingToken,
@@ -164,7 +168,7 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       { ...c, now: Date.now() },
       "espn:fifa.friendly:123456",
     );
-    assert.equal(detail.predictions.length, 3);
+    assert.equal(detail.predictions.length, 4);
     const compared = await comparisonReport({ ...c, now: Date.now() });
     assert.equal(compared.totalRecords, 2);
     assert.equal(compared.commonFixtureN, 0);
@@ -243,7 +247,16 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       /IMMUTABLE_FACT/,
     );
     assert.equal((await rows(db, "SELECT * FROM tickets")).length, 0);
-    assert.equal((await rows(db, "SELECT * FROM portfolios")).length, 6);
+    assert.equal((await rows(db, "SELECT * FROM portfolios")).length, 16);
+    assert.equal(
+      (
+        await rows(
+          db,
+          "SELECT * FROM portfolios WHERE id LIKE 'paper:september20:%'",
+        )
+      ).length,
+      10,
+    );
     const fixtureId = "espn:fifa.friendly:123456";
     const cached = (
       await rows(

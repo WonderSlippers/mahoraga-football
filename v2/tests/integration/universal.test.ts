@@ -459,7 +459,7 @@ test("schema upgrade is repeatable on populated new ledger and preserves all ori
   await migrate(c.db, { ...cfg, mode: "LOCAL_RESEARCH" });
   assert.equal(
     (await one(c.db, "SELECT schemaVersion FROM installations")).schemaVersion,
-    12,
+    13,
   );
   await assert.rejects(
     stmt(c.db, "UPDATE tickets SET stakeAtoms=1").run(),

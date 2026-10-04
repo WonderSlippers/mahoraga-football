@@ -29,6 +29,14 @@ import { automationTick } from "./services/automation";
 import { generalMetrics } from "./services/general-metrics";
 import { strategyArena } from "./services/arena";
 import {
+  completeVersion,
+  versionPaperStep,
+  versionsReport,
+  versionDirections,
+  versionMetrics,
+  selectedVersion,
+} from "./services/versions";
+import {
   completeUniversal,
   universalReport,
   autoPaper,
@@ -207,6 +215,20 @@ export default {
         const researchComplete = path.match(
           /^\/internal\/v2\/model-jobs\/([^/]+)\/complete-comparison$/,
         );
+        const versionComplete = path.match(
+          /^\/internal\/v2\/model-jobs\/([^/]+)\/complete-version$/,
+        );
+        if (versionComplete) {
+          exactFields(body, [
+            "owner",
+            "fencingToken",
+            "bundleHash",
+            "modelHash",
+            "featureCanonical",
+            "output",
+          ]);
+          return ok(await completeVersion(context, versionComplete[1], body));
+        }
         const universalComplete = path.match(
           /^\/internal\/v2\/model-jobs\/([^/]+)\/complete-universal$/,
         );
@@ -228,7 +250,10 @@ export default {
         }
         if (path === "/internal/v2/paper/step") {
           exactFields(body, []);
-          return ok(await autoPaper(context));
+          return ok({
+            general: await autoPaper(context),
+            versions: await versionPaperStep(context),
+          });
         }
         if (researchComplete) {
           exactFields(body, [
@@ -393,6 +418,18 @@ export default {
         throw new Error("CSRF_INVALID");
       const key = req.headers.get("Idempotency-Key") || "";
       if (req.method === "GET") {
+        if (path === "/api/v2/workspace/versions")
+          return ok({
+            ...(await versionsReport(context)),
+            results: await Promise.all(
+              ["GENERAL", "SEPTEMBER20", "V6"].map((version) =>
+                strategyArena(
+                  context,
+                  new URLSearchParams({ version, period: "ALL" }),
+                ),
+              ),
+            ),
+          });
         if (path === "/api/v2/workspace/arena")
           return ok(await strategyArena(context, url.searchParams));
         if (path === "/api/v2/workspace/schedule")
@@ -408,9 +445,17 @@ export default {
         if (path === "/api/v2/workspace/comparison")
           return ok(await comparisonReport(context, url.searchParams));
         if (path === "/api/v2/workspace/universal")
-          return ok(await universalReport(context, url.searchParams));
+          return ok(
+            selectedVersion(url.searchParams).id === "GENERAL"
+              ? await universalReport(context, url.searchParams)
+              : await versionDirections(context, url.searchParams),
+          );
         if (path === "/api/v2/workspace/universal-metrics")
-          return ok(await generalMetrics(context));
+          return ok(
+            selectedVersion(url.searchParams).id === "GENERAL"
+              ? await generalMetrics(context)
+              : await versionMetrics(context, url.searchParams),
+          );
         if (path === "/api/v2/workspace/paper-policies") {
           return ok(
             await rows(
@@ -445,6 +490,7 @@ export default {
             await workspaceFixture(
               context,
               decodeURIComponent(workspaceDetail[1]),
+              url.searchParams,
             ),
           );
         if (path === "/api/v2/export-jobs")
@@ -970,6 +1016,11 @@ export default {
       }
       throw new Error("NOT_FOUND");
     } catch (e) {
+      if (path === "/internal/v2/paper/step")
+        console.error(
+          "PAPER_STEP_FAILED",
+          e instanceof Error ? e.stack : String(e),
+        );
       let code = e instanceof Error ? e.message : "INTERNAL_ERROR";
       if (!/^[A-Z][A-Z0-9_]*$/.test(code)) code = "COMMAND_REJECTED";
       const status =

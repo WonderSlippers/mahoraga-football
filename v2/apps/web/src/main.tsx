@@ -13,6 +13,9 @@ import {
 import "./style.css";
 import "./workspace.css";
 import "./arena.css";
+import "./versions.css";
+import { VERSIONS } from "../../../packages/domain/versions";
+import { VersionWorkspace } from "./version-view";
 import { StrategiesWorkspace, ToolsWorkspace } from "./arena-view";
 import { cachedRead, invalidateReads } from "./read-cache";
 import {
@@ -24,6 +27,8 @@ import {
   LegacyWorkspace,
 } from "./workspace";
 let csrf = "";
+let activeMode = "";
+let activeVersion = "GENERAL";
 function requestKey() {
   if (crypto.randomUUID) return crypto.randomUUID();
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -35,6 +40,16 @@ function requestKey() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 async function api(path: string, body?: unknown, key?: string) {
+  if (
+    activeMode === "LOCAL_RESEARCH" &&
+    body === undefined &&
+    path.startsWith("/workspace/") &&
+    !path.startsWith("/workspace/versions")
+  ) {
+    const scoped = new URL(path, "http://local");
+    scoped.searchParams.set("version", activeVersion);
+    path = scoped.pathname + scoped.search;
+  }
   if (
     body === undefined &&
     !path.startsWith("/session") &&
@@ -73,6 +88,25 @@ function App() {
   const [logged, setLogged] = useState(false),
     [error, setError] = useState("");
   const [mode, setMode] = useState("");
+  const [version, setVersion] = useState(() => {
+    const saved =
+      new URLSearchParams(window.location.search).get("version") ||
+      sessionStorage.getItem("v2-model-version") ||
+      localStorage.getItem("v2-model-version");
+    activeVersion = VERSIONS.some((v) => v.id === saved) ? saved! : "GENERAL";
+    sessionStorage.setItem("v2-model-version", activeVersion);
+    return activeVersion;
+  });
+  const changeVersion = (id: string) => {
+    activeVersion = id;
+    localStorage.setItem("v2-model-version", id);
+    sessionStorage.setItem("v2-model-version", id);
+    const versionUrl = new URL(window.location.href);
+    versionUrl.searchParams.set("version", id);
+    window.history.replaceState(window.history.state, "", versionUrl);
+    invalidateReads();
+    setVersion(id);
+  };
   const [theme, setTheme] = useState(
     localStorage.getItem("v2-theme") || "dark",
   );
@@ -116,7 +150,8 @@ function App() {
       })
       .then(async (s) => {
         csrf = s.csrf;
-        setMode((await api("/meta")).mode);
+        activeMode = (await api("/meta")).mode;
+        setMode(activeMode);
         setLogged(true);
       })
       .catch((e) => setError(String(e)));
@@ -149,6 +184,24 @@ function App() {
                   : "DEMO · 合成数据"}
         </span>
         <small>策略进化 · 虚拟竞技</small>
+        {research && (
+          <label className="model-version-switch">
+            <span>模型版本</span>
+            <select
+              aria-label="模型版本"
+              value={version}
+              onChange={(e) => {
+                changeVersion(e.target.value);
+              }}
+            >
+              {VERSIONS.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button
           className="secondary"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -179,6 +232,11 @@ function App() {
             <NavLink to="/tools">
               研究与设置 <span>↗</span>
             </NavLink>
+            {research && (
+              <NavLink to="/versions">
+                版本战绩对比 <span>↗</span>
+              </NavLink>
+            )}
             <div className="navnote">
               {research ? "自动模拟 · 独立虚拟账户" : "离线演练 · 合成数据"}
               {!research && (
@@ -191,8 +249,28 @@ function App() {
               )}
             </div>
           </nav>
-          <main>
+          <main key={version}>
+            {research && (
+              <div
+                className="active-model-version"
+                data-testid="active-model-version"
+              >
+                <strong>{VERSIONS.find((v) => v.id === version)?.label}</strong>
+                <span>当前查看 · 各版本后台独立运行、独立账户</span>
+                <Link to="/versions">比较战绩 ↗</Link>
+              </div>
+            )}
             <Routes>
+              <Route
+                path="/versions"
+                element={
+                  <VersionWorkspace
+                    api={api}
+                    active={version}
+                    onSwitch={changeVersion}
+                  />
+                }
+              />
               <Route path="/" element={<Navigate to="/strategies" replace />} />
               <Route path="/tools" element={<ToolsWorkspace />} />
               {["/review", "/review.html"].map((path) => (

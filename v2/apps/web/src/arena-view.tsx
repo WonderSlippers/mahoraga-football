@@ -245,7 +245,12 @@ export function StrategiesWorkspace({ api }: any) {
               完成
             </button>
           </div>
-          <p>每票20虚拟单位。暂停只停止新增，原票继续结算。</p>
+          <p>
+            {data?.version?.id === "SEPTEMBER20"
+              ? "使用旧版各策略原始固定虚拟投入。"
+              : "每票20虚拟单位。"}
+            暂停只停止新增，原票继续结算。
+          </p>
           {strategies.map((p: any) => (
             <div className="arena-setting" key={p.id}>
               <b>{names[p.id] ?? p.label}</b>

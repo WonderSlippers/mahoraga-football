@@ -13,6 +13,7 @@ import { publicMarkets } from "./public-research";
 import { UNIVERSAL_ID } from "../../../../packages/domain/universal";
 import { accountingDay } from "../../../../packages/domain";
 import { paperLeg, legacyTicket, ticketOutcome } from "./ticket-presentation";
+import { selectedVersion } from "../../../../packages/domain/versions";
 
 const parse = (s: any, fallback: any = null) => {
   try {
@@ -558,8 +559,11 @@ export async function workspaceReport(
     )
   )
     throw Error("INVALID_FILTER");
-  const all =
+  let all =
     type === "history" ? await historyRows(c.db) : await ledgerRows(c.db, mode);
+  const version = selectedVersion(p);
+  if (mode === "PAPER_RESEARCH")
+    all = all.filter((r) => r.models.includes(version.modelId));
   const ledgerMode = type === "ledger";
   const basis = p.get("basis") ?? "SETTLED";
   if (!["PLACED", "SETTLED"].includes(basis)) throw Error("INVALID_FILTER");
@@ -864,6 +868,7 @@ export function fixtureScore(f: any, now: number) {
   };
 }
 export async function workspaceSchedule(c: Context, p: URLSearchParams) {
+  const version = selectedVersion(p);
   const catalog = await rows(
     c.db,
     "SELECT f.*,r.id revisionId,r.kickoffAt,COALESCE(cat.competition,src.competition,'DEMO') competition,COALESCE(cat.season,src.season) season,json_remove(cat.dataJson,'$.legacyMarkets','$.statistics','$.venue','$.detail.news','$.detail.standings','$.detail.summaryOdds','$.detail.venue') dataJson,cat.lastCapturedAt,cat.sourceUrl,0 predictionCount,0 accepted,NULL quoteAt,0 failedJobs FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id ORDER BY r.kickoffAt,f.id LIMIT 10001",
@@ -940,6 +945,26 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
     UNIVERSAL_ID,
     fixtureScope,
   );
+  const selectedObservations =
+    version.id === "GENERAL"
+      ? []
+      : await rows(
+          c.db,
+          version.id === "SEPTEMBER20"
+            ? "SELECT * FROM(SELECT o.outputJson,o.calculatedAt,r.fixtureId,b.cutoffAt,q.observedAt quoteAt,ROW_NUMBER() OVER(PARTITION BY r.fixtureId ORDER BY o.calculatedAt DESC,o.id DESC) n FROM version_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE o.modelId=? AND o.state='DONE' AND o.calculatedAt<r.kickoffAt AND r.fixtureId IN(SELECT value FROM json_each(?))) WHERE n=1"
+            : "SELECT * FROM(SELECT o.outputJson,o.calculatedAt,r.fixtureId,b.cutoffAt,q.observedAt quoteAt,ROW_NUMBER() OVER(PARTITION BY r.fixtureId ORDER BY o.calculatedAt DESC,o.id DESC) n FROM comparison_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE o.methodId=? AND o.state='DONE' AND o.calculatedAt<r.kickoffAt AND r.fixtureId IN(SELECT value FROM json_each(?))) WHERE n=1",
+          version.modelId,
+          fixtureScope,
+        );
+  const selectedJobs =
+    version.id === "GENERAL"
+      ? []
+      : await rows(
+          c.db,
+          "SELECT fixtureId,state,reason FROM(SELECT r.fixtureId,j.state,j.reason,ROW_NUMBER() OVER(PARTITION BY r.fixtureId ORDER BY b.cutoffAt DESC,j.rowid DESC) n FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId AND f.currentRevision=r.revision WHERE j.modelId=? AND r.fixtureId IN(SELECT value FROM json_each(?))) WHERE n=1",
+          version.modelId,
+          fixtureScope,
+        );
   const results = await rows(
     c.db,
     "SELECT a.* FROM result_adjudications a WHERE a.revision=(SELECT MAX(b.revision) FROM result_adjudications b WHERE b.fixtureId=a.fixtureId)",
@@ -1141,6 +1166,119 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
         ? a.kickoffAt - b.kickoffAt || a.id.localeCompare(b.id)
         : b.kickoffAt - a.kickoffAt || a.id.localeCompare(b.id);
   });
+  if (version.id !== "GENERAL")
+    for (const f of records) {
+      const saved = selectedObservations.find((o) => o.fixtureId === f.id);
+      const output = parse(saved?.outputJson, {});
+      const candidates =
+        version.id === "SEPTEMBER20"
+          ? Object.values(output.candidates ?? {})
+              .filter(Boolean)
+              .map((c: any) => ({
+                market:
+                  c.leg.market === "spread"
+                    ? "ASIAN_HANDICAP"
+                    : c.leg.market === "total"
+                      ? "TOTAL_GOALS"
+                      : "1X2",
+                selection: c.leg.market
+                  ? String(c.leg.side).toUpperCase()
+                  : ["HOME", "DRAW", "AWAY"][c.leg.pick],
+                lineQ: c.leg.market ? Math.round(c.leg.line * 4) : null,
+                odds: String(c.leg.odds),
+                probability: c.leg.probability,
+                estimatedEV: c.edge,
+                qualified: c.value,
+                rank: c.leg.score,
+                rationale: c.leg.rationale,
+              }))
+          : (output.actions ?? []);
+      const seen = new Set();
+      const plans = candidates
+        .filter((c: any) => {
+          const key = [c.market, c.selection, c.lineQ].join("|");
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .sort((a: any, b: any) => b.estimatedEV - a.estimatedEV);
+      const pick =
+        plans.find((c: any) => c.qualified || version.id === "V6") ?? plans[0];
+      f.tracking = null;
+      f.parallelDirections = [];
+      f.generalDirections = plans.map((c: any) => ({
+        ...c,
+        decisionId: [saved?.id, c.market, c.selection, c.lineQ].join(":"),
+        probabilityKind: version.id === "V6" ? "STRESS" : "CONSERVATIVE",
+        modelId: version.modelId,
+        policyLabel: version.label,
+        selectionName:
+          c.market === "1X2"
+            ? ({ HOME: "主胜", DRAW: "平局", AWAY: "客胜" } as any)[c.selection]
+            : c.market === "TOTAL_GOALS"
+              ? `${c.selection === "OVER" ? "大" : "小"} ${c.lineQ / 4}球`
+              : `${c.selection === "HOME" ? "主队" : "客队"} ${c.lineQ > 0 ? "+" : ""}${c.lineQ / 4}`,
+        ev: c.estimatedEV,
+        cutoffAt: saved?.cutoffAt,
+        quoteAt: saved?.quoteAt,
+      }));
+      f.research = pick
+        ? {
+            ...pick,
+            ev: pick.estimatedEV,
+            conservativeProbability: pick.probability,
+            rankScore: pick.rank ?? null,
+            modelLabel: version.label,
+            probabilityKind: version.id === "V6" ? "STRESS" : "CONSERVATIVE",
+            validation: "尚未验证收益优势",
+            selectionName: f.generalDirections.find(
+              (x: any) =>
+                x.selection === pick.selection && x.market === pick.market,
+            )?.selectionName,
+            cutoffAt: saved?.cutoffAt,
+            quoteAt: saved?.quoteAt,
+          }
+        : null;
+      if (f.kickoffAt > c.now && f.status === "SCHEDULED") {
+        const job = selectedJobs.find((j) => j.fixtureId === f.id);
+        const fresh =
+          saved && saved.quoteAt <= c.now && c.now - saved.quoteAt <= 600000;
+        f.failedJobs = job?.state === "FAILED" ? 1 : 0;
+        f.state =
+          job?.state === "FAILED"
+            ? "MODEL_FAILED"
+            : job?.state === "BLOCKED" || !saved
+              ? "MISSING_DATA"
+              : !fresh
+                ? "STALE_QUOTE"
+                : pick && (pick.qualified || version.id === "V6")
+                  ? "CANDIDATE"
+                  : "OBSERVING";
+        f.label = (
+          {
+            MODEL_FAILED: "模型失败",
+            MISSING_DATA: "待补证",
+            STALE_QUOTE: "报价待刷新",
+            CANDIDATE: "研究候选",
+            OBSERVING: "观察",
+          } as any
+        )[f.state];
+        f.reason = ["FAILED", "BLOCKED"].includes(job?.state ?? "")
+          ? `${version.label} · ${job?.reason}`
+          : !saved
+            ? version.id === "V6" &&
+              !["eng.1", "ger.1", "ita.1", "esp.1", "fra.1"].includes(
+                f.competition,
+              )
+              ? "V6原模型不支持此赛事；可切换通用或9月20日版本"
+              : "此版本尚未完成赛前预测"
+            : !fresh
+              ? "此版本报价已过期，等待自动刷新"
+              : pick
+                ? `${version.label} · ${f.research.selectionName} · EV ${(pick.estimatedEV * 100).toFixed(1)}%${pick.qualified || version.id === "V6" ? "" : " · 未过价值门槛，保留观察/对照"}`
+                : "原模型未选出方向";
+      }
+    }
   const from = p.get("from"),
     to = p.get("to"),
     league = p.get("league"),
@@ -1194,15 +1332,18 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   if (!["ALL", "GENERAL", "RESEARCH", "V6", "V2"].includes(trackingModel))
     throw Error("INVALID_TRACKING_MODEL");
   const methodMatch = (f: any, method: string) =>
-    method === "ALL"
-      ? followed(f)
-      : method === "GENERAL"
-        ? !!f.generalDirections.length
-        : method === "RESEARCH"
-          ? !!f.tracking
-          : f.parallelDirections.some((r: any) =>
-              r.methodId.startsWith(method === "V6" ? "V6" : "LEGACY"),
-            );
+    version.id !== "GENERAL"
+      ? !!f.generalDirections.length &&
+        (method === "ALL" || method === (version.id === "V6" ? "V6" : "V2"))
+      : method === "ALL"
+        ? followed(f)
+        : method === "GENERAL"
+          ? !!f.generalDirections.length
+          : method === "RESEARCH"
+            ? !!f.tracking
+            : f.parallelDirections.some((r: any) =>
+                r.methodId.startsWith(method === "V6" ? "V6" : "LEGACY"),
+              );
   if (
     !["ALL", "ACTIVE", "UPCOMING", "LIVE", "RESULTS", "TRACKED"].includes(view)
   )
@@ -1237,6 +1378,7 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
     throw Error("INVALID_CURSOR");
   return {
     items: filtered.slice(offset, offset + 40).map(scheduleView),
+    version,
     total: filtered.length,
     totalKnown: catalog.length,
     lifecycleCounts: {
@@ -1282,7 +1424,12 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
     asOf: c.now,
   };
 }
-export async function workspaceFixture(c: Context, id: string) {
+export async function workspaceFixture(
+  c: Context,
+  id: string,
+  params = new URLSearchParams(),
+) {
+  const version = selectedVersion(params);
   const base = await stmt(
     c.db,
     "SELECT f.*,r.id revisionId,r.kickoffAt,r.sourceSnapshotId,COALESCE(c.competition,src.competition,'DEMO') competition,COALESCE(c.season,src.season) season,c.sourceUrl,c.lastCapturedAt,c.dataJson FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog c ON c.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id WHERE f.id=?",
@@ -1440,7 +1587,14 @@ export async function workspaceFixture(c: Context, id: string) {
       c.now,
     ),
     referenceMarkets: publicMarkets(parse(base.dataJson, {}).providerOdds),
-    predictions,
+    version,
+    predictions: params.has("version")
+      ? predictions.filter(
+          (p) =>
+            p.modelId === version.modelId ||
+            p.modelId === "MARKET_PROPORTIONAL_V1",
+        )
+      : predictions,
     quotes,
     observations,
     adjudications,

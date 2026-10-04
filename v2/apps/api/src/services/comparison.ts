@@ -6,6 +6,7 @@ import {
 import { multiplier } from "../../../../packages/domain";
 import { atomic, one, rows, stmt, uid } from "../repositories/db";
 import type { Context } from "./commands";
+import { mirrorV6Queries } from "./versions";
 
 export async function registerComparison(c: Context) {
   for (const method of COMPARISON_METHODS) {
@@ -200,6 +201,7 @@ export async function completeComparison(c: Context, id: string, p: any) {
   if (c.now < b.cutoffAt || c.now >= Date.parse(input.kickoffAt))
     throw Error("FEATURE_LATE");
   const record = uid();
+  const versionQueries = await mirrorV6Queries(c, j, b, output);
   await atomic(c.db, [
     stmt(
       c.db,
@@ -212,6 +214,7 @@ export async function completeComparison(c: Context, id: string, p: any) {
       input.revisionId,
     ),
     stmt(c.db, "DELETE FROM fault_guard"),
+    ...versionQueries,
     stmt(
       c.db,
       "INSERT INTO comparison_observations VALUES(?,?,?,?,?,?,?,?,?)",

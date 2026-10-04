@@ -1,3 +1,4 @@
+import { versionPolicy } from "../../../../packages/domain/versions";
 import { rows } from "../repositories/db";
 import type { Context } from "./commands";
 import {
@@ -56,17 +57,19 @@ export async function generalMetrics(c: Context) {
     "SELECT * FROM paper_policies ORDER BY CASE WHEN strategyVersion LIKE '%V1' THEN 1 ELSE 0 END,rowid",
   );
   const records = await ledgerRows(c.db, "PAPER_RESEARCH");
-  const byStrategy = policies.map((p) => ({
-    ...p,
-    retired: [
-      "GENERAL_BROAD_PAPER_V1",
-      "GENERAL_VALUE_PAPER_V1",
-      "GENERAL_ASIAN_PAPER_V1",
-    ].includes(p.strategyVersion),
-    metrics: summarizeRecords(
-      records.filter((r) => r.portfolio === p.portfolioId),
-    ),
-  }));
+  const byStrategy = policies
+    .filter((p) => versionPolicy(p.id, "GENERAL"))
+    .map((p) => ({
+      ...p,
+      retired: [
+        "GENERAL_BROAD_PAPER_V1",
+        "GENERAL_VALUE_PAPER_V1",
+        "GENERAL_ASIAN_PAPER_V1",
+      ].includes(p.strategyVersion),
+      metrics: summarizeRecords(
+        records.filter((r) => r.portfolio === p.portfolioId),
+      ),
+    }));
   const groups = (key: string) =>
     [
       ...new Set(

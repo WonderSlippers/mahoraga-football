@@ -16,6 +16,7 @@ import {
   publicMarkets,
 } from "./public-research";
 import { autoPaper } from "./universal";
+import { versionPaperStep } from "./versions";
 
 export function espnUrl(league: string, day: string) {
   if (!/^[a-z0-9_.]{3,50}$/.test(league) || !/^\d{4}-\d{2}-\d{2}$/.test(day))
@@ -683,6 +684,7 @@ export async function automationTick(
         ["EMPTY", "DEGRADED", "CAPTURED"].includes(r.state),
       );
     const paper = await autoPaper({ ...c, now: Date.now() });
+    const versions = await versionPaperStep({ ...c, now: Date.now() });
     const settled = await autoSettle({ ...c, now: Date.now() });
     const prepared = await stmt(
       c.db,
@@ -724,7 +726,7 @@ export async function automationTick(
         paper,
       }),
     ).run();
-    return { capture, settled, paper };
+    return { capture, settled, paper, versions };
   } catch (e) {
     await stmt(
       c.db,

@@ -1,5 +1,6 @@
 import { rows } from "../repositories/db";
 import type { Context } from "./commands";
+import { selectedVersion, versionPolicy } from "./versions";
 import {
   ledgerRows,
   summarizeRecords,
@@ -9,6 +10,7 @@ import {
 
 // Money comes from settled original tickets, never from predictions or browser claims.
 export async function strategyArena(c: Context, params: URLSearchParams) {
+  const version = selectedVersion(params);
   const period = params.get("period") || "ALL";
   if (
     !["ALL", "TODAY", "YESTERDAY", "WEEK", "MONTH", "SEASON"].includes(period)
@@ -27,6 +29,7 @@ export async function strategyArena(c: Context, params: URLSearchParams) {
   const strategies = policies
     .filter(
       (p) =>
+        versionPolicy(p.id, version.id) &&
         ![
           "GENERAL_BROAD_PAPER_V1",
           "GENERAL_VALUE_PAPER_V1",
@@ -69,6 +72,7 @@ export async function strategyArena(c: Context, params: URLSearchParams) {
     "SELECT enabled,lastSuccessAt,lastAttemptAt,stage,reason FROM automation_state",
   );
   return {
+    version,
     asOf: c.now,
     period,
     accounting: {
@@ -76,6 +80,9 @@ export async function strategyArena(c: Context, params: URLSearchParams) {
       basis: "收益按结算日；各策略独立账户，重叠票不可视为独立比赛",
     },
     summary: summarizeRecords(settled),
+    firstPlacementAt: active.length
+      ? Math.min(...active.map((r) => r.at))
+      : null,
     openN: active.filter((r) =>
       ["OPEN", "REVIEW", "REOPENED"].includes(r.status),
     ).length,

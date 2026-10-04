@@ -223,8 +223,15 @@ export function FixtureList({ data, onSelect }: any) {
                   {f.research.selectionName} · EV {pct(f.research.ev)}
                 </strong>
                 <small>
-                  研究概率 {pct(f.research.probability)} · 排序{" "}
-                  {f.research.rankScore}
+                  {f.research.probabilityKind === "STRESS"
+                    ? "压力概率"
+                    : f.research.probabilityKind === "CONSERVATIVE"
+                      ? "扣减后概率"
+                      : "研究概率"}{" "}
+                  {pct(f.research.probability)}
+                  {f.research.rankScore == null
+                    ? ""
+                    : ` · 排序 ${f.research.rankScore}`}
                 </small>
               </>
             ) : (
@@ -246,15 +253,20 @@ export function FixtureList({ data, onSelect }: any) {
             {f.generalDirections?.map((p: any) => (
               <div className="saved-direction" key={p.decisionId}>
                 <b>
-                  通用赛前 · {directionName(p)}
+                  {p.policyLabel ?? "通用赛前"} · {directionName(p)}
                   {p.lineQ == null
                     ? ""
                     : ` ${p.lineQ > 0 ? "+" : ""}${p.lineQ / 4}`}{" "}
                   @ {Number(p.odds).toFixed(2)}
                 </b>
                 <small>
-                  原概率 {pct(p.probability)} · 保守EV {pct(p.estimatedEV)} ·
-                  冻结 {formatDate(p.cutoffAt)}
+                  {p.probabilityKind === "STRESS"
+                    ? "压力概率"
+                    : p.probabilityKind === "CONSERVATIVE"
+                      ? "扣减后概率"
+                      : "原概率"}{" "}
+                  {pct(p.probability)} · 保守EV {pct(p.estimatedEV)} · 冻结{" "}
+                  {formatDate(p.cutoffAt)}
                 </small>
               </div>
             ))}

@@ -283,7 +283,7 @@ test("comparison review crosses a 1000-row page without losing chronology, doubl
     2,
   );
 });
-test("completion is atomic, lease fenced, idempotent and original predictions stay empty", async () => {
+test("completion is atomic, lease fenced, idempotent and V6 mirrors immutable native stress evidence without tickets", async () => {
   await bundle();
   const j = await claim(c, "test");
   const p = payload(j);
@@ -307,7 +307,9 @@ test("completion is atomic, lease fenced, idempotent and original predictions st
     }),
     /IDEMPOTENCY_CONFLICT/,
   );
-  assert.equal((await rows(c.db, "SELECT * FROM predictions")).length, 0);
+  const predictions = await rows(c.db, "SELECT * FROM predictions");
+  assert.equal(predictions.length, j.modelId.startsWith("V6") ? 1 : 0);
+  if (predictions.length) assert.equal(predictions[0].centralJson, "null");
   assert.equal((await rows(c.db, "SELECT * FROM tickets")).length, 0);
 });
 test("normalized V6 probability, quote spoofing and forged EV cannot be accepted", async () => {

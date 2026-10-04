@@ -486,13 +486,16 @@ export function ScheduleWorkspace({ api, mode }: Props) {
         </p>
         {view === "TRACKED" && (
           <div className="tracking-model-tabs ws-pills" aria-label="推荐算法">
-            {[
-              ["ALL", "全部算法"],
-              ["GENERAL", "通用赛前分析"],
-              ["V6", "V6 配置388"],
-              ["V2", "9月20日 V2"],
-              ["RESEARCH", "市场 / 近期赛况"],
-            ].map(([id, label]) => (
+            {(data?.version?.id && data.version.id !== "GENERAL"
+              ? [["ALL", data.version.label]]
+              : [
+                  ["ALL", "全部算法"],
+                  ["GENERAL", "通用赛前分析"],
+                  ["V6", "V6 配置388"],
+                  ["V2", "9月20日 V2"],
+                  ["RESEARCH", "市场 / 近期赛况"],
+                ]
+            ).map(([id, label]) => (
               <button
                 key={id}
                 className={trackingModel === id ? "selected" : "secondary"}
@@ -714,7 +717,9 @@ export function FixtureWorkspace({ api, mode }: Props) {
       <div className="ws-note">
         赛前预测与报价永久冻结。赛后新增赛果与更正，不根据比分重算概率。实时来源不足时，历史记录仍可查看。
       </div>
-      <ComparisonPanel api={api} fixture={id} />
+      {(!data?.version || data.version.id === "GENERAL") && (
+        <ComparisonPanel api={api} fixture={id} />
+      )}
       {mode === "LOCAL_RESEARCH" && <UniversalPanel api={api} fixture={id} />}
       <div className="ws-detail-grid">
         <section className="ws-panel">
@@ -1834,7 +1839,7 @@ export function LaboratoryWorkspace({ api, mode }: Props) {
       </Head>
       <div className="ws-pills lab-tabs" aria-label="模型实验室视图">
         {[
-          ["GENERAL", "通用模型"],
+          ["GENERAL", "当前版本"],
           ["FORWARD", "V6与旧V2 · 前瞻对照"],
           ["HISTORICAL", "V6 / V7 / 市场 · 历史研究"],
         ].map(([v, l]) => (

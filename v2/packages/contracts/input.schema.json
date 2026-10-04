@@ -196,6 +196,16 @@
         "featureHash": {
           "type": ["string", "null"]
         },
+        "legacyState": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["revision", "evolution", "seed"],
+          "properties": {
+            "revision": { "type": "integer", "minimum": 0 },
+            "evolution": { "type": "object" },
+            "seed": { "type": "object" }
+          }
+        },
         "offers": {
           "type": "array",
           "maxItems": 7,

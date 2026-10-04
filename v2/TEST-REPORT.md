@@ -320,3 +320,39 @@ V6配置388真实归档250行由原函数检查；V7固定融合真实共同115�
 `node scripts/verify-lifecycle.mjs check build` 实际退出0，类型/格式/边界及构建通过；本轮两份check JSON/log另复制到.runtime-v2/recommendation-clarity-20261002。边界源码检查不算模型验证。`node .runtime-v2/recommendation-clarity-20261002/verify.mjs` 实际退出0，真实研究浏览器桌面1440/手机390共6项检查通过、应用错误0：来源说明直接可见，严格标签为未启用且不宣称无机会，两场真实V6保存方向可达。6张截图以及browser.json保存该目录；无模拟API/注入赛程。
 
 current.json是实际HTTP快照，00:39柏林研究候选14、V6方向2、旧V2最新方向22；数字随正常任务变化，保存方向不等于已证明有效的严格推荐。V6两场日期为10月10日与10月17日，不能冒充今日国家队推荐。此次未重跑未变核心/模型的124项套件，不复用旧通过来宣称本轮新增模型验证；源码/账本/阈值/原预测未变，原站未操作。
+
+## 2026-10-04：模型版本切换验收（进行中）
+
+专项首次失败保留在工具执行记录：测试对象未经过JSON传输规范化、原模块缺失值undefined与适配器null、负期望补位测试集合并未触发补位、DEMO结果测试使用错误参数形状；修正后11/11专项通过，0跳过。包含120组完整原函数候选对照、100组Poisson/DC计算对照、完整120比赛选单、原PP变更，以及真实D1事务/重复执行/更正测试。它们验证软件与保存的源规则等价，不是盈利验证，也不证明缺失运行二进制。
+
+最终所有命令由 scripts/verify-versions.mjs 保存退出码和完整日志到 .runtime-v2/versions-20261004。当前全量单元82/82；D1回归与浏览器仍在运行，最终结果以下方验收为准。
+
+### 本轮最终验收
+
+工作目录：work/mahoraga-v2/v2。证据目录：.runtime-v2/versions-20261004；交付副本为聊天根outputs/versions-20261004。每条命令的真实时间、退出码和完整日志见对应latest.json与带时间戳log。
+
+| 命令 | 退出码 | 数量与结果 | 证据 |
+| --- | --- | --- | --- |
+| node scripts/verify-versions.mjs check | 0 | TypeScript/格式/边界通过；不算模型验证 | check-latest.json |
+| node scripts/verify-versions.mjs unit | 0 | 82/82，0跳过 | unit-latest.json、unit完整log |
+| node scripts/verify-versions.mjs integration | 0 | 76/76真实D1，0跳过 | integration-2026-10-04T04-19-37.499Z.log |
+| node scripts/verify-versions.mjs parity | 0 | 6/6；含V6原250行和V7原历史数据 | parity-latest.json |
+| node scripts/verify-versions.mjs e2e | 0 | 3/3；浏览器→Python→D1→出票→结算→更正→重启 | e2e-latest.json |
+| node scripts/verify-versions.mjs build | 0 | Worker及Vite生产构建 | build-latest.json |
+| node scripts/verify-versions.mjs browser | 0 | 22真实研究检查，19截图，无应用控制台/本地HTTP错误、横向溢出 | browser-result.json、browser-latest.json |
+| .venv/Scripts/python.exe scripts/verify-versions-preservation.py | 0 | 6事实表原始行哈希相同；16资产/4代码相同；旧git相同；quick_check=ok、FK错误0 | preservation-after.json、preservation-latest.json |
+| .venv/Scripts/python.exe scripts/verify-versions-runtime.py | 0 | schema13、11新版本账户、真实原版预测与新票、余额恒等式0失败 | runtime-current.json |
+
+167项不同软件测试；专项最终9例重跑不重复计数。120候选及120场整批选择、100进球模型组是实际执行封存原模块的等价性测试，控制输入明确SOFTWARE_TEST_ONLY；没有把它或DEMO称为真实模型盈利验证。浏览器不拦截/伪造API，没有注入合成赛程或收益；覆盖GENERAL/SEPTEMBER20/V6赛程、策略、账本、模型页及原版详情、运行状态、1440/390两尺寸和浅色。仅允许首次正常session探测401，其余本地HTTP失败或React控制台报错均失败。
+
+### 真实失败及修复
+
+- 第一轮全D1：69/74，退出1；V6镜像将"2"与"2.00"按字符串比报价，及新增任务数量旧断言。改为数值精确报价匹配，测试实际通过新Python→Node引擎并检查新不可变预测，不移除守卫。
+- 第二轮全D1：73/75，退出1；新10账户数量和schema13旧断言更新。第三轮76/76退出0，日志完整保留。
+- 真实自动出票：原多盘口同场串关触发核心唯一约束使整轮回滚。保留原引擎，新增不可变拒绝原建议，正常其他票提交；真实D1专项覆盖拒绝、余额与拒绝证据不可变。
+- 初次浏览器：隐藏的成功状态节点被当作visible等待，退出1；改为等待已加载状态后检查实际页面。一次在新实例尚未监听前访问连接拒绝，退出1；服务就绪后实测。增加控制台验收后初次正常登录探测401被误判失败，限定只允许该路径401，再跑22项通过；React重复键与手机品牌纵排确已修复，没有过滤React错误。
+- 保留脚本：在线备份比随后hash采样早17条预测，哈希序列化/完整untracked参数初次不一致退出1；改为与原采样序号及原序列化严格匹配，并另验证整个更早备份。六表原采样行和备份行均一致，不把检查失败说成旧数据库被改。runtime脚本先假设profile只一SQLite，退出1；改为核验installationId后唯一匹配，退出0。
+
+运行观察截至04:30UTC原版63成功观测（39个fixtureRevision，重复刷新不扩大比赛N）、119张新纸面票，V6原生观测95（50个fixtureRevision）且没有假造当前原生票。数字随自动任务追加，以runtime-current.json时点为准。新版本已结数仍0，ROI为null。后台已有新成功时钟；可恢复socket重试已保留，不宣称长期零失败。
+
+旧站5173的workerd PID24644及创建时间不变；旧HEAD325a5087、dirty diff SHA87acee2a和完整status SHA5eabb78b前后相同。没有连接旧D1、调用旧HTTP、控制旧进程、改旧任务、push/部署。旧站自身可能正常写入；这是本次操作范围和身份比较，未冒充系统级旧DB写审计。自身旧原票/预测不改，正常新结算或更正只追加。

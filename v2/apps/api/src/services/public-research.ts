@@ -8,6 +8,8 @@ import { registerComparison } from "./comparison";
 import { legacyGoalInputs } from "./legacy-inputs";
 import { COMPARISON_METHODS } from "../../../../packages/domain/comparison";
 import { registerUniversal } from "./universal";
+import { legacyState } from "./versions";
+import { SEPTEMBER_ID } from "../../../../packages/domain/versions";
 import { UNIVERSAL_ID } from "../../../../packages/domain/universal";
 
 export function decimalAmerican(raw: unknown): string | null {
@@ -169,6 +171,7 @@ export async function freezePublicResearch(
     "SELECT * FROM comparison_features WHERE fixtureId=? ORDER BY observedAt DESC LIMIT 1",
     f.id,
   ).first<any>();
+  const legacy = await legacyState(c);
   const previous = await stmt(
     c.db,
     "SELECT MAX(observedAt) at FROM quote_sets q JOIN market_definitions m ON m.id=q.marketId WHERE m.fixtureId=?",
@@ -183,6 +186,8 @@ export async function freezePublicResearch(
     if (
       (JSON.parse(last?.canonical ?? "{}").comparisonFeatures?.featureHash ??
         null) === (featureRow?.featureHash ?? null) &&
+      JSON.parse(last?.canonical ?? "{}").comparisonFeatures?.legacyState
+        ?.revision === legacy.revision &&
       (await stmt(
         c.db,
         "SELECT id FROM jobs WHERE bundleId=? AND modelId=?",
@@ -248,6 +253,7 @@ export async function freezePublicResearch(
     ],
     ...(features ? { researchFeatures: features } : {}),
     comparisonFeatures: {
+      legacyState: legacy,
       competition: f.competition,
       home: modelTeamName(f.home, f.competition),
       away: modelTeamName(f.away, f.competition),
@@ -366,6 +372,7 @@ export async function freezePublicResearch(
     ...[
       "MARKET_PROPORTIONAL_V1",
       UNIVERSAL_ID,
+      SEPTEMBER_ID,
       ...COMPARISON_METHODS.map((m) => m.id),
       ...(features &&
       typeof features.neutralSite === "boolean" &&

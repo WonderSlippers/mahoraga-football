@@ -146,7 +146,27 @@ if (command === "doctor") {
     await mf.dispose();
     throw Error("INSTALLATION_MISMATCH");
   }
-  // This additive migration touches only this verified v2 database's indexes.
+  // Additive version tables in this verified v2 database; never a legacy path.
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0013_model_versions.sql"),
+      "utf8",
+    ),
+  );
+  for (const table of [
+    "version_observations",
+    "version_ticket_evidence",
+    "version_state_events",
+    "version_execution_rejections",
+  ])
+    for (const action of ["UPDATE", "DELETE"])
+      await db.exec(
+        `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${action} BEFORE ${action} ON ${table} BEGIN SELECT RAISE(ABORT, 'IMMUTABLE_FACT'); END;`,
+      );
+  await db
+    .prepare("UPDATE installations SET schemaVersion=13 WHERE id=?")
+    .bind(c.installationId)
+    .run();
   await db.exec(
     fs.readFileSync(
       path.join(root, "apps/api/migrations/0012_product_reads.sql"),

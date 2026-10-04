@@ -52,7 +52,15 @@ function PlanCard({ r, p, value }: any) {
       </div>
       <dl>
         <div>
-          <dt>{p.market === "1X2" ? "模型概率" : "获利概率"}</dt>
+          <dt>
+            {p.probabilityKind === "STRESS"
+              ? "压力概率"
+              : p.probabilityKind === "CONSERVATIVE"
+                ? "扣减后概率"
+                : p.market === "1X2"
+                  ? "模型概率"
+                  : "获利概率"}
+          </dt>
           <dd>{pct(p.probability)}</dd>
         </div>
         <div>
@@ -68,10 +76,12 @@ function PlanCard({ r, p, value }: any) {
       </dl>
       <p className="general-action">
         {value
-          ? "纸面均注20单位 · 90分钟单场"
-          : p.estimatedEV <= 0
-            ? "当前价格不足：不投，保留对照"
-            : "尚未过精选门槛：观察"}
+          ? "原版策略独立纸面记录 · 90分钟"
+          : p.originalStrategy
+            ? "原版广覆盖 / 保底纸面记录 · 收益待验证"
+            : p.estimatedEV <= 0
+              ? "当前价格不足：不投，保留对照"
+              : "尚未过精选门槛：观察"}
       </p>
       <p>
         {basis(r.output.basis)} ·{" "}
@@ -142,7 +152,9 @@ export function UniversalPanel({
     >
       <div className="ws-section-head">
         <div>
-          <div className="ws-section-label">通用赛前分析 / GENERAL</div>
+          <div className="ws-section-label">
+            {data?.version?.label ?? "通用赛前分析 / GENERAL"}
+          </div>
           <h2>{fixture ? "本场方案与价格条件" : "现在有哪些值得研究的方向"}</h2>
         </div>
         <Link to="/strategies">自动纸面策略 →</Link>
@@ -215,15 +227,15 @@ export function UniversalPanel({
                   <tr>
                     <th>玩法</th>
                     <th>参考价</th>
-                    <th>模型概率 / 获利概率</th>
+                    <th>方向概率</th>
                     <th>保守EV</th>
                     <th>价格门槛</th>
                     <th>判定</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {r.output.evaluated?.map((p: any) => (
-                    <tr key={p.market + p.selection + p.lineQ}>
+                  {r.output.evaluated?.map((p: any, i: number) => (
+                    <tr key={p.policyId + ":" + p.decisionId + ":" + i}>
                       <td>{planName(p, r)}</td>
                       <td>{Number(p.odds).toFixed(2)}</td>
                       <td>{pct(p.probability)}</td>
@@ -238,9 +250,9 @@ export function UniversalPanel({
               </table>
             </div>
             <div className="general-market-cards">
-              {r.output.evaluated?.map((p: any) => (
+              {r.output.evaluated?.map((p: any, i: number) => (
                 <article
-                  key={p.market + p.selection + p.lineQ}
+                  key={p.policyId + ":" + p.decisionId + ":" + i}
                   className="general-market-card"
                 >
                   <strong>{planName(p, r)}</strong>
@@ -251,7 +263,15 @@ export function UniversalPanel({
                       <dd>{Number(p.odds).toFixed(2)}</dd>
                     </div>
                     <div>
-                      <dt>{p.market === "1X2" ? "模型概率" : "获利概率"}</dt>
+                      <dt>
+                        {p.probabilityKind === "STRESS"
+                          ? "压力概率"
+                          : p.probabilityKind === "CONSERVATIVE"
+                            ? "扣减后概率"
+                            : p.market === "1X2"
+                              ? "模型概率"
+                              : "获利概率"}
+                      </dt>
                       <dd>{pct(p.probability)}</dd>
                     </div>
                     <div>
@@ -290,15 +310,17 @@ export function UniversalPanel({
           </details>
         ))}
       <p className="general-footnote">
-        通用研究：未自动晋升。参考价不是已验证可成交价；国家队模型在友谊赛验证，迁移到正式赛事仍需前瞻记录。数据截止{" "}
-        {fmt(data?.asOf)}。
+        {data?.version
+          ? data.version.description
+          : "通用研究：未自动晋升。跨赛事迁移仍需前瞻记录。"}{" "}
+        参考价纸面模拟 · 数据截止 {fmt(data?.asOf)}。
       </p>
     </section>
   );
 }
 export function GeneralLaboratory({ api }: { api: Client }) {
   const { data, error } = useReport(api, "/workspace/universal-metrics");
-  const historic = data?.manifest.national.validation.holdout;
+  const historic = data?.manifest?.national?.validation?.holdout;
   return (
     <section
       className="ws-panel general-panel"
@@ -306,10 +328,12 @@ export function GeneralLaboratory({ api }: { api: Client }) {
       data-loaded={!!data}
     >
       <div className="ws-section-label">GENERAL / 冻结模型与前瞻记录</div>
-      <h2>通用模型有没有比市场更好</h2>
+      <h2>{data?.version?.label ?? "通用模型"}的概率与战绩</h2>
       {error && <p role="alert">{error}</p>}
       <p>
-        国家队独立攻防覆盖270支历史球队；俱乐部使用可核实的联赛攻防。比赛身份、场地或赔率缺失时不填假数据。V6和9月20日旧V2继续在下方独立比较。
+        {data?.version?.description ??
+          "国家队独立攻防与俱乐部联赛攻防；缺必要数据不填假值。"}{" "}
+        各版本账户独立，旧历史票不计入新账户战绩。
       </p>
       <div className="general-coverage">
         <span>
@@ -333,7 +357,7 @@ export function GeneralLaboratory({ api }: { api: Client }) {
           </thead>
           <tbody>
             {[
-              ["通用模型", data?.probability],
+              [data?.version?.label ?? "通用模型", data?.probability],
               ["市场去水基准", data?.baseline],
             ].map(([label, m]: any) => (
               <tr key={label}>

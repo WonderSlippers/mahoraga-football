@@ -144,6 +144,10 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
     ),
   );
   const immutable = [
+    "version_observations",
+    "version_ticket_evidence",
+    "version_state_events",
+    "version_execution_rejections",
     "universal_observations",
     "comparison_methods",
     "comparison_features",
@@ -188,6 +192,12 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
       "utf8",
     ),
   );
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0013_model_versions.sql"),
+      "utf8",
+    ),
+  );
   for (const table of immutable)
     for (const action of ["UPDATE", "DELETE"])
       await db.exec(
@@ -204,7 +214,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
     if (existing.id !== c.installationId || existing.mode !== c.mode)
       throw Error("INSTALLATION_MISMATCH");
     await db
-      .prepare("UPDATE installations SET schemaVersion=12 WHERE id=?")
+      .prepare("UPDATE installations SET schemaVersion=13 WHERE id=?")
       .bind(c.installationId)
       .run();
     return;

@@ -5,6 +5,7 @@ from datetime import datetime
 from jsonschema import Draft7Validator,FormatChecker
 from comparison_models import IDS as COMPARISON_IDS,predict_comparison
 from universal_model_v2 import MODEL_ID as UNIVERSAL_ID,predict_universal
+from legacy_full import MODEL_ID as LEGACY_FULL_ID,predict_legacy_full
 SCHEMA=json.loads((Path(__file__).parents[1]/'packages/contracts/input.schema.json').read_text())
 def validate(value):
     Draft7Validator(SCHEMA,format_checker=FormatChecker()).validate(value)
@@ -49,7 +50,7 @@ def main():
     if not base.startswith('http://127.0.0.1:'): raise ValueError('HOST_INVALID')
     def post(path,data=None):
         request=urllib.request.Request(base+path,json.dumps(data).encode() if data is not None else None,{'Authorization':'Bearer '+token,'Content-Type':'application/json'})
-        with urllib.request.urlopen(request,timeout=10) as response:return json.load(response)['data']
+        with urllib.request.urlopen(request,timeout=30 if path=='/internal/v2/paper/step' else 10) as response:return json.load(response)['data']
     last_tick=0
     last_paper=0
     while True:
@@ -85,7 +86,13 @@ def main():
                         if next_offset is not None and (not part or next_offset!=offset+len(part)):raise ValueError('INVALID_CHUNK_CURSOR')
                         parts.append(part);offset=next_offset
                     job['canonical']=b''.join(parts).decode('utf-8')
-                    if job['modelId']==UNIVERSAL_ID:
+                    if job['modelId']==LEGACY_FULL_ID:
+                        value=validate(json.loads(job['canonical']))
+                        if hashlib.sha256(job['canonical'].encode()).hexdigest()!=job['bundleHash']:raise ValueError('MODEL_HASH_MISMATCH')
+                        output=predict_legacy_full(job,value)
+                        post('/internal/v2/model-jobs/'+job['id']+'/complete-version',dict(lease,bundleHash=job['bundleHash'],modelHash=job['modelHash'],output=output,featureCanonical=job['canonical']))
+                        print('LEGACY_FULL_JOB_'+output['state'],job['id'],output['reason'],flush=True)
+                    elif job['modelId']==UNIVERSAL_ID:
                         value=validate(json.loads(job['canonical']))
                         if hashlib.sha256(job['canonical'].encode()).hexdigest()!=job['bundleHash']:raise ValueError('MODEL_HASH_MISMATCH')
                         output=predict_universal(job,value)

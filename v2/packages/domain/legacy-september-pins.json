@@ -1,0 +1,10 @@
+{
+  "sourceCommit": "40ae6816dfbcbdfd89eac1a05eefae98ecd0db9b",
+  "sourceHashes": {
+    "lib/goal-model.ts": "220018ad5c6dc2b0d945078e745a29f2ac50de57bd18ccf548bcfafd6bc5ec98",
+    "lib/simulation-lab.ts": "741378fb9b5682c7535696f9eb10feae10316c69dc5f0a1aa7c3820877c27ef1"
+  },
+  "typescriptHash": "89349a25eb9764e2b7868e28196f3f225c297aa8c7b099b5df2315ce4bdff88c",
+  "engineHash": "22edfb3e6362cf1006f1be1677b17bb27ae3084f44e3de261eb23a3791786203",
+  "scope": "EXACT_PRESERVED_RULES; HISTORICAL_DIRTY_RUNTIME_UNPROVEN"
+}

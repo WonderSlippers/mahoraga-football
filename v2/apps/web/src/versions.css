@@ -1,0 +1,138 @@
+.model-version-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ws-muted);
+}
+.model-version-switch select {
+  min-width: 190px;
+  max-width: 230px;
+  border-radius: 9px;
+  padding: 9px 12px;
+  background: var(--ws-panel);
+  color: var(--ws-ink);
+  border: 1px solid var(--ws-line);
+}
+.model-version-switch > span {
+  white-space: nowrap;
+}
+.active-model-version {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0 18px;
+  border-bottom: 1px solid var(--ws-line);
+  margin-bottom: 24px;
+  font-size: 12px;
+}
+.active-model-version strong {
+  color: var(--ws-accent);
+}
+.active-model-version span {
+  color: var(--ws-muted);
+}
+.active-model-version a {
+  margin-left: auto;
+}
+.version-comparison-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 28px 0;
+}
+.version-card {
+  padding: 24px;
+  border: 1px solid var(--ws-line);
+  border-radius: 16px;
+  background: var(--ws-panel);
+}
+.version-card.selected {
+  border-color: var(--ws-accent);
+}
+.version-card > span {
+  font-size: 11px;
+  color: var(--ws-accent);
+}
+.version-card h2 {
+  margin: 15px 0 10px;
+}
+.version-card p {
+  color: var(--ws-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.version-card-numbers,
+.version-evolution {
+  display: flex;
+  gap: 30px;
+  margin: 24px 0;
+}
+.version-card-numbers small,
+.version-evolution small {
+  display: block;
+  color: var(--ws-muted);
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.version-card-numbers strong {
+  font-size: 27px;
+}
+.version-evolution strong {
+  font-size: 23px;
+}
+@media (max-width: 800px) {
+  .version-comparison-cards {
+    grid-template-columns: 1fr;
+  }
+  .model-version-switch {
+    margin-left: auto;
+  }
+  .model-version-switch > span {
+    display: none;
+  }
+  .model-version-switch select {
+    min-width: 0;
+    max-width: 180px;
+  }
+  .active-model-version {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .active-model-version span {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .version-evolution {
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 640px) {
+  #root > header {
+    flex-wrap: wrap !important;
+    gap: 10px;
+  }
+  #root > header .brand,
+  #root > header .badge,
+  #root > header > button {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #root > header > button {
+    margin-left: auto;
+  }
+  #root > header .model-version-switch {
+    order: 4;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+  #root > header .model-version-switch > span {
+    display: block;
+    white-space: nowrap;
+  }
+  #root > header .model-version-switch select {
+    flex: 1;
+    max-width: none;
+  }
+}
