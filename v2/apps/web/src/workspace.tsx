@@ -7,6 +7,7 @@ import {
   formatTime,
   DISPLAY_TIME_ZONE,
 } from "../../../packages/display";
+import { useReport } from "./use-report";
 import { LedgerReview } from "./ledger-review";
 import { TicketCards, StrategyBalances, DailyLedger } from "./ticket-cards";
 import { CurrentMarkets, MatchContext, QuoteHistory } from "./match-evidence";
@@ -35,40 +36,12 @@ const leagueName = (code: string, leagues: any[] = []) =>
   leagues.find((l) => l.code === code)?.name || code;
 const time = (x: any) => formatTime(x);
 function useData(api: Client, path: string, poll = 30000) {
-  const [data, setData] = useState<any>(),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(true);
-  const serial = useRef(0);
-  const refresh = async () => {
-    const id = ++serial.current;
-    setBusy(true);
-    try {
-      const value = await api(path);
-      if (serial.current === id) {
-        setData(value);
-        setError("");
-      }
-    } catch (e) {
-      if (serial.current === id) setError(String(e));
-    } finally {
-      if (serial.current === id) setBusy(false);
-    }
-  };
-  useEffect(() => {
-    const debounce = setTimeout(refresh, 180);
-    const timer = setInterval(refresh, poll);
-    return () => {
-      clearTimeout(debounce);
-      clearInterval(timer);
-      serial.current++;
-    };
-  }, [path]);
-  return { data, error, busy, refresh };
+  return useReport(api, path, 0, poll);
 }
 function LoadState({ error, data, busy }: any) {
   return (
     <div
-      className="ws-read-state"
+      className={"ws-read-state" + (data && !error ? " quiet" : "")}
       data-testid="load-status"
       data-loaded={data !== undefined}
       role={error ? "alert" : "status"}
@@ -76,8 +49,10 @@ function LoadState({ error, data, busy }: any) {
       {error
         ? `读取失败：${error}。${data ? "当前显示上次成功快照" : "可使用立即刷新重试"}`
         : busy
-          ? "正在同步本地记录…"
-          : `本地快照 ${fmt(data?.asOf)}`}
+          ? data
+            ? ""
+            : "正在读取战绩…"
+          : ""}
       <span className={busy ? "ws-live-dot working" : "ws-live-dot"} />
     </div>
   );
@@ -211,8 +186,7 @@ function Curve({ points, label }: any) {
       </label>
       <p className="ws-caption" aria-live="polite">
         第 {index + 1} 笔 · {fmt(chosen?.at)} · 累计净收益{" "}
-        {amount(chosen?.profitAtoms)} · 当时回撤 {amount(chosen?.drawdownAtoms)}{" "}
-        · {chosen?.id}
+        {amount(chosen?.profitAtoms)} · 当时回撤 {amount(chosen?.drawdownAtoms)}
       </p>
       <details className="ws-audit">
         <summary>曲线原始数据与回撤区间</summary>
@@ -415,7 +389,6 @@ export function ScheduleWorkspace({ api, mode }: Props) {
             className={view === v ? "selected" : "secondary"}
             onClick={() => {
               setView(v);
-              if (v === "TRACKED" && period === "RECENT") setPeriod("ALL");
               setStatus("ALL");
               setOffset(0);
             }}
@@ -1246,18 +1219,18 @@ export function HistoryWorkspace({
     ]),
   ];
   return (
-    <div className="workspace-page">
+    <div className={"workspace-page" + (ledger ? " ledger-clean" : "")}>
       <Head
         n={ledger ? "03 / LEDGER & REVIEW" : "02 / HISTORY"}
-        title={ledger ? "账本与复盘" : "历史中心"}
+        title={ledger ? "战绩与复盘" : "1.0历史中心"}
         text={
           ledger
             ? "哪场投了什么、赔率多少、赢了还是输了，逐票逐场展开。"
             : "保留过去的全部信息。历史可阅读，资格单独判断。"
         }
       >
-        <Link className="ws-button secondary" to="/archives">
-          原始档案与导入 ↗
+        <Link className="ws-button secondary" to="/strategies">
+          策略竞技场 ↗
         </Link>
         <button className="secondary" onClick={exportFiltered}>
           导出当前筛选 ↗
@@ -1268,10 +1241,10 @@ export function HistoryWorkspace({
       {ledger && (
         <div className="ws-ledger-modes">
           {[
-            ["LEGACY_IMPORT", "历史票 / Legacy"],
             ...(mode === "LOCAL_RESEARCH"
-              ? [["PAPER_RESEARCH", "2.0自动纸面票"]]
+              ? [["PAPER_RESEARCH", "2.0自动模拟"]]
               : [["PAPER", "DEMO测试票"]]),
+            ["LEGACY_IMPORT", "1.0存档战绩"],
           ].map(([v, l]) => (
             <button
               key={v}
@@ -1370,7 +1343,7 @@ export function HistoryWorkspace({
                 )
                 .join(" / ")}
             />
-            <Stat label="净收益（已知已结）" value={amount(s?.profitAtoms)} />
+            <Stat label="已结净收益" value={amount(s?.profitAtoms)} />
             <Stat
               label="ROI"
               value={pct(s?.roi)}
@@ -1381,19 +1354,18 @@ export function HistoryWorkspace({
               }
             />
             <Stat
-              label="当前未结 / 待复核"
+              label="当前未结"
               value={data?.exposure?.open ?? "—"}
               detail={`未结投入 ${amount(data?.exposure?.stakeAtoms)} · 包含前期未结`}
             />
             <Stat label="已结" value={s?.settled ?? "—"} />
             <Stat
-              label="最大净收益回撤"
+              label="最大回撤"
               value={amount(s?.maxDrawdownAtoms)}
               detail="以结算时间排序"
             />
           </div>
-          <details className="ws-panel ws-chart-panel">
-            <summary>资金曲线、回撤与跨期未结票</summary>
+          <section className="ws-panel ws-chart-panel">
             <div className="ws-bottom-links">
               <button
                 className="secondary"
@@ -1443,7 +1415,7 @@ export function HistoryWorkspace({
               </span>
             </div>
             <Curve points={s?.curve || []} label="当前筛选已结净收益曲线" />
-          </details>
+          </section>
           {s?.currencyMixed && (
             <p role="alert">
               当前包含多种币种，金额总计和ROI已禁用。请选择单一币种。
@@ -1451,30 +1423,7 @@ export function HistoryWorkspace({
           )}
         </>
       )}
-      {ledger && <LedgerReview review={data?.review} />}
-      {ledger && (
-        <DailyLedger
-          days={data?.daily}
-          onSelect={(day: string) => {
-            setFilters((f) => ({
-              ...f,
-              period: "ALL",
-              from: day,
-              to: day,
-              basis: "SETTLED",
-              record: "",
-            }));
-            setOffset(0);
-          }}
-        />
-      )}
-      {ledger && (
-        <StrategyBalances
-          strategies={data?.strategies}
-          selected={filters.strategy}
-          onSelect={change("strategy")}
-        />
-      )}
+
       <section className="ws-panel">
         <div className="ws-section-head">
           <h2>
@@ -1532,6 +1481,23 @@ export function HistoryWorkspace({
             ))}
           </div>
         )}
+        <div className="ledger-primary-filters">
+          <Select
+            label="策略"
+            value={filters.strategy}
+            onChange={change("strategy")}
+            values={options("strategy")}
+          />
+          <label className="ws-filter search">
+            <span>球队 / 对阵</span>
+            <input
+              aria-label="搜索战绩球队"
+              placeholder="搜索比赛…"
+              value={filters.q}
+              onChange={(e) => change("q")(e.target.value)}
+            />
+          </label>
+        </div>
         <details className="schedule-filters">
           <summary>筛选日期、策略、模型、赔率与状态</summary>
           <div className="ws-filters wrap">
@@ -1722,6 +1688,31 @@ export function HistoryWorkspace({
           </button>
         </div>
       </section>
+      {ledger && (
+        <details className="ws-panel ledger-more">
+          <summary>深入复盘 · 逐日对账与原始统计</summary>
+          <DailyLedger
+            days={data?.daily}
+            onSelect={(d: string) => {
+              setFilters((f) => ({
+                ...f,
+                period: "ALL",
+                from: d,
+                to: d,
+                basis: "SETTLED",
+                record: "",
+              }));
+              setOffset(0);
+            }}
+          />
+          <StrategyBalances
+            strategies={data?.strategies}
+            selected={filters.strategy}
+            onSelect={change("strategy")}
+          />
+          <LedgerReview review={data?.review} />
+        </details>
+      )}
       {detail && (
         <section
           className="ws-panel ws-selected-record"
@@ -1809,7 +1800,46 @@ export function HistoryWorkspace({
     </div>
   );
 }
-export function LaboratoryWorkspace({ api }: Props) {
+export function LaboratoryWorkspace({ api, mode }: Props) {
+  const [tab, setTab] = useState(
+    window.location.hash === "#parallel" ? "FORWARD" : "GENERAL",
+  );
+  return (
+    <div className="workspace-page lab-clean">
+      <Head
+        n="MODEL LABORATORY"
+        title="模型实验室"
+        text="看清每种算法的样本、表现和局限，再决定下一步研究。"
+      >
+        <Link className="ws-button secondary" to="/strategies">
+          策略实战收益 ↗
+        </Link>
+      </Head>
+      <div className="ws-pills lab-tabs" aria-label="模型实验室视图">
+        {[
+          ["GENERAL", "通用模型"],
+          ["FORWARD", "V6与旧V2 · 前瞻对照"],
+          ["HISTORICAL", "V6 / V7 / 市场 · 历史研究"],
+        ].map(([v, l]) => (
+          <button
+            key={v}
+            aria-pressed={tab === v}
+            className={tab === v ? "selected" : "secondary"}
+            onClick={() => setTab(v)}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      {tab === "GENERAL" && <GeneralLaboratory api={api} />}
+      {tab === "FORWARD" && <ComparisonPanel api={api} />}
+      {tab === "HISTORICAL" && (
+        <HistoricalLaboratoryWorkspace api={api} mode={mode} />
+      )}
+    </div>
+  );
+}
+function HistoricalLaboratoryWorkspace({ api }: Props) {
   const [season, setSeason] = useState("ALL"),
     [league, setLeague] = useState("ALL"),
     [odds, setOdds] = useState("ALL"),
@@ -1865,10 +1895,6 @@ export function LaboratoryWorkspace({ api }: Props) {
           模型登记与冻结评估 ↗
         </Link>
       </Head>
-      <div id="parallel">
-        <GeneralLaboratory api={api} />
-        <ComparisonPanel api={api} />
-      </div>
       <LoadState {...state} />
       <div className="ws-note">
         历史固定重放 · 档案导出截止 {fmt(data?.sourceCutoffAt)}；比赛样本截止{" "}

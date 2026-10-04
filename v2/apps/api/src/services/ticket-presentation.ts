@@ -88,6 +88,8 @@ export function paperLeg(r: any) {
 export function legacyTicket(r: any) {
   const legs = (r.raw?.legs ?? []).map((l: any, index: number) => ({
     ...l,
+    homeLogo: l.homeLogo ?? r.legLogos?.[index]?.homeLogo,
+    awayLogo: l.awayLogo ?? r.legLogos?.[index]?.awayLogo,
     fixtureId: r.fixtureLinks?.[index]?.id ?? null,
     selectionLabel:
       l.pickName ??

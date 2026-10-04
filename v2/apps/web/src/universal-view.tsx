@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { teamName, formatDate } from "../../../packages/display";
+import { useReport } from "./use-report";
 type Client = (path: string, body?: unknown, key?: string) => Promise<any>;
 const pct = (v: any) => (v == null ? "—" : (Number(v) * 100).toFixed(1) + "%");
 const money = (v: any) =>
@@ -28,31 +29,6 @@ export function planName(p: any, r: any) {
         " " +
         (p.lineQ > 0 ? "+" : "") +
         line;
-}
-function useReport(api: Client, path: string, revision = 0) {
-  const [data, setData] = useState<any>(),
-    [error, setError] = useState("");
-  useEffect(() => {
-    let live = true;
-    const refresh = () =>
-      api(path)
-        .then((r) => {
-          if (live) {
-            setData(r);
-            setError("");
-          }
-        })
-        .catch((e) => {
-          if (live) setError(String(e));
-        });
-    refresh();
-    const timer = setInterval(refresh, 30000);
-    return () => {
-      live = false;
-      clearInterval(timer);
-    };
-  }, [api, path, revision]);
-  return { data, error };
 }
 function PlanCard({ r, p, value }: any) {
   return (
@@ -406,7 +382,7 @@ export function GeneralLaboratory({ api }: { api: Client }) {
                   </Link>
                   <small>
                     {p.strategyVersion}
-                    {p.strategyVersion.endsWith("V1") ? " · 初版已暂停" : ""}
+                    {p.retired ? " · 初版已暂停" : ""}
                   </small>
                 </td>
                 <td>{p.metrics.count}</td>
@@ -506,213 +482,5 @@ export function GeneralLaboratory({ api }: { api: Client }) {
         </details>
       ))}
     </section>
-  );
-}
-export function StrategiesWorkspace({ api }: { api: Client }) {
-  const [revision, setRevision] = useState(0);
-  const { data: policies, error } = useReport(
-      api,
-      "/workspace/paper-policies",
-      revision,
-    ),
-    { data: settings } = useReport(api, "/workspace/settings");
-  const [notice, setNotice] = useState(""),
-    [busy, setBusy] = useState("");
-  async function update(
-    p: any,
-    enabled: boolean,
-    maximumPerDay = p.maximumPerDay,
-  ) {
-    setBusy(p.id);
-    setNotice("");
-    try {
-      await api("/workspace/paper-policies", {
-        id: p.id,
-        enabled,
-        maximumPerDay,
-        expectedRevision: p.revision,
-      });
-      setNotice("设置已保存，下次自动任务按新设置执行；原票保持冻结。");
-      setRevision((n) => n + 1);
-    } catch (e) {
-      setNotice(String(e));
-    } finally {
-      setBusy("");
-    }
-  }
-  return (
-    <div className="workspace-page">
-      <div className="ws-head">
-        <div>
-          <p className="eyebrow">MAHORAGA / 07 / PAPER STRATEGIES</p>
-          <h1>
-            模拟策略<span className="ws-title-dot">.</span>
-          </h1>
-          <p className="ws-deck">
-            比赛自动分析、参考价纸面记录、赛果复核和结算。金额为虚拟单位，各策略单独记账。
-          </p>
-        </div>
-        <div className="ws-head-actions">
-          <Link
-            className="ws-button secondary"
-            to="/ledger?mode=PAPER_RESEARCH"
-          >
-            查看自动纸面账本 ↗
-          </Link>
-        </div>
-      </div>
-      {error && <p role="alert">{error}</p>}
-      <p role="status">{notice}</p>
-      <div className="general-cards">
-        {policies
-          ?.filter((p: any) => !p.strategyVersion.endsWith("V1"))
-          .map((p: any) => (
-            <article className="general-card" key={p.id}>
-              <div className="general-card-top">
-                <h3>
-                  {p.label}
-                  {p.strategyVersion.endsWith("V1") ? "（初版已暂停新增）" : ""}
-                </h3>
-                <span>{p.enabled ? "自动运行" : "暂停新增"}</span>
-              </div>
-              <p>
-                {p.id.endsWith("all-singles")
-                  ? "每场记录最可能的胜平负方向；可以为负EV，仅用于比较，不能称为价值策略。"
-                  : p.id.endsWith("forced-fun")
-                    ? "各玩法记录一个最可能方向；可为负EV，只作研究对照，不能作为价值推荐。"
-                    : p.id.endsWith("double")
-                      ? "两场均须通过价值门槛，胜平负保守概率至少50%、赔率不超过2.50；不同赛事且开赛相隔至少12小时。没有合格组合就不凑单。"
-                      : "保守EV8%–20%、概率至少40%、参考赔率1.20–3.00、研究排序至少75分；缺独立攻防证据不出票。"}
-              </p>
-              <dl>
-                <div>
-                  <dt>虚拟余额</dt>
-                  <dd>{money(p.available)}</dd>
-                </div>
-                <div>
-                  <dt>累计票数</dt>
-                  <dd>{p.ticketN}</dd>
-                </div>
-                <div>
-                  <dt>已结净收益</dt>
-                  <dd>{money(p.realized)}</dd>
-                </div>
-              </dl>
-              <label>
-                每日上限{" "}
-                <select
-                  aria-label={p.label + "每日上限"}
-                  value={p.maximumPerDay}
-                  disabled={busy === p.id || p.strategyVersion.endsWith("V1")}
-                  onChange={(e) =>
-                    update(p, !!p.enabled, Number(e.target.value))
-                  }
-                >
-                  {[...new Set([1, 5, 10, 20, 60, 100, p.maximumPerDay])]
-                    .sort((a, b) => a - b)
-                    .map((n) => (
-                      <option key={n} value={n}>
-                        {n} 单
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <button
-                disabled={busy === p.id || p.strategyVersion.endsWith("V1")}
-                onClick={() => update(p, !p.enabled)}
-              >
-                {p.strategyVersion.endsWith("V1")
-                  ? "初版停止新增"
-                  : p.enabled
-                    ? "暂停新票"
-                    : "恢复新票"}
-              </button>
-              <Link
-                to={
-                  "/ledger?mode=PAPER_RESEARCH&strategy=" +
-                  encodeURIComponent(p.portfolioId)
-                }
-              >
-                查看该策略账本 →
-              </Link>
-            </article>
-          ))}
-      </div>
-      <details className="ws-panel">
-        <summary>初版通用研究的原票与账户 · 已停止新增</summary>
-        <p>
-          初版盘口与胜平负概率存在口径不一致，已停止新增；原记录作为审计证据保留，不计入当前方法的效果。
-        </p>
-        {policies
-          ?.filter((p: any) => p.strategyVersion.endsWith("V1"))
-          .map((p: any) => (
-            <p key={p.id}>
-              {p.label} · {p.ticketN}票 · 已结净收益 {money(p.realized)}虚拟单位
-              ·{" "}
-              <Link
-                to={
-                  "/ledger?mode=PAPER_RESEARCH&strategy=" +
-                  encodeURIComponent(p.portfolioId)
-                }
-              >
-                查看原始账本 →
-              </Link>
-            </p>
-          ))}
-      </details>
-      <section className="ws-panel">
-        <h2>旧版十策略对照</h2>
-        <p>
-          旧票保留在历史账本。原来启用的六种策略恢复独立自动纸面流程；新算法与旧算法独立计量。原版暂停的四种继续只读，不因迁移恢复新增。
-        </p>
-        <div className="ws-table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>旧版策略</th>
-                <th>2.0运行状态</th>
-                <th>旧设置</th>
-                <th>历史票</th>
-              </tr>
-            </thead>
-            <tbody>
-              {settings?.strategies?.map((p: any) => (
-                <tr key={p.id}>
-                  <td>{p.name || p.label || p.id}</td>
-                  <td>
-                    {policies?.some((x: any) => x.id.endsWith(p.id))
-                      ? "已恢复独立自动纸面流程"
-                      : [
-                            "totals-baseline",
-                            "totals-poisson",
-                            "treble",
-                            "mixed-double",
-                          ].includes(p.id)
-                        ? "沿用旧版只读 / 暂停"
-                        : "部分：历史与设置已恢复，新出票尚未接通"}
-                  </td>
-                  <td>
-                    {p.enabled ? "原设置启用" : "原设置暂停"} ·{" "}
-                    {p.maxTickets ?? "—"} 单/日
-                  </td>
-                  <td>
-                    <Link
-                      to={
-                        "/ledger?mode=LEGACY_IMPORT&period=ALL&strategy=" +
-                        encodeURIComponent(p.id)
-                      }
-                    >
-                      查看原票 →
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <Link to="/ledger?mode=PAPER_RESEARCH">打开2.0自动纸面账本 →</Link>
-      <Link to="/workbench">回到比赛与推荐 →</Link>
-    </div>
   );
 }

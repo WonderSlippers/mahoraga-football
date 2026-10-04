@@ -304,11 +304,18 @@ export async function historyRows(db: D1Database) {
   );
   if (records.length > 10000) throw Error("HISTORY_CAPACITY_REQUIRES_PAGING");
   const linked = new Map<string, any[]>();
+  const logos = new Map<string, string>();
+  const logoKey = (name: string, league: string) =>
+    league + "|" + teamName(name, league);
   for (const cat of await rows(
     db,
-    "SELECT fixtureId,dataJson FROM fixture_catalog",
+    "SELECT fixtureId,competition,json_object('archiveIds',json_extract(dataJson,'$.archiveIds'),'home',json_extract(dataJson,'$.home'),'away',json_extract(dataJson,'$.away'),'homeLogo',json_extract(dataJson,'$.homeLogo'),'awayLogo',json_extract(dataJson,'$.awayLogo')) dataJson FROM fixture_catalog ORDER BY lastCapturedAt",
   )) {
     const f = parse(cat.dataJson, {});
+    for (const side of ["home", "away"]) {
+      if (f[side] && f[side + "Logo"])
+        logos.set(logoKey(f[side], cat.competition), f[side + "Logo"]);
+    }
     for (const id of new Set(f.archiveIds || []))
       linked.set(String(id), [
         ...(linked.get(String(id)) || []),
@@ -402,6 +409,10 @@ export async function historyRows(db: D1Database) {
       return {
         id: a.id,
         fixtureLinks: linked.get(a.id) || [],
+        legLogos: legs.map((l: any) => ({
+          homeLogo: logos.get(logoKey(l.home ?? "", l.leagueCode ?? "")),
+          awayLogo: logos.get(logoKey(l.away ?? "", l.leagueCode ?? "")),
+        })),
         kind: a.kind,
         mode: "LEGACY_IMPORT",
         title:
@@ -487,13 +498,17 @@ export async function ledgerRows(db: D1Database, mode: string) {
   }
   const x = await rows(
     db,
-    "SELECT t.*,s.currentStatus,s.gross,l.predictionId,l.frozenOdds,l.selection,l.marketSpecJson,r.fixtureId,r.kickoffAt,f.home,f.away,p.modelId,c.competition,d.strategyVersion,pp.label strategyLabel,a.id adjudicationId,a.state adjudicationState,a.regulationJson,q.providerId quoteProvider,q.observedAt quoteObservedAt,(SELECT MAX(at) FROM settlement_events se WHERE se.ticketId=t.id) settledAt FROM tickets t JOIN ticket_state s ON s.ticketId=t.id JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions r ON r.id=l.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN predictions p ON p.id=l.predictionId JOIN decisions d ON d.id=t.decisionId JOIN quote_selections qs ON qs.id=l.quoteSelectionId JOIN quote_sets q ON q.id=qs.quoteSetId LEFT JOIN fixture_catalog c ON c.fixtureId=f.id LEFT JOIN paper_policies pp ON pp.portfolioId=t.portfolioId LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(ar.revision) FROM result_adjudications ar WHERE ar.fixtureId=r.fixtureId) WHERE t.origin=? ORDER BY t.createdAt,l.rowid LIMIT 10001",
+    "SELECT t.*,s.currentStatus,s.gross,l.predictionId,l.frozenOdds,l.selection,l.marketSpecJson,r.fixtureId,r.kickoffAt,f.home,f.away,p.modelId,c.competition,json_object('homeLogo',json_extract(c.dataJson,'$.homeLogo'),'awayLogo',json_extract(c.dataJson,'$.awayLogo')) teamLogos,d.strategyVersion,pp.label strategyLabel,a.id adjudicationId,a.state adjudicationState,a.regulationJson,q.providerId quoteProvider,q.observedAt quoteObservedAt,(SELECT MAX(at) FROM settlement_events se WHERE se.ticketId=t.id) settledAt FROM tickets t JOIN ticket_state s ON s.ticketId=t.id JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions r ON r.id=l.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN predictions p ON p.id=l.predictionId JOIN decisions d ON d.id=t.decisionId JOIN quote_selections qs ON qs.id=l.quoteSelectionId JOIN quote_sets q ON q.id=qs.quoteSetId LEFT JOIN fixture_catalog c ON c.fixtureId=f.id LEFT JOIN paper_policies pp ON pp.portfolioId=t.portfolioId LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(ar.revision) FROM result_adjudications ar WHERE ar.fixtureId=r.fixtureId) WHERE t.origin=? ORDER BY t.createdAt,l.rowid LIMIT 10001",
     mode === "PAPER_RESEARCH" ? "PAPER_RESEARCH" : "DEMO",
   );
   if (x.length > 10000) throw Error("LEDGER_CAPACITY_REQUIRES_PAGING");
   const grouped = new Map<string, any>();
   for (const r of x) {
-    const leg = { ...paperLeg(r), title: r.home + " — " + r.away };
+    const leg = {
+      ...paperLeg(r),
+      ...parse(r.teamLogos, {}),
+      title: r.home + " — " + r.away,
+    };
     const existing = grouped.get(r.id);
     if (existing) existing.legs.push(leg);
     else grouped.set(r.id, { ...r, legs: [leg] });
@@ -849,26 +864,41 @@ export function fixtureScore(f: any, now: number) {
   };
 }
 export async function workspaceSchedule(c: Context, p: URLSearchParams) {
-  const all = await rows(
+  const catalog = await rows(
     c.db,
     "SELECT f.*,r.id revisionId,r.kickoffAt,COALESCE(cat.competition,src.competition,'DEMO') competition,COALESCE(cat.season,src.season) season,json_remove(cat.dataJson,'$.legacyMarkets','$.statistics','$.venue','$.detail.news','$.detail.standings','$.detail.summaryOdds','$.detail.venue') dataJson,cat.lastCapturedAt,cat.sourceUrl,0 predictionCount,0 accepted,NULL quoteAt,0 failedJobs FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN fixture_sources src ON src.fixtureId=f.id ORDER BY r.kickoffAt,f.id LIMIT 10001",
   );
-  if (all.length > 10000) throw Error("SCHEDULE_CAPACITY_REQUIRES_PAGING");
+  if (catalog.length > 10000) throw Error("SCHEDULE_CAPACITY_REQUIRES_PAGING");
+  // Date/league scope is independent of model decisions. Do not scan unrelated history on every navigation.
+  const all = catalog.filter(
+    (f) =>
+      (!p.get("from") || localDay(f.kickoffAt) >= p.get("from")!) &&
+      (!p.get("to") || localDay(f.kickoffAt) <= p.get("to")!) &&
+      (!p.get("league") ||
+        p.get("league") === "ALL" ||
+        f.competition === p.get("league")),
+  );
+  const fixtureScope = JSON.stringify(all.map((f) => f.id)),
+    revisionScope = JSON.stringify(all.map((f) => f.revisionId));
   const frozen = await rows(
     c.db,
-    "WITH latest AS (SELECT pr.fixtureRevisionId,MAX(b.cutoffAt) cutoffAt FROM predictions pr JOIN feature_snapshots fs INDEXED BY feature_bundle_lookup ON fs.id=pr.featureSnapshotId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=fs.bundleId GROUP BY pr.fixtureRevisionId), current AS MATERIALIZED (SELECT pr.id,pr.modelId,pr.centralJson,fr.fixtureId,b.cutoffAt,b.quoteSetId FROM predictions pr JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN latest lp ON lp.fixtureRevisionId=pr.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision JOIN feature_snapshots fs INDEXED BY feature_bundle_lookup ON fs.id=pr.featureSnapshotId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=fs.bundleId WHERE lp.cutoffAt=b.cutoffAt) SELECT pr.id predictionId,pr.fixtureId,pr.modelId,pr.centralJson,pr.cutoffAt,qs.observedAt quoteAt,sel.selection,sel.decimalOdds,e.ev,e.probability,d.accepted,d.reason FROM current pr JOIN quote_sets qs ON qs.id=pr.quoteSetId JOIN market_expectations e ON e.predictionId=pr.id JOIN quote_selections sel ON sel.id=e.quoteSelectionId JOIN decisions d ON d.expectationId=e.id ORDER BY pr.cutoffAt DESC,e.ev DESC",
+    "WITH latest AS MATERIALIZED(SELECT pr.fixtureRevisionId,MAX(b.cutoffAt) cutoffAt FROM predictions pr JOIN input_bundles b ON b.slotId=pr.slotId WHERE pr.fixtureRevisionId IN(SELECT value FROM json_each(?)) GROUP BY pr.fixtureRevisionId), current AS MATERIALIZED (SELECT pr.id,pr.modelId,pr.centralJson,fr.fixtureId,b.cutoffAt,b.quoteSetId FROM predictions pr JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN latest lp ON lp.fixtureRevisionId=pr.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision JOIN input_bundles b ON b.slotId=pr.slotId WHERE lp.cutoffAt=b.cutoffAt) SELECT pr.id predictionId,pr.fixtureId,pr.modelId,pr.centralJson,pr.cutoffAt,qs.observedAt quoteAt,sel.selection,sel.decimalOdds,e.ev,e.probability,d.accepted,d.reason FROM current pr JOIN quote_sets qs ON qs.id=pr.quoteSetId JOIN market_expectations e ON e.predictionId=pr.id JOIN quote_selections sel ON sel.id=e.quoteSelectionId JOIN decisions d ON d.expectationId=e.id ORDER BY pr.cutoffAt DESC,e.ev DESC",
+    revisionScope,
   );
   const predictionCounts = await rows(
     c.db,
-    "SELECT fixtureRevisionId,COUNT(*) predictionCount FROM predictions GROUP BY fixtureRevisionId",
+    "SELECT fixtureRevisionId,COUNT(*) predictionCount FROM predictions WHERE fixtureRevisionId IN(SELECT value FROM json_each(?)) GROUP BY fixtureRevisionId",
+    revisionScope,
   );
   const acceptedCounts = await rows(
     c.db,
-    "SELECT pr.fixtureRevisionId,COUNT(*) accepted FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId WHERE d.accepted=1 AND d.reason<>'PAPER_BENCHMARK_NOT_VALUE' GROUP BY pr.fixtureRevisionId",
+    "SELECT pr.fixtureRevisionId,COUNT(*) accepted FROM decisions d INDEXED BY decision_value_read CROSS JOIN market_expectations e ON e.id=d.expectationId CROSS JOIN predictions pr ON pr.id=e.predictionId WHERE pr.fixtureRevisionId IN(SELECT value FROM json_each(?)) AND d.accepted=1 AND d.reason NOT IN('PAPER_BENCHMARK_NOT_VALUE','PAPER_ENTERTAINMENT_NOT_VALUE') GROUP BY pr.fixtureRevisionId",
+    revisionScope,
   );
   const quoteTimes = await rows(
     c.db,
-    "SELECT m.fixtureId,MAX(q.observedAt) quoteAt FROM market_definitions m JOIN quote_sets q ON q.marketId=m.id GROUP BY m.fixtureId",
+    "SELECT m.fixtureId,MAX(q.observedAt) quoteAt FROM market_definitions m JOIN quote_sets q ON q.marketId=m.id WHERE m.fixtureId IN(SELECT value FROM json_each(?)) GROUP BY m.fixtureId",
+    fixtureScope,
   );
   const byRevision = new Map(
       predictionCounts.map((r) => [r.fixtureRevisionId, r]),
@@ -883,28 +913,32 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   }
   const failures = await rows(
     c.db,
-    "WITH general_fixtures AS (SELECT DISTINCT gr.fixtureId FROM jobs gj JOIN input_bundles gb ON gb.id=gj.bundleId JOIN observation_slots gs ON gs.id=gb.slotId JOIN fixture_revisions gr ON gr.id=gs.fixtureRevisionId WHERE gj.modelId='GENERAL_FOOTBALL_RESEARCH_V2') SELECT fixtureId,COUNT(*) failedJobs FROM (SELECT fr.fixtureId,j.state,b.cutoffAt,MAX(b.cutoffAt) OVER(PARTITION BY fr.fixtureId,j.modelId) latestCutoff FROM jobs j JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision WHERE j.modelId='GENERAL_FOOTBALL_RESEARCH_V2' OR j.modelId IN('MARKET_PROPORTIONAL_V1','RECENT_FORM_MARKET80_RESEARCH_V1','DEMO_FIXED_CENTRAL_V1') AND fr.fixtureId NOT IN(SELECT fixtureId FROM general_fixtures)) WHERE cutoffAt=latestCutoff AND state='FAILED' GROUP BY fixtureId",
+    "SELECT fr.fixtureId,COUNT(*) failedJobs FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision WHERE fr.fixtureId IN(SELECT value FROM json_each(?)) AND j.state='FAILED' AND (j.modelId='GENERAL_FOOTBALL_RESEARCH_V2' OR j.modelId IN('MARKET_PROPORTIONAL_V1','RECENT_FORM_MARKET80_RESEARCH_V1','DEMO_FIXED_CENTRAL_V1') AND NOT EXISTS(SELECT 1 FROM jobs gj JOIN input_bundles gb ON gb.id=gj.bundleId JOIN observation_slots gs ON gs.id=gb.slotId JOIN fixture_revisions gr ON gr.id=gs.fixtureRevisionId WHERE gj.modelId='GENERAL_FOOTBALL_RESEARCH_V2' AND gr.fixtureId=fr.fixtureId)) AND b.cutoffAt=(SELECT MAX(b2.cutoffAt) FROM jobs j2 JOIN input_bundles b2 ON b2.id=j2.bundleId JOIN observation_slots s2 ON s2.id=b2.slotId JOIN fixture_revisions r2 ON r2.id=s2.fixtureRevisionId JOIN fixtures f2 ON f2.id=r2.fixtureId AND f2.currentRevision=r2.revision WHERE r2.fixtureId=fr.fixtureId AND j2.modelId=j.modelId) GROUP BY fr.fixtureId",
+    fixtureScope,
   );
   for (const f of all)
     f.failedJobs = failures.find((r) => r.fixtureId === f.id)?.failedJobs ?? 0;
   const tracked = await rows(
     c.db,
-    "SELECT * FROM (SELECT pr.id predictionId,fr.fixtureId,pr.modelId,b.cutoffAt,qs.observedAt quoteAt,sel.selection,sel.decimalOdds,e.ev,e.probability,ROW_NUMBER() OVER(PARTITION BY fr.fixtureId ORDER BY b.cutoffAt,e.ev DESC,e.id) n FROM predictions pr JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN feature_snapshots fs INDEXED BY feature_bundle_lookup ON fs.id=pr.featureSnapshotId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=fs.bundleId JOIN quote_sets qs ON qs.id=b.quoteSetId JOIN market_expectations e ON e.predictionId=pr.id JOIN quote_selections sel ON sel.id=e.quoteSelectionId JOIN decisions d ON d.expectationId=e.id WHERE pr.modelId='RECENT_FORM_MARKET80_RESEARCH_V1' AND d.accepted=1 AND pr.calculatedAt<fr.kickoffAt AND b.cutoffAt<fr.kickoffAt) WHERE n=1",
+    "SELECT * FROM (SELECT pr.id predictionId,fr.fixtureId,pr.modelId,b.cutoffAt,qs.observedAt quoteAt,sel.selection,sel.decimalOdds,e.ev,e.probability,ROW_NUMBER() OVER(PARTITION BY fr.fixtureId ORDER BY b.cutoffAt,e.ev DESC,e.id) n FROM decisions d INDEXED BY decision_accepted_read CROSS JOIN market_expectations e ON e.id=d.expectationId CROSS JOIN predictions pr ON pr.id=e.predictionId JOIN fixture_revisions fr ON fr.id=pr.fixtureRevisionId JOIN input_bundles b ON b.slotId=pr.slotId JOIN quote_sets qs ON qs.id=b.quoteSetId JOIN quote_selections sel ON sel.id=e.quoteSelectionId WHERE fr.fixtureId IN(SELECT value FROM json_each(?)) AND pr.modelId='RECENT_FORM_MARKET80_RESEARCH_V1' AND d.accepted=1 AND pr.calculatedAt<fr.kickoffAt AND b.cutoffAt<fr.kickoffAt) WHERE n=1",
+    fixtureScope,
   );
   const parallel = await rows(
     c.db,
-    "SELECT * FROM (SELECT o.id,o.methodId,o.outputJson,b.cutoffAt,q.observedAt quoteAt,r.fixtureId,ROW_NUMBER() OVER(PARTITION BY r.fixtureId,o.methodId ORDER BY o.calculatedAt DESC,o.id DESC) n FROM comparison_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE o.state='DONE' AND json_array_length(o.outputJson,'$.actions')>0 AND o.calculatedAt<r.kickoffAt) WHERE n=1",
+    "SELECT * FROM (SELECT o.id,o.methodId,o.outputJson,b.cutoffAt,q.observedAt quoteAt,r.fixtureId,ROW_NUMBER() OVER(PARTITION BY r.fixtureId,o.methodId ORDER BY o.calculatedAt DESC,o.id DESC) n FROM comparison_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b INDEXED BY bundle_cutoff_lookup ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE r.fixtureId IN(SELECT value FROM json_each(?)) AND o.state='DONE' AND json_array_length(o.outputJson,'$.actions')>0 AND o.calculatedAt<r.kickoffAt) WHERE n=1",
+    fixtureScope,
   );
   const general = await rows(
     c.db,
-    "SELECT * FROM (SELECT o.id,o.outputJson,r.fixtureId,r.kickoffAt,o.calculatedAt,b.cutoffAt,q.observedAt quoteAt,ROW_NUMBER() OVER(PARTITION BY r.fixtureId ORDER BY o.calculatedAt,o.id) n FROM universal_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE json_extract(o.outputJson,'$.variant')=? AND o.calculatedAt<r.kickoffAt AND EXISTS(SELECT 1 FROM json_each(o.outputJson,'$.plans') p WHERE json_extract(p.value,'$.isValue')=1 AND json_extract(p.value,'$.accepted')=1)) WHERE n=1",
+    "WITH eligible AS MATERIALIZED(SELECT DISTINCT o.id,o.calculatedAt,r.fixtureId,r.kickoffAt FROM decisions d INDEXED BY decision_value_read CROSS JOIN market_expectations e ON e.id=d.expectationId CROSS JOIN universal_observations o ON o.predictionId=e.predictionId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN jobs j ON j.id=o.jobId WHERE d.accepted=1 AND d.reason NOT IN('PAPER_BENCHMARK_NOT_VALUE','PAPER_ENTERTAINMENT_NOT_VALUE') AND d.reason='UNVALIDATED_PAPER_VALUE' AND j.modelId=? AND r.fixtureId IN(SELECT value FROM json_each(?)) AND o.calculatedAt<r.kickoffAt), ranked AS(SELECT id,ROW_NUMBER() OVER(PARTITION BY fixtureId ORDER BY calculatedAt,id) n FROM eligible) SELECT o.id,o.outputJson,r.fixtureId,r.kickoffAt,o.calculatedAt,b.cutoffAt,q.observedAt quoteAt FROM ranked x JOIN universal_observations o ON o.id=x.id JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE x.n=1",
     UNIVERSAL_ID,
+    fixtureScope,
   );
   const generalLatest = await rows(
     c.db,
-    "SELECT o.*,r.fixtureId,b.cutoffAt,q.observedAt quoteAt FROM universal_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE json_extract(o.outputJson,'$.variant')=? AND o.rowid IN(SELECT MAX(x.rowid) FROM universal_observations x JOIN fixture_revisions fr ON fr.id=x.fixtureRevisionId WHERE json_extract(x.outputJson,'$.variant')=? GROUP BY fr.fixtureId)",
+    "WITH newest AS MATERIALIZED(SELECT MAX(x.rowid) rowId FROM universal_observations x JOIN fixture_revisions fr ON fr.id=x.fixtureRevisionId JOIN jobs jx ON jx.id=x.jobId WHERE jx.modelId=? AND fr.fixtureId IN(SELECT value FROM json_each(?)) GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,b.cutoffAt,q.observedAt quoteAt FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId",
     UNIVERSAL_ID,
-    UNIVERSAL_ID,
+    fixtureScope,
   );
   const results = await rows(
     c.db,
@@ -1204,7 +1238,7 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   return {
     items: filtered.slice(offset, offset + 40).map(scheduleView),
     total: filtered.length,
-    totalKnown: all.length,
+    totalKnown: catalog.length,
     lifecycleCounts: {
       ACTIVE: base.filter((f) => live(f) || upcoming(f)).length,
       UPCOMING: base.filter(upcoming).length,
@@ -1224,7 +1258,7 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
       (a: any, f: any) => ((a[f.state] = (a[f.state] || 0) + 1), a),
       {},
     ),
-    leagues: [...new Set(records.map((f) => f.competition))],
+    leagues: [...new Set(catalog.map((f) => f.competition))],
     candidateCounts: {
       research: filtered.filter((f) => f.state === "CANDIDATE").length,
       strict: 0,
@@ -1291,13 +1325,20 @@ export async function workspaceFixture(c: Context, id: string) {
     "SELECT p.*,b.cutoffAt,b.manifestHash,b.quoteSetId,b.canonical featureCanonical FROM predictions p JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN observation_slots s ON s.id=p.slotId JOIN input_bundles b ON b.slotId=s.id WHERE r.fixtureId=? ORDER BY p.calculatedAt DESC",
     id,
   );
+  const expectations = await rows(
+    c.db,
+    "SELECT e.*,qs.selection,qs.decimalOdds,d.accepted,d.reason FROM market_expectations e JOIN predictions p ON p.id=e.predictionId JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN quote_selections qs ON qs.id=e.quoteSelectionId LEFT JOIN decisions d ON d.expectationId=e.id WHERE r.fixtureId=?",
+    id,
+  );
+  const grouped = new Map<string, any[]>();
+  for (const e of expectations) {
+    const list = grouped.get(e.predictionId) ?? [];
+    list.push(e);
+    grouped.set(e.predictionId, list);
+  }
   for (const pr of predictions) {
     pr.central = parse(pr.centralJson);
-    pr.expectations = await rows(
-      c.db,
-      "SELECT e.*,qs.selection,qs.decimalOdds,d.accepted,d.reason FROM market_expectations e JOIN quote_selections qs ON qs.id=e.quoteSelectionId LEFT JOIN decisions d ON d.expectationId=e.id WHERE e.predictionId=?",
-      pr.id,
-    );
+    pr.expectations = grouped.get(pr.id) ?? [];
   }
   const quoteRows = await rows(
     c.db,
@@ -1697,18 +1738,18 @@ export async function modelLaboratory(c: Context, p: URLSearchParams) {
   });
   const captures = await rows(
     c.db,
-    "SELECT p.id,p.modelId,p.calculatedAt,r.fixtureId,r.kickoffAt,q.observedAt,q.providerUpdatedAt,q.phase,src.mode captureMode,b.cutoffAt,m.manifestJson,(SELECT status FROM model_registry_events e WHERE e.modelId=p.modelId AND e.at<=p.calculatedAt ORDER BY e.at DESC LIMIT 1) registryStatus,a.regulationJson FROM predictions p JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN feature_snapshots f ON f.id=p.featureSnapshotId JOIN input_bundles b ON b.id=f.bundleId JOIN quote_sets q ON q.id=b.quoteSetId JOIN source_snapshots src ON src.id=q.sourceSnapshotId JOIN model_manifests m ON m.id=p.modelId LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(revision) FROM result_adjudications WHERE fixtureId=r.fixtureId) WHERE p.calculatedAt<r.kickoffAt AND p.calculatedAt<=? ORDER BY b.cutoffAt DESC",
+    "SELECT p.id,p.modelId,p.calculatedAt,r.fixtureId,r.kickoffAt,q.observedAt,q.providerUpdatedAt,q.phase,src.mode captureMode,b.cutoffAt,json_extract(m.manifestJson,'$.trainCutoffAt') trainCutoffAt,instr(m.manifestJson,'RETROSPECTIVE') retrospective,(SELECT status FROM model_registry_events e WHERE e.modelId=p.modelId AND e.at<=p.calculatedAt ORDER BY e.at DESC LIMIT 1) registryStatus,a.regulationJson FROM predictions p JOIN fixture_revisions r ON r.id=p.fixtureRevisionId JOIN feature_snapshots f ON f.id=p.featureSnapshotId JOIN input_bundles b ON b.id=f.bundleId JOIN quote_sets q ON q.id=b.quoteSetId JOIN source_snapshots src ON src.id=q.sourceSnapshotId JOIN model_manifests m ON m.id=p.modelId LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(revision) FROM result_adjudications WHERE fixtureId=r.fixtureId) WHERE p.calculatedAt<r.kickoffAt AND p.calculatedAt<=? ORDER BY b.cutoffAt DESC",
     c.now,
   );
   const strict = captures.filter(
     (r) =>
       r.registryStatus === "SHADOW" &&
       r.captureMode === "LOCAL_RESEARCH" &&
-      !JSON.stringify(parse(r.manifestJson, {})).includes("RETROSPECTIVE") &&
+      !r.retrospective &&
       r.phase === "PREMATCH_OBSERVED" &&
       r.providerUpdatedAt !== null &&
-      stamp(parse(r.manifestJson, {}).trainCutoffAt) !== null &&
-      stamp(parse(r.manifestJson, {}).trainCutoffAt)! < r.cutoffAt &&
+      stamp(r.trainCutoffAt) !== null &&
+      stamp(r.trainCutoffAt)! < r.cutoffAt &&
       r.providerUpdatedAt <= r.cutoffAt &&
       r.observedAt <= r.cutoffAt &&
       r.cutoffAt <= r.calculatedAt &&

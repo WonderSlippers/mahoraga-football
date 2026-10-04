@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { teamName, formatDate } from "../../../packages/display";
+import { TeamBadge } from "./schedule-view";
 const labels: Record<string, string> = {
   WIN: "赢",
   LOSS: "输",
@@ -20,9 +21,17 @@ const money = (x: any) =>
         maximumFractionDigits: 2,
       });
 const date = (x: any) => (x == null ? "时间未保存" : formatDate(x));
-export function TicketCards({ records, onDetail, basis }: any) {
+export function TicketCards({
+  records,
+  onDetail,
+  basis,
+  compact = false,
+}: any) {
   return (
-    <div className="ticket-cards" data-testid="ticket-cards">
+    <div
+      className={"ticket-cards" + (compact ? " compact" : "")}
+      data-testid="ticket-cards"
+    >
       {records?.map((r: any) => (
         <article
           className={`ticket-card outcome-${r.outcome}`}
@@ -45,12 +54,27 @@ export function TicketCards({ records, onDetail, basis }: any) {
           {r.legs?.map((l: any, i: number) => (
             <div className="ticket-leg" key={i}>
               <div>
-                <b>
-                  {teamName(l.home, l.league ?? l.leagueCode)} <span>vs</span>{" "}
-                  {teamName(l.away, l.league ?? l.leagueCode)}
-                </b>
+                <div className="ticket-teams">
+                  <span>
+                    <TeamBadge name={l.home} logo={l.homeLogo} />
+                    <b>{teamName(l.home, l.league ?? l.leagueCode)}</b>
+                  </span>
+                  <em>vs</em>
+                  <span>
+                    <TeamBadge name={l.away} logo={l.awayLogo} />
+                    <b>{teamName(l.away, l.league ?? l.leagueCode)}</b>
+                  </span>
+                </div>
                 <p className="ticket-selection">
-                  {l.selectionLabel}{" "}
+                  {String(l.selectionLabel)
+                    .replace(
+                      /^主队/,
+                      teamName(l.home, l.league ?? l.leagueCode),
+                    )
+                    .replace(
+                      /^客队/,
+                      teamName(l.away, l.league ?? l.leagueCode),
+                    )}{" "}
                   <strong>
                     @ {l.odds == null ? "未保存" : Number(l.odds).toFixed(2)}
                   </strong>
@@ -100,22 +124,9 @@ export function TicketCards({ records, onDetail, basis }: any) {
                   : r.currency}
             </span>
             <button className="secondary" onClick={() => onDetail(r)}>
-              原票与复盘 ↗
+              复盘 ↗
             </button>
           </footer>
-          <details>
-            <summary>报价来源、原票编号与结算时间</summary>
-            <p>
-              原票 {r.id} · 投注 {date(r.at)} · 结算 {date(r.settledAt)}
-            </p>
-            {r.legs?.map((l: any, i: number) => (
-              <p key={i}>
-                第{i + 1}腿：{l.provider ?? "原来源未保存"} · 采集{" "}
-                {date(l.priceCapturedAt)} · 原赔率 {l.odds ?? "未保存"}
-              </p>
-            ))}
-            <p>整票投入与盈亏只计一次；纸面记录不代表真实账户成交。</p>
-          </details>
         </article>
       ))}
     </div>

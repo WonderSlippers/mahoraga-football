@@ -146,6 +146,13 @@ if (command === "doctor") {
     await mf.dispose();
     throw Error("INSTALLATION_MISMATCH");
   }
+  // This additive migration touches only this verified v2 database's indexes.
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0012_product_reads.sql"),
+      "utf8",
+    ),
+  );
   if (
     ["demo", "research", "demo-general", "research-general"].includes(
       process.env.V2_PROFILE || "demo",
@@ -281,14 +288,19 @@ if (command === "doctor") {
           body: "{}",
           signal: AbortSignal.any([
             autoAbort.signal,
-            AbortSignal.timeout(60000),
+            AbortSignal.timeout(180000),
           ]),
         },
       );
       await response.arrayBuffer();
       if (!response.ok) console.error("AUTOMATION_TICK_HTTP", response.status);
     } catch (error) {
-      if (!closing) console.error("AUTOMATION_TICK_RETRY", error.name);
+      if (!closing)
+        console.error(
+          "AUTOMATION_TICK_RETRY",
+          error.name,
+          error.cause?.code ?? error.message,
+        );
     } finally {
       automationBusy = false;
     }

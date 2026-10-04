@@ -12,15 +12,19 @@ import { studyMetrics, oddsBand } from "./study-metrics";
 export async function generalMetrics(c: Context) {
   const frozen = await rows(
     c.db,
-    `SELECT * FROM (
-    SELECT o.outputJson,r.fixtureId,r.kickoffAt,b.cutoffAt,b.canonical,cat.competition,cat.season,a.state resultState,a.regulationJson,
+    `WITH first_ids AS (
+    SELECT o.id,
     ROW_NUMBER() OVER(PARTITION BY r.fixtureId ORDER BY o.calculatedAt,o.id) n
     FROM universal_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId
     JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId
+    JOIN jobs j ON j.id=o.jobId
+    WHERE o.state='DONE' AND j.modelId=? AND o.calculatedAt<r.kickoffAt AND b.cutoffAt<r.kickoffAt AND q.observedAt<=b.cutoffAt
+    ) SELECT o.outputJson,r.fixtureId,r.kickoffAt,b.cutoffAt,b.canonical,cat.competition,cat.season,a.state resultState,a.regulationJson
+    FROM first_ids x JOIN universal_observations o ON o.id=x.id
+    JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId
     LEFT JOIN fixture_catalog cat ON cat.fixtureId=r.fixtureId
-    LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(x.revision) FROM result_adjudications x WHERE x.fixtureId=r.fixtureId)
-    WHERE o.state='DONE' AND json_extract(o.outputJson,'$.variant')=? AND o.calculatedAt<r.kickoffAt AND b.cutoffAt<r.kickoffAt AND q.observedAt<=b.cutoffAt
-    ) WHERE n=1`,
+    LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(z.revision) FROM result_adjudications z WHERE z.fixtureId=r.fixtureId)
+    WHERE x.n=1`,
     UNIVERSAL_ID,
   );
   const samples = frozen
@@ -54,6 +58,11 @@ export async function generalMetrics(c: Context) {
   const records = await ledgerRows(c.db, "PAPER_RESEARCH");
   const byStrategy = policies.map((p) => ({
     ...p,
+    retired: [
+      "GENERAL_BROAD_PAPER_V1",
+      "GENERAL_VALUE_PAPER_V1",
+      "GENERAL_ASIAN_PAPER_V1",
+    ].includes(p.strategyVersion),
     metrics: summarizeRecords(
       records.filter((r) => r.portfolio === p.portfolioId),
     ),

@@ -40,6 +40,11 @@ import {
   workspaceSchedule,
 } from "../../apps/api/src/services/workspace";
 import { generalMetrics } from "../../apps/api/src/services/general-metrics";
+import { strategyArena } from "../../apps/api/src/services/arena";
+import {
+  FUN_DOUBLE,
+  prepareFunDouble,
+} from "../../apps/api/src/services/fun-paper";
 let mf: any, c: any, f: any, b: any, cfg: any;
 before(workerBuild);
 beforeEach(async () => {
@@ -511,6 +516,162 @@ test("general recommendations remain tracked after kickoff and scoring uses froz
   assert.equal(scored.baseline.probabilityN, 1);
 });
 
+test("arena uses actual settled tickets, isolated accounts and Berlin settlement periods; no actions keep ROI null", async () => {
+  await generated();
+  await autoPaper(c);
+  let arena = await strategyArena(c, new URLSearchParams());
+  assert.equal(arena.summary.settled, 0);
+  assert.equal(arena.summary.roi, null);
+  assert.equal(arena.openN, 6);
+  assert.ok(arena.latest.every((r: any) => r.pnlAtoms === null && !r.raw));
+  await result(1, 0);
+  await autoSettle(c);
+  arena = await strategyArena(c, new URLSearchParams({ period: "TODAY" }));
+  assert.equal(arena.summary.settled, 6);
+  const broad = arena.strategies.find(
+    (p: any) => p.id === "general-v2-all-singles",
+  );
+  assert.equal(broad.metrics.count, 1);
+  assert.equal(broad.metrics.profitAtoms, "20000000");
+  assert.equal(broad.metrics.roi, 1);
+  assert.equal(broad.metrics.wins, 1);
+  assert.equal(broad.metrics.curve.length, 1);
+  assert.equal(arena.daily.length, 1);
+  const yesterday = await strategyArena(
+    c,
+    new URLSearchParams({ period: "YESTERDAY" }),
+  );
+  assert.equal(yesterday.summary.settled, 0);
+  assert.equal(yesterday.summary.roi, null);
+  assert.equal(
+    yesterday.strategies.find((p: any) => p.id === "general-v2-all-singles")
+      .metrics.profitAtoms,
+    "0",
+  );
+  await assert.rejects(
+    strategyArena(c, new URLSearchParams({ period: "FAKE" })),
+    /INVALID_FILTER/,
+  );
+});
+
+test("entertainment double runs same-window distinct matches without relaxing value rules; replay, pause and two-result payout remain correct", async () => {
+  const first = f;
+  await generated();
+  f = await observe(c, uid());
+  b = await one(
+    c.db,
+    "SELECT b.* FROM input_bundles b JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions r ON r.id=s.fixtureRevisionId WHERE r.fixtureId=?",
+    f.id,
+  );
+  await stmt(
+    c.db,
+    "UPDATE jobs SET state='BLOCKED' WHERE modelId<>?",
+    UNIVERSAL_ID,
+  ).run();
+  const second = f;
+  await generated();
+  const originals = await rows(
+    c.db,
+    "SELECT id,outputJson,outputHash FROM universal_observations ORDER BY rowid",
+  );
+  await prepareFunDouble(c);
+  const choices = await rows(
+    c.db,
+    "SELECT id FROM decisions WHERE strategyVersion=?",
+    FUN_DOUBLE.version,
+  );
+  assert.equal(choices.length, 2);
+  await assert.rejects(
+    placeDouble({ ...c, now: c.now + 600001 }, "stale-fun", {
+      decisionIds: choices.map((r) => r.id),
+      portfolioId: FUN_DOUBLE.portfolio,
+      expectedRevision: 0,
+    }),
+    /QUOTE_STALE/,
+  );
+  await assert.rejects(
+    placeDouble(c, "same-leg", {
+      decisionIds: [choices[0].id, choices[0].id],
+      portfolioId: FUN_DOUBLE.portfolio,
+      expectedRevision: 0,
+    }),
+    /DOUBLE_LEGS_INVALID/,
+  );
+  assert.equal((await autoPaper(c)).placed, 13);
+  assert.equal((await autoPaper(c)).placed, 0);
+  assert.equal(
+    (
+      await one(
+        c.db,
+        "SELECT COUNT(*) n FROM tickets WHERE portfolioId='paper:general-v2-double'",
+      )
+    ).n,
+    0,
+  );
+  const t = await one(
+    c.db,
+    "SELECT * FROM tickets WHERE portfolioId=?",
+    FUN_DOUBLE.portfolio,
+  );
+  const legs = await rows(
+    c.db,
+    "SELECT * FROM ticket_legs WHERE ticketId=?",
+    t.id,
+  );
+  assert.equal(legs.length, 2);
+  assert.equal(new Set(legs.map((l) => l.fixtureRevisionId)).size, 2);
+  f = first;
+  await result(1, 0);
+  await autoSettle(c);
+  assert.equal(
+    (
+      await one(
+        c.db,
+        "SELECT currentStatus FROM ticket_state WHERE ticketId=?",
+        t.id,
+      )
+    ).currentStatus,
+    "OPEN",
+  );
+  f = second;
+  await result(1, 0);
+  await autoSettle(c);
+  const entry = (await ledgerRows(c.db, "PAPER_RESEARCH")).find(
+    (r) => r.id === t.id,
+  )!;
+  assert.equal(entry.odds, 4);
+  assert.equal(entry.pnlAtoms, "60000000");
+  assert.equal(entry.legCount, 2);
+  const report = await strategyArena(c, new URLSearchParams());
+  const strategy = report.strategies.find((p: any) => p.id === FUN_DOUBLE.id);
+  assert.equal(strategy.category, "BENCHMARK");
+  assert.equal(strategy.metrics.count, 1);
+  assert.equal(strategy.metrics.roi, 3);
+  const p = await one(
+    c.db,
+    "SELECT * FROM paper_policies WHERE id=?",
+    FUN_DOUBLE.id,
+  );
+  await configurePaper(c, "pause-fun", {
+    id: p.id,
+    enabled: false,
+    maximumPerDay: 5,
+    expectedRevision: p.revision,
+  });
+  assert.equal((await autoPaper(c)).placed, 0);
+  assert.deepEqual(
+    await rows(
+      c.db,
+      "SELECT id,outputJson,outputHash FROM universal_observations ORDER BY rowid",
+    ),
+    originals,
+  );
+  assert.deepEqual(
+    await rows(c.db, "SELECT * FROM ticket_legs WHERE ticketId=?", t.id),
+    legs,
+  );
+});
+
 test("two-leg automatic paper is atomic, distinct, idempotent, grouped once and settles/corrects only after both results", async () => {
   const first = f;
   await stmt(
@@ -573,7 +734,7 @@ test("two-leg automatic paper is atomic, distinct, idempotent, grouped once and 
   );
   assert.equal((await one(c.db, "SELECT COUNT(*) n FROM tickets")).n, 0);
   const placed = await autoPaper(c);
-  assert.equal(placed.placed, 13);
+  assert.equal(placed.placed, 14); // Original 13 actions plus independent entertainment double.
   assert.equal((await autoPaper(c)).placed, 0);
   const ticket = await one(
     c.db,

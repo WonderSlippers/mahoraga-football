@@ -34,6 +34,7 @@ const directionName = (a: any) =>
   ] ?? a.selection;
 export function TeamBadge({ name, logo }: any) {
   const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => setFailed(false), [logo]);
   const safe =
     typeof logo === "string" &&
     /^https:\/\/a\.espncdn\.com\/i\/teamlogos\//.test(logo);

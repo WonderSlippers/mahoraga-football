@@ -77,7 +77,7 @@ export function engine(
         return new Response("NETWORK_DISABLED", { status: 403 });
       return sourceFetch(u, {
         redirect: "error",
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.any([request.signal, AbortSignal.timeout(12000)]),
         headers: { Accept: "application/json" },
       });
     },
@@ -193,6 +193,12 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
       await db.exec(
         `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${action} BEFORE ${action} ON ${table} BEGIN SELECT RAISE(ABORT, 'IMMUTABLE_FACT'); END;`,
       );
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0012_product_reads.sql"),
+      "utf8",
+    ),
+  );
   const existing = await db.prepare("SELECT * FROM installations").first();
   if (existing) {
     if (existing.id !== c.installationId || existing.mode !== c.mode)

@@ -112,7 +112,7 @@ test("A65 A71 A74 A75 browser import, retired manual UI, evaluation and mobile r
   });
   await page.goto("/reported");
   await expect(
-    page.getByRole("heading", { name: "账本与复盘.", exact: true }),
+    page.getByRole("heading", { name: "战绩与复盘.", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "手工成交声明", exact: true }),
@@ -135,10 +135,11 @@ test("A65 A71 A74 A75 browser import, retired manual UI, evaluation and mobile r
   ]) {
     await page.goto(route);
     await page.locator("h1").waitFor();
-    await expect(page.getByTestId("load-status").first()).toHaveAttribute(
-      "data-loaded",
-      "true",
-    );
+    await expect(
+      page
+        .getByTestId(route === "/models" ? "general-laboratory" : "load-status")
+        .first(),
+    ).toHaveAttribute("data-loaded", "true");
     await page.setViewportSize({ width: 390, height: 844 });
     expect(
       await page.evaluate(

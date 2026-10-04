@@ -12,6 +12,7 @@ import {
 } from "../../../../packages/domain/universal";
 import { atomic, one, rows, stmt, uid } from "../repositories/db";
 import { place, placeDouble, receipt, type Context } from "./commands";
+import { prepareFunDouble, FUN_DOUBLE } from "./fun-paper";
 
 export async function registerUniversal(c: Context) {
   const json = canonical(UNIVERSAL_MANIFEST),
@@ -560,10 +561,13 @@ export async function autoPaper(c: Context) {
   );
   if (installation.mode !== "LOCAL_RESEARCH") return { placed: 0 };
   await registerUniversal(c);
+  await prepareFunDouble(c);
   const candidates = await rows(
     c.db,
-    "WITH latest AS MATERIALIZED(SELECT r2.fixtureId,d2.strategyVersion,MAX(d2.decidedAt) at FROM decisions d2 JOIN market_expectations e2 ON e2.id=d2.expectationId JOIN predictions p2 ON p2.id=e2.predictionId JOIN fixture_revisions r2 ON r2.id=p2.fixtureRevisionId WHERE p2.modelId=? GROUP BY r2.fixtureId,d2.strategyVersion) SELECT d.id,d.strategyVersion,p.id portfolioId,p.revision,r.fixtureId,r.kickoffAt,cat.competition,e.ev FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId JOIN fixture_revisions r ON r.id=pr.fixtureRevisionId JOIN latest latest ON latest.fixtureId=r.fixtureId AND latest.strategyVersion=d.strategyVersion AND latest.at=d.decidedAt JOIN fixtures f ON f.id=r.fixtureId JOIN paper_policies pp ON pp.strategyVersion=d.strategyVersion JOIN portfolios p ON p.id=pp.portfolioId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId JOIN market_definitions m ON m.id=qs.marketId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE pr.modelId=? AND d.accepted=1 AND pp.enabled=1 AND (SELECT COUNT(*) FROM tickets WHERE portfolioId=p.id AND placementDay=?)<pp.maximumPerDay AND NOT EXISTS(SELECT 1 FROM tickets t WHERE t.portfolioId=p.id AND t.businessKey=r.fixtureId||'|'||pr.modelId||'|'||d.strategyVersion||CASE WHEN pp.id='general-v2-forced-fun' THEN '|'||m.type ELSE '' END) AND NOT EXISTS(SELECT 1 FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions fr ON fr.id=l.fixtureRevisionId WHERE pp.id='general-v2-double' AND t.portfolioId=p.id AND fr.fixtureId=r.fixtureId) AND f.status='SCHEDULED' AND r.kickoffAt>? AND r.kickoffAt<=? AND qs.observedAt>=? ORDER BY CASE WHEN d.reason='PAPER_BENCHMARK_NOT_VALUE' THEN 1 ELSE 0 END,e.ev DESC,r.kickoffAt LIMIT 1000",
+    "WITH latest AS MATERIALIZED(SELECT r2.fixtureId,d2.strategyVersion,MAX(d2.decidedAt) at FROM decisions d2 JOIN market_expectations e2 ON e2.id=d2.expectationId JOIN predictions p2 ON p2.id=e2.predictionId JOIN fixture_revisions r2 ON r2.id=p2.fixtureRevisionId JOIN fixtures lf ON lf.id=r2.fixtureId WHERE p2.modelId=? AND lf.status='SCHEDULED' AND r2.kickoffAt>? AND r2.kickoffAt<=? GROUP BY r2.fixtureId,d2.strategyVersion) SELECT d.id,d.strategyVersion,p.id portfolioId,p.revision,r.fixtureId,r.kickoffAt,cat.competition,e.ev FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId JOIN fixture_revisions r ON r.id=pr.fixtureRevisionId JOIN latest latest ON latest.fixtureId=r.fixtureId AND latest.strategyVersion=d.strategyVersion AND latest.at=d.decidedAt JOIN fixtures f ON f.id=r.fixtureId JOIN paper_policies pp ON pp.strategyVersion=d.strategyVersion JOIN portfolios p ON p.id=pp.portfolioId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId JOIN market_definitions m ON m.id=qs.marketId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE pr.modelId=? AND d.accepted=1 AND pp.enabled=1 AND (SELECT COUNT(*) FROM tickets WHERE portfolioId=p.id AND placementDay=?)<pp.maximumPerDay AND NOT EXISTS(SELECT 1 FROM tickets t WHERE t.portfolioId=p.id AND t.businessKey=r.fixtureId||'|'||pr.modelId||'|'||d.strategyVersion||CASE WHEN pp.id='general-v2-forced-fun' THEN '|'||m.type ELSE '' END) AND NOT EXISTS(SELECT 1 FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions fr ON fr.id=l.fixtureRevisionId WHERE pp.id IN('general-v2-double','general-fun-double-v1') AND t.portfolioId=p.id AND fr.fixtureId=r.fixtureId) AND f.status='SCHEDULED' AND r.kickoffAt>? AND r.kickoffAt<=? AND qs.observedAt>=? ORDER BY CASE WHEN d.reason='PAPER_BENCHMARK_NOT_VALUE' THEN 1 ELSE 0 END,e.ev DESC,r.kickoffAt LIMIT 1000",
     UNIVERSAL_ID,
+    c.now + 600000,
+    c.now + 86400000,
     UNIVERSAL_ID,
     accountingDay(c.now, "Europe/Berlin"),
     c.now + 600000,
@@ -581,16 +585,22 @@ export async function autoPaper(c: Context) {
       candidate.portfolioId,
     );
     try {
-      if (candidate.strategyVersion === "GENERAL_DOUBLE_LEG_PAPER_V2") {
+      if (
+        ["GENERAL_DOUBLE_LEG_PAPER_V2", FUN_DOUBLE.version].includes(
+          candidate.strategyVersion,
+        )
+      ) {
         const pair = candidates.find(
           (other) =>
             other.strategyVersion === candidate.strategyVersion &&
             !used.has(other.fixtureId + "|" + other.strategyVersion) &&
             other.fixtureId !== candidate.fixtureId &&
-            other.competition &&
-            candidate.competition &&
-            other.competition !== candidate.competition &&
-            Math.abs(other.kickoffAt - candidate.kickoffAt) >= 12 * 3600000,
+            (candidate.strategyVersion === FUN_DOUBLE.version ||
+              (other.competition &&
+                candidate.competition &&
+                other.competition !== candidate.competition &&
+                Math.abs(other.kickoffAt - candidate.kickoffAt) >=
+                  12 * 3600000)),
         );
         if (!pair) continue;
         await placeDouble(c, "auto-double:" + candidate.id, {
@@ -626,11 +636,10 @@ export async function universalReport(
 ) {
   const captured = await rows(
     c.db,
-    "SELECT o.*,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,b.cutoffAt,q.observedAt quoteObservedAt,q.providerId,pr.modelId FROM universal_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN jobs j ON j.id=o.jobId JOIN fixtures f ON f.id=r.fixtureId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN predictions pr ON pr.id=o.predictionId WHERE (?='' OR r.fixtureId=?) AND j.modelId=? AND o.rowid IN(SELECT MAX(x.rowid) FROM universal_observations x JOIN fixture_revisions fr ON fr.id=x.fixtureRevisionId JOIN jobs jx ON jx.id=x.jobId WHERE jx.modelId=? GROUP BY fr.fixtureId) ORDER BY r.kickoffAt LIMIT 2000",
+    "WITH newest AS MATERIALIZED(SELECT MAX(x.rowid) rowId FROM universal_observations x JOIN fixture_revisions fr ON fr.id=x.fixtureRevisionId JOIN jobs jx ON jx.id=x.jobId WHERE jx.modelId=? AND (?='' OR fr.fixtureId=?) GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,b.cutoffAt,q.observedAt quoteObservedAt,q.providerId,pr.modelId FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN predictions pr ON pr.id=o.predictionId ORDER BY r.kickoffAt LIMIT 2000",
+    UNIVERSAL_ID,
     params.get("fixture") ?? "",
     params.get("fixture") ?? "",
-    UNIVERSAL_ID,
-    UNIVERSAL_ID,
   );
   const records = captured.map(({ outputJson, ...r }: any) => {
     const full = JSON.parse(outputJson);
@@ -705,7 +714,11 @@ export async function configurePaper(c: Context, key: string, p: any) {
     "SELECT * FROM paper_policies WHERE id=?",
     p.id,
   );
-  if (p.enabled && !PAPER_STRATEGIES.some((x) => x.id === policy.id))
+  if (
+    p.enabled &&
+    policy.id !== FUN_DOUBLE.id &&
+    !PAPER_STRATEGIES.some((x) => x.id === policy.id)
+  )
     throw Error("VARIANT_RETIRED");
   try {
     await atomic(

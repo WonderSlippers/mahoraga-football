@@ -30,6 +30,113 @@ import {
   importCommit,
 } from "../../apps/api/src/services/imports";
 import { stmt, rows } from "../../apps/api/src/repositories/db";
+import { localDay } from "../../apps/api/src/services/workspace";
+test("one source identity conflict preserves the original fixture and does not block valid sibling matches", async () => {
+  await workerBuild();
+  const cfg = {
+    installationId: crypto.randomUUID(),
+    mode: "LOCAL_RESEARCH",
+    bootstrap: "test",
+    serviceToken: "test",
+    webOrigin: "http://127.0.0.1:5293",
+    appCodeSha: "CONTRACT_TEST_NOT_MODEL_VALIDATION",
+  };
+  const mf = engine(cfg, ".runtime-v2/identity-isolation-test", {
+    port: 0,
+    persist: false,
+  });
+  try {
+    const db = await mf.getD1Database("DB");
+    await migrate(db, cfg);
+    const c = { db, installationId: cfg.installationId, now: Date.now() };
+    await importWorkspace(c, {
+      sourceHash: "c".repeat(64),
+      sourceCutoffAt: c.now,
+      metadata: { leagues: [{ code: "eng.1", name: "TEST ONLY" }] },
+      study: { models: [] },
+    });
+    const event = (id: string, home: string, clock: string) => ({
+      id,
+      date: new Date(c.now + 3600000).toISOString(),
+      competitions: [
+        {
+          status: {
+            type: { state: "in", name: "STATUS_IN_PROGRESS" },
+            displayClock: clock,
+          },
+          competitors: [
+            {
+              homeAway: "home",
+              team: { id: id + "1", displayName: home },
+              score: "1",
+            },
+            {
+              homeAway: "away",
+              team: { id: id + "2", displayName: "TEST AWAY" },
+              score: "0",
+            },
+          ],
+        },
+      ],
+    });
+    let changed = false;
+    const fetcher = async () =>
+      new Response(
+        JSON.stringify({
+          events: [
+            event("901", "TEST HOME", changed ? "20'" : "10'"),
+            event(
+              "902",
+              changed ? "CONFLICTING IDENTITY" : "SECOND HOME",
+              changed ? "20'" : "10'",
+            ),
+          ],
+        }),
+      );
+    assert.equal(
+      (await captureESPN(c, "eng.1", localDay(c.now), fetcher)).count,
+      2,
+    );
+    const before = (
+      await rows(
+        db,
+        "SELECT * FROM fixture_catalog WHERE fixtureId='espn:eng.1:902'",
+      )
+    )[0];
+    changed = true;
+    const result = await captureESPN(c, "eng.1", localDay(c.now), fetcher);
+    assert.equal(result.count, 1);
+    assert.ok("reviewFixtureIds" in result);
+    assert.deepEqual(result.reviewFixtureIds, ["espn:eng.1:902"]);
+    assert.deepEqual(
+      (
+        await rows(
+          db,
+          "SELECT * FROM fixture_catalog WHERE fixtureId='espn:eng.1:902'",
+        )
+      )[0],
+      before,
+    );
+    const updated = (
+      await rows(
+        db,
+        "SELECT dataJson FROM fixture_catalog WHERE fixtureId='espn:eng.1:901'",
+      )
+    )[0];
+    assert.equal(JSON.parse(updated.dataJson).clock, "20'");
+    const run = (
+      await rows(db, "SELECT * FROM source_runs ORDER BY rowid DESC LIMIT 1")
+    )[0];
+    assert.match(run.reason, /SOURCE_IDENTITY_REVIEW/);
+    assert.equal(run.normalizedCount, 1);
+    assert.equal(
+      (await rows(db, "SELECT COUNT(*) n FROM source_snapshots"))[0].n,
+      2,
+    );
+  } finally {
+    await mf.dispose();
+  }
+});
 test("full schedule retains noncandidate fixtures and auto capture publishes source evidence; empty/failed stay distinct", async () => {
   await workerBuild();
   const cfg = {

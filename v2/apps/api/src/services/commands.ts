@@ -3,6 +3,7 @@ import { atoms, gross, accountingDay } from "../../../../packages/domain/index";
 import { stmt, one, rows, uid, atomic } from "../repositories/db";
 import Decimal from "decimal.js";
 import { multiplier } from "../../../../packages/domain";
+import { frozenPaperPlan, FUN_DOUBLE } from "./fun-paper";
 export type Context = {
   db: D1Database;
   installationId: string;
@@ -112,7 +113,9 @@ export async function place(
     ).first<any>();
     if (latestJob?.state === "FAILED" || latestJob?.state === "BLOCKED")
       throw Error("MODEL_CURRENTLY_FAILED");
-    if ((policy.id === "general-v2-double") !== !!secondary)
+    if (
+      ["general-v2-double", FUN_DOUBLE.id].includes(policy.id) !== !!secondary
+    )
       throw Error("PAPER_POLICY_MISMATCH");
     if (
       d.modelId !== "GENERAL_FOOTBALL_RESEARCH_V2" ||
@@ -127,9 +130,7 @@ export async function place(
       "SELECT outputJson FROM universal_observations WHERE predictionId=?",
       d.predictionId,
     );
-    const plan = JSON.parse(observed.outputJson).plans.find(
-      (x: any) => x.decisionId === p.decisionId,
-    );
+    const plan = frozenPaperPlan(JSON.parse(observed.outputJson), d, policy.id);
     if (
       !plan ||
       !plan.accepted ||
@@ -138,9 +139,11 @@ export async function place(
     )
       throw Error("PAPER_POLICY_MISMATCH");
     if (
-      !["general-v2-all-singles", "general-v2-forced-fun"].includes(
-        policy.id,
-      ) &&
+      ![
+        "general-v2-all-singles",
+        "general-v2-forced-fun",
+        FUN_DOUBLE.id,
+      ].includes(policy.id) &&
       (!plan.qualified || d.ev < 0.08)
     )
       throw Error("PAPER_POLICY_MISMATCH");
@@ -165,37 +168,47 @@ export async function place(
         "SELECT outputJson FROM universal_observations WHERE predictionId=?",
         secondary.predictionId,
       );
-      const otherPlan = JSON.parse(otherObservation.outputJson).plans.find(
-        (x: any) => x.decisionId === secondary.id,
+      const otherPlan = frozenPaperPlan(
+        JSON.parse(otherObservation.outputJson),
+        secondary,
+        policy.id,
       );
-      const leagueA = await one(
-        c.db,
-        "SELECT competition FROM fixture_catalog WHERE fixtureId=?",
-        d.fixtureId,
-      );
-      const leagueB = await one(
-        c.db,
-        "SELECT competition FROM fixture_catalog WHERE fixtureId=?",
-        secondary.fixtureId,
-      );
+      const leagueA =
+        policy.id === FUN_DOUBLE.id
+          ? { competition: null }
+          : await one(
+              c.db,
+              "SELECT competition FROM fixture_catalog WHERE fixtureId=?",
+              d.fixtureId,
+            );
+      const leagueB =
+        policy.id === FUN_DOUBLE.id
+          ? { competition: null }
+          : await one(
+              c.db,
+              "SELECT competition FROM fixture_catalog WHERE fixtureId=?",
+              secondary.fixtureId,
+            );
       if (
         !secondary.accepted ||
         secondary.modelId !== d.modelId ||
         secondary.strategyVersion !== policy.strategyVersion ||
         !otherPlan?.accepted ||
-        !otherPlan.qualified ||
+        (policy.id !== FUN_DOUBLE.id && !otherPlan.qualified) ||
         otherPlan.odds !== secondary.decimalOdds ||
         otherPlan.selection !== secondary.selection ||
-        secondary.ev < 0.08 ||
-        [plan, otherPlan].some(
-          (x) =>
-            x.market !== "1X2" ||
-            x.conservativeProbability < 0.5 ||
-            Number(x.odds) > 2.5,
-        ) ||
+        (policy.id !== FUN_DOUBLE.id &&
+          (secondary.ev < 0.08 ||
+            [plan, otherPlan].some(
+              (x) =>
+                x.market !== "1X2" ||
+                x.conservativeProbability < 0.5 ||
+                Number(x.odds) > 2.5,
+            ) ||
+            leagueA.competition === leagueB.competition ||
+            Math.abs(d.kickoffAt - secondary.kickoffAt) < 12 * 3600000)) ||
         d.fixtureId === secondary.fixtureId ||
-        leagueA.competition === leagueB.competition ||
-        Math.abs(d.kickoffAt - secondary.kickoffAt) < 12 * 3600000
+        [plan, otherPlan].some((x) => x.market !== "1X2")
       )
         throw Error("DOUBLE_LEGS_NOT_DIVERSIFIED");
       if (

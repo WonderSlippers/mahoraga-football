@@ -12,7 +12,9 @@ import {
 } from "react-router-dom";
 import "./style.css";
 import "./workspace.css";
-import { StrategiesWorkspace } from "./universal-view";
+import "./arena.css";
+import { StrategiesWorkspace, ToolsWorkspace } from "./arena-view";
+import { cachedRead, invalidateReads } from "./read-cache";
 import {
   ScheduleWorkspace,
   FixtureWorkspace,
@@ -33,6 +35,17 @@ function requestKey() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 async function api(path: string, body?: unknown, key?: string) {
+  if (
+    body === undefined &&
+    !path.startsWith("/session") &&
+    !path.includes("export=1")
+  )
+    return cachedRead(path, () => request(path));
+  const result = await request(path, body, key);
+  if (body !== undefined) invalidateReads();
+  return result;
+}
+async function request(path: string, body?: unknown, key?: string) {
   const response = await fetch("/api/v2" + path, {
     method: body === undefined ? "GET" : "POST",
     headers:
@@ -44,6 +57,7 @@ async function api(path: string, body?: unknown, key?: string) {
             "Idempotency-Key": key || requestKey(),
           },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(15000),
   });
   const j: any = await response.json();
   if (!response.ok) throw Error(j.error.code);
@@ -58,7 +72,7 @@ function App() {
   const location = useLocation();
   const [logged, setLogged] = useState(false),
     [error, setError] = useState("");
-  const [mode, setMode] = useState("DEMO");
+  const [mode, setMode] = useState("");
   const [theme, setTheme] = useState(
     localStorage.getItem("v2-theme") || "dark",
   );
@@ -128,11 +142,13 @@ function App() {
             ? "历史档案"
             : location.pathname === "/reported"
               ? "历史记录"
-              : research
-                ? "真实研究"
-                : "DEMO · 合成数据"}
+              : !mode
+                ? "本地模拟"
+                : research
+                  ? "真实研究"
+                  : "DEMO · 合成数据"}
         </span>
-        <small>本地研究工作台 / 不连接真实投注账户</small>
+        <small>策略进化 · 虚拟竞技</small>
         <button
           className="secondary"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -149,36 +165,22 @@ function App() {
       ) : (
         <div className="shell">
           <nav>
-            <p className="navtitle">研究流程</p>
-            <NavLink to={research ? "/workbench" : "/workbench?offline=1"}>
-              01 完整赛程 <span>↗</span>
+            <p className="navtitle">魔虚罗竞技场</p>
+            <NavLink to="/strategies">
+              策略竞技场 <span>↗</span>
             </NavLink>
-            <NavLink to="/history">
-              02 历史中心 <span>↗</span>
+            <NavLink to={research ? "/workbench" : "/workbench?offline=1"}>
+              比赛与方向 <span>↗</span>
             </NavLink>
             <NavLink to="/ledger">
-              03 昨日战绩与账本 <span>↗</span>
+              战绩与复盘 <span>↗</span>
             </NavLink>
-            <NavLink to="/models">
-              04 模型实验室 <span>↗</span>
+            <div className="nav-divider" />
+            <NavLink to="/tools">
+              研究与设置 <span>↗</span>
             </NavLink>
-            <NavLink to="/system">
-              05 数据运行状态 <span>↗</span>
-            </NavLink>
-            <NavLink to="/legacy">
-              06 旧档案与设置 <span>↗</span>
-            </NavLink>
-            {research && (
-              <NavLink to="/strategies">
-                07 模拟策略 <span>↗</span>
-              </NavLink>
-            )}
             <div className="navnote">
-              {research ? "真实研究独立数据库" : "DEMO 专用数据库"}
-              <br />
-              {research ? "自动纸面策略：独立虚拟账本" : "DEMO离线工程演练"}
-              <br />
-              {research ? "自动轮转 · 公开来源" : "离线工程演练"}
+              {research ? "自动模拟 · 独立虚拟账户" : "离线演练 · 合成数据"}
               {!research && (
                 <>
                   <br />
@@ -191,6 +193,8 @@ function App() {
           </nav>
           <main>
             <Routes>
+              <Route path="/" element={<Navigate to="/strategies" replace />} />
+              <Route path="/tools" element={<ToolsWorkspace />} />
               {["/review", "/review.html"].map((path) => (
                 <Route
                   key={path}
@@ -276,9 +280,7 @@ function App() {
           </main>
         </div>
       )}
-      <footer>
-        预测冻结 · 原票不可改写 · 更正追加记录　/　不执行真实投注或付款
-      </footer>
+      <footer>魔虚罗 · 所有模拟金额均为虚拟单位</footer>
     </>
   );
 }

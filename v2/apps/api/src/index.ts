@@ -27,6 +27,7 @@ import {
 } from "./services/workspace";
 import { automationTick } from "./services/automation";
 import { generalMetrics } from "./services/general-metrics";
+import { strategyArena } from "./services/arena";
 import {
   completeUniversal,
   universalReport,
@@ -392,6 +393,8 @@ export default {
         throw new Error("CSRF_INVALID");
       const key = req.headers.get("Idempotency-Key") || "";
       if (req.method === "GET") {
+        if (path === "/api/v2/workspace/arena")
+          return ok(await strategyArena(context, url.searchParams));
         if (path === "/api/v2/workspace/schedule")
           return ok(await workspaceSchedule(context, url.searchParams));
         if (path === "/api/v2/workspace/history")

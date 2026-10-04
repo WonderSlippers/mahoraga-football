@@ -178,7 +178,9 @@ export async function captureESPN(
     const data = official
       ? normalizeJFA(text)
       : normalizeESPN(JSON.parse(text.replace(/^\uFEFF/, "")), league, day);
-    let detailBudget = 4;
+    let detailBudget = 4,
+      published = 0;
+    const identityReview: string[] = [];
     for (const f of data) {
       if (
         publicMarkets((f as any).providerOdds).some((q) =>
@@ -195,8 +197,11 @@ export async function captureESPN(
         "SELECT f.*,r.id revisionId,r.kickoffAt FROM fixtures f JOIN fixture_revisions r ON r.fixtureId=f.id AND r.revision=f.currentRevision WHERE f.id=?",
         f.id,
       ).first<any>();
-      if (old && (old.home !== f.home || old.away !== f.away))
-        throw Error("SOURCE_IDENTITY_REVIEW");
+      if (old && (old.home !== f.home || old.away !== f.away)) {
+        // Preserve the conflicting fixture and raw source; continue valid siblings.
+        identityReview.push(f.id);
+        continue;
+      }
       const previousCatalog = await stmt(
         c.db,
         "SELECT dataJson,lastCapturedAt FROM fixture_catalog WHERE fixtureId=?",
@@ -331,27 +336,40 @@ export async function captureESPN(
           ),
         );
       await atomic(c.db, queries);
+      published++;
       if (!official)
         await freezePublicResearch(c, f, snapshot, observed, fetcher);
     }
     await stmt(
       c.db,
       "UPDATE source_runs SET state=?,finishedAt=?,snapshotId=?,normalizedCount=?,reason=? WHERE id=?",
-      data.length ? "DEGRADED" : "EMPTY",
+      identityReview.length && !published
+        ? "FAILED"
+        : data.length
+          ? "DEGRADED"
+          : "EMPTY",
       observed,
       snapshot,
-      data.length,
-      data.length
-        ? official
-          ? "OFFICIAL_FIXTURES_ONLY_SCORE_QUOTE_UNAVAILABLE"
-          : "PUBLIC_REFERENCE_QUOTES_NOT_VERIFIED_CURRENT"
-        : "SOURCE_RETURNED_EMPTY_FOR_REQUESTED_DATE",
+      published,
+      identityReview.length
+        ? "SOURCE_IDENTITY_REVIEW:" + identityReview.join(",")
+        : data.length
+          ? official
+            ? "OFFICIAL_FIXTURES_ONLY_SCORE_QUOTE_UNAVAILABLE"
+            : "PUBLIC_REFERENCE_QUOTES_NOT_VERIFIED_CURRENT"
+          : "SOURCE_RETURNED_EMPTY_FOR_REQUESTED_DATE",
       run,
     ).run();
     return {
       runId: run,
-      count: data.length,
-      state: data.length ? "DEGRADED" : "EMPTY",
+      count: published,
+      state:
+        identityReview.length && !published
+          ? "FAILED"
+          : data.length
+            ? "DEGRADED"
+            : "EMPTY",
+      ...(identityReview.length ? { reviewFixtureIds: identityReview } : {}),
     };
   } catch (e) {
     await stmt(
@@ -454,14 +472,14 @@ export async function automationTick(
   ).first<any>();
   if (
     !state.enabled ||
-    (state.stage === "RUNNING" && c.now - state.lastAttemptAt < 60000) ||
+    (state.stage === "RUNNING" && c.now - state.lastAttemptAt < 180000) ||
     (!force && state.nextRunAt > c.now)
   )
     return state;
   const lock = await stmt(
     c.db,
     "UPDATE automation_state SET nextRunAt=?,lastAttemptAt=?,stage='RUNNING' WHERE id='LOCAL_PIPELINE' AND nextRunAt=? AND enabled=1",
-    c.now + 60000,
+    c.now + 180000,
     c.now,
     state.nextRunAt,
   ).run();

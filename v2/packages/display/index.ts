@@ -22,24 +22,38 @@ export function teamName(name: unknown, competition = "") {
     : base;
 }
 export function calendarDay(at: number | string, zone = DISPLAY_TIME_ZONE) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: zone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(at));
+  let formatter = dayFormatters.get(zone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    dayFormatters.set(zone, formatter);
+  }
+  return formatter.format(new Date(at));
 }
+const dayFormatters = new Map<string, Intl.DateTimeFormat>();
+const dateFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: DISPLAY_TIME_ZONE,
+  hour12: false,
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric",
+});
+const timeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: DISPLAY_TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
 export function formatDate(at: number | string) {
-  return new Date(at).toLocaleString("zh-CN", {
-    timeZone: DISPLAY_TIME_ZONE,
-    hour12: false,
-  });
+  return dateFormatter.format(new Date(at));
 }
 export function formatTime(at: number | string) {
-  return new Date(at).toLocaleTimeString("zh-CN", {
-    timeZone: DISPLAY_TIME_ZONE,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return timeFormatter.format(new Date(at));
 }
