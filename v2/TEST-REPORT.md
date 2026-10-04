@@ -416,3 +416,8 @@ Chrome首次启动失败退出1（browser.log）；首轮Edge读取超时退出1
 node scripts/verify-score-review-browser.mjs最终退出0：8实站检查、5实际截图、0页面脚本错误。通用421票、原版199票、历史498票各档计数/净收益/赢输与实际API一致；评级点击和逐分点击筛票，统计覆盖分页全量；390px无横溢出；V6零票不补造表现。使用本机Edge，未拦截API或插入模拟生产数据。首轮退出1的手机横溢出保留browser-first-failed.log/browser-failed.json/failed.png；修复后完整重验通过。
 
 保护检查before/after退出0：5事实表水位原行（152448/652/702/64945/31224）哈希相同，旧HEAD/diff/status相同；旧5173 PID11220创建时间/执行路径相同。仅自身研究supervisor认证停止/重启，最终PID28268、5274/8789。未写旧D1、改旧任务、push或部署。详见SCORE-REVIEW-20261005.md。
+
+
+## 2026-10-05：原版A级稀少与D级集中成因核对
+
+本轮是只读成因分析，不新增模型验证或测试通过数。使用前轮实际API导出10月4日PLACED cohort及新库只读SQLite，校验安装ID；查询70份原版冻结输出、逐策略计数，冻结engine SHA256与pin一致。原版193票A5/D166、134张1X2单场中D130/A0；广覆盖D56+强制D53。70份预测researchPresent=0、goalPresent=34。命令退出0，证据grade-distribution-causes.json；未执行训练、修改参数/评分、写旧D1或重启服务。

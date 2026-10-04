@@ -65,3 +65,8 @@ LOCAL_RESEARCH必须使用独立profile（research）、独立installation/D1、
 ## 2026-10-05：出票评分归档，不按赛后模型补分
 
 沿用1.0的75/60/45边界，原票和Prediction冻结值是归档依据。通用按原job/prediction+策略+市场方向/盘口/赔率唯一匹配，原版按version_ticket_evidence票腿匹配；晚于出票或有歧义的证据拒绝归分。娱乐二串一通过prepareFunDouble已存在的复制关系映射到general-v2-all-singles，仍要求同一原Prediction与实际价格。多腿取最低分，任一缺分未知，整票收益一次归属。评分筛选不缩掉其他档的比较；其余筛选及原有财务口径保留。前端只呈现API统计，不计算权威金额或重算评分。
+
+
+## 2026-10-05：原版A级稀少与D级集中成因核对
+
+评分分布不能解释为原版更严格或通用更好。原版胜平负scoreLeg未传opts.goalModel，固定走−6分分支；通用有grid时+8，两种口径不同。旧引擎match.research有首发/伤停/休息等加分，但当前legacy_full.py未传该对象；近期战绩researchFeatures不能代替它。保留原评分和旧票，不为增加A级而抬分；补齐真实输入应保留时间点和未知，不伪造字段。
