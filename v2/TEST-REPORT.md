@@ -366,3 +366,31 @@ node scripts/verify-strategy-records.mjs check/build/integration/browser最终�
 初次runtime查询不存在的tickets.status列退出1，修正只读统计后退出0；初次格式检查退出1，重格式化后0，失败check日志保留。当前scope仅UI，不重复先前167测试的统计。runtime before/after断言旧HEAD/diff/status和研究PID不变、自动成功时钟推进；没有连接旧D1。完整结果与证据索引见STRATEGY-RECORDS-20261004.md。
 
 新增定位断言后实测发现异步载入前的滚动被列表高度变化打断，browser退出1；改为首批真实数据渲染后定位，保留browser失败日志与截图再运行完整专项。完整软件测试计数不因重跑增加。
+
+## 2026-10-04：研究评分与双语专项
+
+证据.runtime-v2/recommendation-scores-20261004。命令node scripts/verify-recommendation-scores.mjs check/unit/integration/build各自latest.json含实际命令、起止时间、退出码及完整日志。最终当前87/87单元、22/22真实D1，0跳过；109个不同软件测试，重跑不累加。新增覆盖双语/别名、评分边界与未知、不同盘口/模型不能合并、保留全部时点且不取最大分、冻结名字与赛后评分保持。类型/格式/构建退出0，静态边界检查不计模型验证。
+
+真实失败：最初目标单元23/24退出1，中文档案英文回退选了简称Man United；改为已知完整别名后全单元通过（最初输出在工具记录，未伪称另有完整日志）。重复评分修复初次check退出1，四文件格式未规范，修正后0，失败check log保留。第一轮浏览器英文搜索超时退出1，实际完成4项检查但不能计整轮通过；日志browser-2026-10-04T16-30-02.211Z.log、browser-failure-first.json/png保留。前移搜索范围后重启自身研究服务，再运行含同一投注唯一突出评分断言的实际浏览器验收，结果待追加。
+
+五表原始水位预测134582/票531/腿576/通用观测60045/版本观测23145逐行哈希前后一致；旧git HEAD/dirty diff/完整status一致，旧5173 PID24644创建时间不变。只读连接自己的installationId对应SQLite，没有打开旧D1。软件测试使用明确控制输入，不是实战盈利验证；浏览器不拦截API、不伪造比赛/收益。
+
+后续真实失败也保留：第二轮浏览器双语三种查询与唯一评分断言通过，但推荐后台读取超时，整轮退出1；第三轮初次全量读取超时退出1，均保留各自failure-second/third.json/png及带时间日志。新增按fixture读取最后追加观测的索引与等价查询，不移除模型条件、不改原行。索引迁移初次D1共22项hook失败（0通过、退出1），原因是D1.exec将注释行当语句；移除SQL注释后22/22通过、check/build退出0，失败日志integration-2026-10-04T16-51-30.921Z.log保留。runtime脚本初次比较PowerShell5的Date序列化与PowerShell7的ISO字符串不同退出1，改为显式ISO后身份比较通过；不是旧PID改变。
+
+### 最终功能验收
+
+| 命令 | 退出码 | 结果 | 证据 |
+| --- | --- | --- | --- |
+| node scripts/verify-recommendation-scores.mjs unit | 0 | 87/87、0跳过 | unit-latest.json及完整log |
+| node scripts/verify-recommendation-scores.mjs integration | 0 | 22/22实际D1、0跳过 | integration-2026-10-04T16-52-24.701Z.log |
+| node scripts/verify-recommendation-scores.mjs check | 0 | 类型/格式/边界 | check-latest.json |
+| node scripts/verify-recommendation-scores.mjs build | 0 | Worker/Vite生产构建 | build-latest.json |
+| node scripts/verify-recommendation-scores.mjs browser | 0 | 10实站检查、9成功截图、0应用错误 | browser-2026-10-04T16-54-13.670Z.log、browser-result.json |
+| .venv/Scripts/python.exe scripts/verify-recommendation-read-parity.py | 0 | 324行完全相同，1.299s→0.035s | universal-query-parity.json |
+| .venv/Scripts/python.exe scripts/verify-recommendation-preservation.py after | 0 | 五事实表原行及旧git不变 | preservation-after.json |
+
+浏览器真实读取运行站数据，无拦截/模拟API；包括GENERAL和SEPTEMBER20与保存分逐项对照、同投注唯一突出分、赛后冻结hash、三种语言/别名同10场、1440/390无溢出、V6原缺分不补数值、原票双语。只有首次正常session401探测允许，其余本地HTTP/控制台错误均失败。109个不同软件测试与10浏览器检查分别计数，不把历史函数软件parity、边界字符串检查或DEMO说成实战验证。
+
+自身新服务PID8540/worker build hash89830468当前在5274/8789；appCodeSha3594503-dirty是启动时本轮文档未提交，API源码已在3594503提交。旧5173 PID24644及创建时间未变，交付后自身HTTP200只作为可达证据，功能由上面的真实浏览器证明。初次自动时钟推进断言退出1，因为上轮中断lease保留180秒；实际恢复结果另追加，不把手动触发称自动成功。
+
+最终自动恢复命令.venv/Scripts/python.exe scripts/verify-recommendation-runtime.py after于16:57:44UTC退出0（runtime-after-command.json完整命令/起止时间/退出码，runtime-after.log完整输出）；同一自身PID8540、startedAt16:54:09、自动成功时钟由16:53:28自然推进到16:57:37、stage=IDLE，旧5173 PID24644创建身份相同。没有手动tick；原180秒lease正常恢复。DEGRADED/BACKOFF保留，不把来源短时恢复称长期稳定。
