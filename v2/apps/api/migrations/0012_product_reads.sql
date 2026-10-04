@@ -1,5 +1,6 @@
 CREATE INDEX IF NOT EXISTS prediction_model_fixture ON predictions(modelId,fixtureRevisionId,calculatedAt);
 CREATE INDEX IF NOT EXISTS universal_fixture_time ON universal_observations(fixtureRevisionId,calculatedAt,id);
+CREATE INDEX IF NOT EXISTS universal_fixture_row ON universal_observations(fixtureRevisionId);
 CREATE INDEX IF NOT EXISTS universal_prediction ON universal_observations(predictionId);
 CREATE INDEX IF NOT EXISTS slot_expiry ON observation_slots(state,deadlineAt);
 CREATE INDEX IF NOT EXISTS jobs_model_bundle ON jobs(modelId,bundleId,state);

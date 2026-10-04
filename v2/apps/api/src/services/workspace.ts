@@ -961,7 +961,7 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   );
   const generalLatest = await rows(
     c.db,
-    "WITH newest AS MATERIALIZED(SELECT MAX(x.rowid) rowId FROM universal_observations x JOIN fixture_revisions fr ON fr.id=x.fixtureRevisionId JOIN jobs jx ON jx.id=x.jobId WHERE jx.modelId=? AND fr.fixtureId IN(SELECT value FROM json_each(?)) GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,b.cutoffAt,q.observedAt quoteAt FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId",
+    "WITH newest AS MATERIALIZED(SELECT MAX((SELECT x.rowid FROM universal_observations x INDEXED BY universal_fixture_row JOIN jobs jx ON jx.id=x.jobId WHERE x.fixtureRevisionId=fr.id AND jx.modelId=? ORDER BY x.rowid DESC LIMIT 1)) rowId FROM fixture_revisions fr WHERE fr.fixtureId IN(SELECT value FROM json_each(?)) GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,b.cutoffAt,q.observedAt quoteAt FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId",
     UNIVERSAL_ID,
     fixtureScope,
   );
