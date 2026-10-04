@@ -1,3 +1,32 @@
+## 2026-10-04 产品可用性实际验收
+
+完整证据副本：D:/ChatGPT/Projects/2026-09-28/2-0-codex-agents-md-00-4/outputs/product-20261004。原目录.runtime-v2/product-20261004。真实Chrome连接隔离5274，无API拦截、无合成盈利写入活动研究库。CONTRACT/DEMO的软件用例不算原模型盈利验证；本轮不改模型权重，不新增模型验证PASS。
+
+| v2目录执行的实际命令                                                                                                                                                                                                                                                           | 退出码 | 数量/范围                                                                          | 证据                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------------- | --------------------------------- |
+| `npm run check`                                                                                                                                                                                                                                                                | 0      | 类型/格式/112静态边界，非模型验证                                                  | check-final.txt                   |
+| `npm run test:unit`                                                                                                                                                                                                                                                            | 0      | 76通过，0失败/跳过                                                                 | unit.txt                          |
+| `npm run test:integration`                                                                                                                                                                                                                                                     | 0      | 67完整D1，0失败/跳过                                                               | integration-final.txt             |
+| `npx tsx --test --test-concurrency=1 tests/integration/universal.test.ts tests/integration/workspace.test.ts tests/integration/prospective-report.test.ts tests/integration/public-research.test.ts tests/integration/live-refresh.test.ts tests/integration/rotation.test.ts` | 0      | 最后读取/来源/严格资格修复后21通过，属于67的子集                                   | product-final-integration.txt     |
+| `npm run test:e2e`                                                                                                                                                                                                                                                             | 0      | 3：真实浏览器→Python→D1→票→结算→冲突→更正→重启；原UI退休/导入/手机；自有runner恢复 | e2e-final.txt                     |
+| `npm run build`                                                                                                                                                                                                                                                                | 0      | Worker与React生产构建，非模型验证                                                  | build-final.txt                   |
+| `node scripts/product-acceptance.mjs`                                                                                                                                                                                                                                          | 0      | 28真实研究浏览器交互，0页面JS异常                                                  | browser.txt/browser.json及真实PNG |
+| `python .runtime-v2/product-20261004/availability.py`                                                                                                                                                                                                                          | 0      | 90秒19样本、10次成功后台更新、Python心跳前进                                       | availability.json/.txt            |
+| `python .runtime-v2/product-20261004/audit.py after`                                                                                                                                                                                                                           | 0      | 6类全部原行hash保留；quick_check=ok，FK=0；旧HEAD/dirty diff/status不变            | audit-before/after.json           |
+| `npx tsx .runtime-v2/product-20261004/date-equivalence.ts`                                                                                                                                                                                                                     | 0      | 实际DST/午夜/四时区2592格式比较，非模型测试                                        | date-equivalence.json             |
+
+软件用例唯一计数146（76+67+3）；21项针对复跑不重复相加。完整67回归后又改动读取查询，最后相关21例重新运行通过；不声称完整67在每次样式微调后全部重跑。实际截图、ROI、胜负、样本N来自真实原票和结算。娱乐二串一5张已自动生成，尚未结算，不构造赢单或ROI。无动作/无已结投入ROI=null。
+
+查询比对在自有只读库/一致备份进行，原旧站DB不连接：冻结查询/跟踪/一般首次方向/最新方向hash保持；部分索引改法在独立备份中可执行比对，结果相同。partial-index-benchmark/tracked-benchmark.json记录1653→114ms、1426→165ms、1321→691ms。其他候选索引增益有限，未加入活动代码。该证明是读取等价和性能，非模型验证。没有以源码字符串检查、跳过用例或合成赛果当真实验证。
+
+失败与修复保留：第一次D1 exec迁移被单独注释拒绝；新FUN策略被V1后缀误当退役；全历史MAX查询导致503和浏览器超时；首次E2E 2过/1失败因账本标题期望过时，修正后3/3。早期浏览器PASS仍有约10–15秒赛程/实验室等待，继续改读取与按需加载。一次未加索引的只读探索查询超出实用预算，仅停止身份核对的自有Python helper（非旧进程/非测试）；日志保留。瞬时后台UND_ERR_SOCKET重试后出现成功更新，不能标后台从未出错。
+
+运行范围：旧5173 PID24644保留；新5274/8789为research-general，新5273/8788为demo-general。本轮不连接旧SQLite、不写旧数据库、不改旧进程/启动任务，不push/部署。旧dirty diff SHA256 87acee2a8239e7b8620c3b7595005d544c795e1e5e313a4cf54a87bfd6aceffa保持。活动新库原353票、353腿、85026预测、238结算事件、591账目、705档案逐行hash保留。
+
+截图索引：arena-desktop/full/mobile/light（排名与收益），ledger-tickets/winning-ticket-cards（昨日方向及真实赢单），ledger-tickets-mobile，legacy-double-cards（原二串一两腿），entertainment-double-cards（独立娱乐新票），fixtures，match-detail，history，models/forward/historical，runtime，tools。每张都是实际浏览器PNG。
+
+最终同一真实浏览器的页面等待（包含登录/取数/渲染，非服务器单SQL）：/strategies 0.447秒；/workbench 2.929秒；/models 2.934秒；/system 0.262秒；/history 1.370秒；/strategies 0.243秒；/strategies 0.256秒。导航：ledger 875ms；arena-warm 56ms。赛程默认今天，近期仍可读取；耗时随自动任务竞争变化，不宣称每次零等待。
+
 ## 2026-10-03 昨日战绩、原票与二串一真实验收
 
 本轮141项软件用例：74单元、64隔离D1集成、3浏览器端到端，全通过，0跳过。另38项全站浏览器检查（21页面/3视口）和24项本轮票据交互（17+7），0浏览器异常。静态检查/build不计模型验证；本轮未改模型数学。

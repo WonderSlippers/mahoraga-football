@@ -189,7 +189,7 @@ export function StrategiesWorkspace({ api }: any) {
           <p>自动模拟，持续比较。找出更好的方法，看每一张票如何落地。</p>
         </div>
         <div className="arena-head-links">
-          <Link to="/workbench" className="ws-button">
+          <Link to="/workbench?period=TODAY" className="ws-button">
             看今天的比赛 ↗
           </Link>
           <button

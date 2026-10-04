@@ -68,6 +68,17 @@ export function TicketCards({
                 <p className="ticket-selection">
                   {String(l.selectionLabel)
                     .replace(
+                      /^主胜$/,
+                      teamName(l.home, l.league ?? l.leagueCode) +
+                        " · 90分钟胜",
+                    )
+                    .replace(
+                      /^客胜$/,
+                      teamName(l.away, l.league ?? l.leagueCode) +
+                        " · 90分钟胜",
+                    )
+                    .replace(/^平局$/, "90分钟平局")
+                    .replace(
                       /^主队/,
                       teamName(l.home, l.league ?? l.leagueCode),
                     )

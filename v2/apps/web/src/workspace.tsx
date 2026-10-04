@@ -246,7 +246,13 @@ export function ScheduleWorkspace({ api, mode }: Props) {
     new URLSearchParams(window.location.search).get("trackingModel") || "ALL",
   );
   const [period, setPeriod] = useState(
-      new URLSearchParams(window.location.search).get("period") || "RECENT",
+      new URLSearchParams(window.location.search).get("period") ||
+        (mode === "LOCAL_RESEARCH" &&
+        !["LIVE", "RESULTS", "TRACKED"].includes(
+          new URLSearchParams(window.location.search).get("view") || "ACTIVE",
+        )
+          ? "TODAY"
+          : "RECENT"),
     ),
     [custom, setCustom] = useState(
       new URLSearchParams(window.location.search).get("custom") ||
@@ -390,6 +396,11 @@ export function ScheduleWorkspace({ api, mode }: Props) {
             className={view === v ? "selected" : "secondary"}
             onClick={() => {
               setView(v);
+              if (
+                ["LIVE", "RESULTS", "TRACKED"].includes(v) &&
+                period === "TODAY"
+              )
+                setPeriod("RECENT");
               setStatus("ALL");
               setOffset(0);
             }}

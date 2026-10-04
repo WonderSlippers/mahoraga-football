@@ -195,6 +195,8 @@ try {
   );
   pass("Winning filter comes from actual settled outcomes");
   await shot("winning-tickets", false);
+  await p.getByRole("link", { name: "看票据与结果 ↓", exact: true }).click();
+  await shot("winning-ticket-cards", false);
   await go("/ledger?mode=LEGACY_IMPORT&period=ALL&ticketType=DOUBLE");
   const old = await get(
     "/workspace/ledger?mode=LEGACY_IMPORT&period=ALL&ticketType=DOUBLE",
@@ -208,6 +210,8 @@ try {
     "1.0 double archives retain both selections, original odds and outcomes",
   );
   await shot("legacy-double", false);
+  await p.getByRole("link", { name: "看票据与结果 ↓", exact: true }).click();
+  await shot("legacy-double-cards", false);
   await go(
     "/ledger?mode=PAPER_RESEARCH&period=ALL&strategy=paper%3Ageneral-fun-double-v1",
   );
@@ -228,9 +232,25 @@ try {
     "Automatic entertainment doubles use actual distinct matches, original odds and a separate virtual account",
   );
   await shot("entertainment-double", false);
+  await p.getByRole("link", { name: "看票据与结果 ↓", exact: true }).click();
+  await shot("entertainment-double-cards", false);
   await go("/workbench");
+  assert.equal(new URL(p.url()).searchParams.get("period"), "TODAY");
+  pass(
+    "Normal fixture entry shows today's configured competitions; broader dates remain available",
+  );
   await expect(p.getByRole("heading", { name: /比赛与推荐/ })).toBeVisible();
   await shot("fixtures", false);
+  await Promise.all([
+    p.waitForResponse(
+      (r) => r.url().includes("/workspace/schedule?") && r.status() === 200,
+    ),
+    p.getByRole("button", { name: "近期", exact: true }).click(),
+  ]);
+  assert.equal(new URL(p.url()).searchParams.get("period"), "RECENT");
+  pass(
+    "Recent fixtures stay accessible with started and completed matches; daily default does not remove history",
+  );
   const links = p.locator('a[href^="/match/"]');
   assert.ok((await links.count()) > 0);
   const target = await links.first().getAttribute("href");
