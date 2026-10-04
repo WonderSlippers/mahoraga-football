@@ -176,7 +176,13 @@ try {
       );
       await page
         .locator('[data-testid="score-performance"]')
-        .screenshot({ path: `${dir}/mobile-grade-review.png` });
+        .evaluate((element) => {
+          window.scrollTo(
+            0,
+            element.getBoundingClientRect().top + window.scrollY - 75,
+          );
+        });
+      await page.screenshot({ path: `${dir}/mobile-grade-review.png` });
       pass("Mobile grade review fits viewport");
       await page.setViewportSize({ width: 1440, height: 1050 });
     }

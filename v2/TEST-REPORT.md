@@ -407,3 +407,12 @@ Chrome首次启动失败退出1（browser.log）；首轮Edge读取超时退出1
 最终真实Edge命令 V2_BROWSER_PATH="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" node scripts/verify-score-order-browser.mjs 退出0：8检查/4截图/0页面脚本错误。browser.json保存各页实际评分序列；browser-edge-retry-command.json保存浏览器路径、命令、退出码和耗时。旧5173当前PID11220/创建时间在自身启动前后相同（legacy-process-start/after.json）；前述水位事实哈希保护检查退出0。输出副本将放在聊天根outputs/score-order-20261005。未跳过V6、模型切换或分页；没有把软件排序测试称为真实模型验证。
 
 追加截图探针（node .runtime-v2/score-order-20261005/highest-first.mjs）退出0：完整推荐跟踪首页40行，首行92分，评分逐行降序；最高分置顶截图highest-first.png。最初临时探针将隐藏的加载状态等待为可见，退出1，是探针错误；改为attached后实际通过，不计为站点故障或新增模型验证。
+
+
+## 2026-10-05：评分下注表现验收
+
+证据`.runtime-v2/score-review-20261005`，命令/退出码/分类见commands.json。npm run test:unit退出0：92/92，0跳过。tsx --test --test-concurrency=1 tests/integration/universal.test.ts tests/integration/versions.test.ts tests/integration/ticket-date-cohort.test.ts退出0：23/23，0跳过。115个不同软件测试；21针对性单元是子集，重跑不重复计数。npm run check和npm run build退出0，边界检查不是模型验证。
+
+node scripts/verify-score-review-browser.mjs最终退出0：8实站检查、5实际截图、0页面脚本错误。通用421票、原版199票、历史498票各档计数/净收益/赢输与实际API一致；评级点击和逐分点击筛票，统计覆盖分页全量；390px无横溢出；V6零票不补造表现。使用本机Edge，未拦截API或插入模拟生产数据。首轮退出1的手机横溢出保留browser-first-failed.log/browser-failed.json/failed.png；修复后完整重验通过。
+
+保护检查before/after退出0：5事实表水位原行（152448/652/702/64945/31224）哈希相同，旧HEAD/diff/status相同；旧5173 PID11220创建时间/执行路径相同。仅自身研究supervisor认证停止/重启，最终PID28268、5274/8789。未写旧D1、改旧任务、push或部署。详见SCORE-REVIEW-20261005.md。
