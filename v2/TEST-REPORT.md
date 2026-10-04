@@ -394,3 +394,16 @@ node scripts/verify-strategy-records.mjs check/build/integration/browser最终�
 自身新服务PID8540/worker build hash89830468当前在5274/8789；appCodeSha3594503-dirty是启动时本轮文档未提交，API源码已在3594503提交。旧5173 PID24644及创建时间未变，交付后自身HTTP200只作为可达证据，功能由上面的真实浏览器证明。初次自动时钟推进断言退出1，因为上轮中断lease保留180秒；实际恢复结果另追加，不把手动触发称自动成功。
 
 最终自动恢复命令.venv/Scripts/python.exe scripts/verify-recommendation-runtime.py after于16:57:44UTC退出0（runtime-after-command.json完整命令/起止时间/退出码，runtime-after.log完整输出）；同一自身PID8540、startedAt16:54:09、自动成功时钟由16:53:28自然推进到16:57:37、stage=IDLE，旧5173 PID24644创建身份相同。没有手动tick；原180秒lease正常恢复。DEGRADED/BACKOFF保留，不把来源短时恢复称长期稳定。
+
+
+## 2026-10-05：评分降序验收
+
+证据：.runtime-v2/score-order-20261005。check（node scripts/check.mjs）退出0；针对性unit（tsx --test tests/unit/recommendation-display.test.ts tests/unit/workspace.test.ts）17项/17通过/0跳过；integration（tsx --test --test-concurrency=1 tests/integration/workspace.test.ts）3项/3通过/0跳过；build退出0。共20项不同软件测试，不是完整测试套件，也不是模型盈利验证。每条命令与退出码、耗时保存为*-command.json及*.log。
+
+只读保护检查前后5事实表原水位行哈希一致：predictions151249、tickets573、ticket_legs618、universal_observations64627、version_observations30679；旧HEAD/diff/status哈希一致。启动时发现此前2.0进程已不在监听，核对旧5173当前PID11220/创建时间后仅启动自身新PID7396；未发旧站HTTP/DB/任务写入、停止、push或部署。不能把上个被中断阶段记录的旧PID24644称为现在同一进程。
+
+Chrome首次启动失败退出1（browser.log）；首轮Edge读取超时退出1（browser-edge.log及failed.png），不是PASS。全历史重试进行中；真实截图与最终检查随后追加。
+
+最终真实Edge命令 V2_BROWSER_PATH="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" node scripts/verify-score-order-browser.mjs 退出0：8检查/4截图/0页面脚本错误。browser.json保存各页实际评分序列；browser-edge-retry-command.json保存浏览器路径、命令、退出码和耗时。旧5173当前PID11220/创建时间在自身启动前后相同（legacy-process-start/after.json）；前述水位事实哈希保护检查退出0。输出副本将放在聊天根outputs/score-order-20261005。未跳过V6、模型切换或分页；没有把软件排序测试称为真实模型验证。
+
+追加截图探针（node .runtime-v2/score-order-20261005/highest-first.mjs）退出0：完整推荐跟踪首页40行，首行92分，评分逐行降序；最高分置顶截图highest-first.png。最初临时探针将隐藏的加载状态等待为可见，退出1，是探针错误；改为attached后实际通过，不计为站点故障或新增模型验证。

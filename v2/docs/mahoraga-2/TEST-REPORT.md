@@ -51,3 +51,16 @@ protection-check-20261001.json核对旧HEAD、dirty patch/status、PID59592。�
 ## 2026-10-01 用户指定头像
 
 头像专项：原文件与站点响应SHA256一致；favicon路径及M伪元素移除验证；5273/5274×390/1440×深/浅8组实际浏览器检查全部通过，无pageerror或横向溢出。证据 .runtime-v2/avatar/browser-report.json 与8张PNG。本次为展示资源变更，未重复运行无关财务/模型测试。
+
+
+## 2026-10-05：评分降序验收
+
+证据：.runtime-v2/score-order-20261005。check（node scripts/check.mjs）退出0；针对性unit（tsx --test tests/unit/recommendation-display.test.ts tests/unit/workspace.test.ts）17项/17通过/0跳过；integration（tsx --test --test-concurrency=1 tests/integration/workspace.test.ts）3项/3通过/0跳过；build退出0。共20项不同软件测试，不是完整测试套件，也不是模型盈利验证。每条命令与退出码、耗时保存为*-command.json及*.log。
+
+只读保护检查前后5事实表原水位行哈希一致：predictions151249、tickets573、ticket_legs618、universal_observations64627、version_observations30679；旧HEAD/diff/status哈希一致。启动时发现此前2.0进程已不在监听，核对旧5173当前PID11220/创建时间后仅启动自身新PID7396；未发旧站HTTP/DB/任务写入、停止、push或部署。不能把上个被中断阶段记录的旧PID24644称为现在同一进程。
+
+Chrome首次启动失败退出1（browser.log）；首轮Edge读取超时退出1（browser-edge.log及failed.png），不是PASS。全历史重试进行中；真实截图与最终检查随后追加。
+
+最终真实Edge命令 V2_BROWSER_PATH="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" node scripts/verify-score-order-browser.mjs 退出0：8检查/4截图/0页面脚本错误。browser.json保存各页实际评分序列；browser-edge-retry-command.json保存浏览器路径、命令、退出码和耗时。旧5173当前PID11220/创建时间在自身启动前后相同（legacy-process-start/after.json）；前述水位事实哈希保护检查退出0。输出副本将放在聊天根outputs/score-order-20261005。未跳过V6、模型切换或分页；没有把软件排序测试称为真实模型验证。
+
+追加截图探针（node .runtime-v2/score-order-20261005/highest-first.mjs）退出0：完整推荐跟踪首页40行，首行92分，评分逐行降序；最高分置顶截图highest-first.png。最初临时探针将隐藏的加载状态等待为可见，退出1，是探针错误；改为attached后实际通过，不计为站点故障或新增模型验证。

@@ -5,7 +5,9 @@ const origin = "http://127.0.0.1:5274";
 const dir = ".runtime-v2/score-order-20261005";
 fs.mkdirSync(dir, { recursive: true });
 const browser = await chromium.launch({
-  executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  executablePath:
+    process.env.V2_BROWSER_PATH ||
+    "C:/Program Files/Google/Chrome/Application/chrome.exe",
   headless: true,
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
