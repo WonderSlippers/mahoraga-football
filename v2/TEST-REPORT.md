@@ -426,3 +426,8 @@ node scripts/verify-score-review-browser.mjs最终退出0：8实站检查、5实
 ## 2026-10-05：两版收益与实际选单直接比较
 
 只读比较命令node .runtime-v2/model-comparison-20261005/read.mjs退出0，实站返回通用421票、原版199票；Python compare.py及逐对一致性核查退出0。核查21个完全同价同方向的已结单场，stake/PnL逐对一致；去重保留最早原票，未选最佳赔率或结果。导出截止UTC23:49:21/22；各日期范围、计数、收益、共享/独有方向与实例见comparison.json及两份真实API导出。无新增软件测试/模型验证PASS，未模拟下注或改模型/数据库/服务。
+
+
+## 2026-10-05：自动运行与参数反馈核验
+
+本轮只读代码与新库状态检查退出0，不增加软件/模型验证测试数。runtime cwd和manifest安装ID核实；version_state revision16、modelW0.8、marginShift−0.02，种子0.2/+0.02；最近revision13–16权重0.65→0.70→0.75→0.8。通用无version_state记录；固定50%由实际Python配方确认。自动任务明确调用versionPaperStep，参数更新原子写入version_state和追加events。未触发手动tick/训练/改参数，证据parameter-adjustment.json。

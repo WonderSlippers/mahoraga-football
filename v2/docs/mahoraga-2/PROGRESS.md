@@ -108,3 +108,8 @@ T14 DONE（只读德甲切片）：5274/8789、research独立installation与D1�
 ## 2026-10-05：两版收益与实际选单直接比较
 
 已实际导出当前两个版本全票并对照10月4日出票/开赛：昨日出票已结组合通用72票、净−14.095671、ROI−0.978866%；原版122票、净−431.987128、ROI−17.704390%。同开赛日单场按原方向去重后通用ROI−11.669504%、原版−15.005910%。共同盈利方向18个，其中17个评分不同；另有通用独有20个、原版独有4个盈利方向。当前组合通用较好，差别包含实际选单/覆盖与策略资金重复，不能只归评级。证据outputs/model-comparison-20261005/comparison.json。
+
+
+## 2026-10-05：自动运行与参数反馈核验
+
+已只读确认自动调参状态：通用GENERAL_V2固定配方/融合权重50%，后台更新输入并推理，不自动训练或调整参数。原版versionPaperStep调用原legacyRound校准并追加version_state_events，目前revision16、modelW0.8、marginShift−0.02，相比种子0.2/+0.02确已变化。证据outputs/model-comparison-20261005/parameter-adjustment.json。未调整模型/任务/账本。
