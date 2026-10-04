@@ -1,5 +1,9 @@
 ## 2026-10-04 产品可用性实际验收
 
+交付复查：最终实现提交 `3fafecbd5e431d60f0c274682e3a5685bb261fcc` 重启自有服务后，真实浏览器验证5273首页跳5274、策略竞技场、原票直达、独立离线DEMO；两种mode/installationId分开，实际meta.appCodeSha与该实现提交一致，退出0。证据handoff.json/.txt、handoff-arena.png。第一次复查因导航箭头进入可访问名称而使用过严exact标题匹配超时；按实际导航href复验通过，handoff-first-failure日志保留。没有据HTTP200单独宣称页面完成。
+
+最终恢复观察：中途重启继承未到期RUNNING租约，首次90秒监测未看到成功时间前进，断言退出1（availability-restart-wait记录保留）。原lastAttempt早于新启动；180秒租约到期后自动恢复，无人工改状态或强制采集。随后新90秒19样本监测退出0、Python心跳/完成数前进，详见availability.json/.txt。之前的10次成功更新证据单独保存在availability-before-release.json/.txt。启动恢复可能等待最多3分钟，不宣称立刻刷新或后台从未报错。最终文档提交与运行实现3fafecb之间只改说明，不热替换底层核心。
+
 完整证据副本：D:/ChatGPT/Projects/2026-09-28/2-0-codex-agents-md-00-4/outputs/product-20261004。原目录.runtime-v2/product-20261004。真实Chrome连接隔离5274，无API拦截、无合成盈利写入活动研究库。CONTRACT/DEMO的软件用例不算原模型盈利验证；本轮不改模型权重，不新增模型验证PASS。
 
 | v2目录执行的实际命令                                                                                                                                                                                                                                                           | 退出码 | 数量/范围                                                                          | 证据                              |
