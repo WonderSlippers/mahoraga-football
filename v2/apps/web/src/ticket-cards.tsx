@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { teamName, formatDate } from "../../../packages/display";
-import { TeamBadge } from "./schedule-view";
+import { TeamBadge, TeamName } from "./schedule-view";
 const labels: Record<string, string> = {
   WIN: "赢",
   LOSS: "输",
@@ -57,12 +57,22 @@ export function TicketCards({
                 <div className="ticket-teams">
                   <span>
                     <TeamBadge name={l.home} logo={l.homeLogo} />
-                    <b>{teamName(l.home, l.league ?? l.leagueCode)}</b>
+                    <b>
+                      <TeamName
+                        name={l.home}
+                        competition={l.league ?? l.leagueCode}
+                      />
+                    </b>
                   </span>
                   <em>vs</em>
                   <span>
                     <TeamBadge name={l.away} logo={l.awayLogo} />
-                    <b>{teamName(l.away, l.league ?? l.leagueCode)}</b>
+                    <b>
+                      <TeamName
+                        name={l.away}
+                        competition={l.league ?? l.leagueCode}
+                      />
+                    </b>
                   </span>
                 </div>
                 <p className="ticket-selection">

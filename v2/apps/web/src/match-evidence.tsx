@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { teamName, formatDate } from "../../../packages/display";
+import { TeamName } from "./schedule-view";
 const odds = (v: any) => (v == null ? "未提供" : Number(v).toFixed(3));
 export function QuoteHistory({ quotes }: any) {
   const [provider, setProvider] = useState(""),
@@ -222,12 +223,13 @@ export function MatchContext({ data }: any) {
         ].map(([name, games]: any) => (
           <article key={name}>
             <h3>
-              {teamName(name, f.competition)} · 最近{games?.length ?? 0}场
+              <TeamName name={name} competition={f.competition} /> · 最近
+              {games?.length ?? 0}场
             </h3>
             {games?.map((g: any) => (
               <div className="form-game" key={g.id}>
                 <small>{formatDate(g.at).slice(0, 10)}</small>
-                <span>{teamName(g.opponent)}</span>
+                <TeamName name={g.opponent} />
                 <b
                   className={
                     g.gf > g.ga ? "positive" : g.gf < g.ga ? "negative" : ""
@@ -257,7 +259,10 @@ export function MatchContext({ data }: any) {
           (r: any, i: number) => (
             <article key={i}>
               <h3>
-                {teamName(r.team?.displayName ?? r.team?.name, f.competition)}
+                <TeamName
+                  name={r.team?.displayName ?? r.team?.name}
+                  competition={f.competition}
+                />
               </h3>
               <p>{r.formation ?? "阵型未公布"}</p>
               {(Array.isArray(r.roster) ? r.roster : []).map((p: any) => (

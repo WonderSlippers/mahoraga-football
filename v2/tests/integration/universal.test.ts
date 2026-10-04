@@ -516,6 +516,47 @@ test("general recommendations remain tracked after kickoff and scoring uses froz
   assert.equal(scored.baseline.probabilityN, 1);
 });
 
+test("bilingual schedule and ledger search preserve frozen recommendation scores through settlement", async () => {
+  await stmt(
+    c.db,
+    "UPDATE fixtures SET home='Manchester United',away='Liverpool' WHERE id=?",
+    f.id,
+  ).run();
+  await generated();
+  await autoPaper(c);
+  const frozen = (await universalReport(c)).records[0].output;
+  const first = await workspaceSchedule(c, new URLSearchParams({ q: "曼联" }));
+  assert.equal(first.total, 1);
+  assert.equal(first.items[0].home, "Manchester United");
+  const directions = first.items[0].generalDirections;
+  assert.ok(directions.length > 0);
+  assert.equal(directions[0].rank, 92);
+  for (const q of ["Manchester United", "man utd", "man-utd"]) {
+    const schedule = await workspaceSchedule(c, new URLSearchParams({ q }));
+    assert.deepEqual(
+      schedule.items.map((r: any) => r.id),
+      first.items.map((r: any) => r.id),
+    );
+    const ledger = await workspaceReport(
+      c,
+      new URLSearchParams({ q, mode: "PAPER_RESEARCH", period: "ALL" }),
+      "ledger",
+    );
+    assert.ok(ledger.total > 0);
+  }
+  assert.equal(
+    (await workspaceSchedule(c, new URLSearchParams({ q: "曼城" }))).total,
+    0,
+  );
+  await result(1, 0);
+  await autoSettle(c);
+  const ended = await workspaceSchedule(
+    { ...c, now: c.now + 3700000 },
+    new URLSearchParams({ q: "曼联", view: "TRACKED" }),
+  );
+  assert.deepEqual(ended.items[0].generalDirections, directions);
+  assert.deepEqual((await universalReport(c)).records[0].output, frozen);
+});
 test("arena uses actual settled tickets, isolated accounts and Berlin settlement periods; no actions keep ROI null", async () => {
   await generated();
   await autoPaper(c);

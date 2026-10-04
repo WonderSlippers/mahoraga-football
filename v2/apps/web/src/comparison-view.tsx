@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { teamName, formatDate } from "../../../packages/display";
+import { TeamName } from "./schedule-view";
 const pct = (v: any) => (v == null ? "—" : (v * 100).toFixed(2) + "%");
 const num = (v: any) => (v == null ? "—" : Number(v).toFixed(3));
 const names: any = {
@@ -332,7 +333,9 @@ export function ComparisonPanel({ api, fixture, compact = false }: Props) {
                 {formatDate(r.cutoffAt)}
               </small>
               <Link to={"/match/" + encodeURIComponent(r.fixtureId)}>
-                {teamName(r.home)} <span>vs</span> {teamName(r.away)}
+                <TeamName name={r.home} competition={r.competition} />{" "}
+                <span>vs</span>{" "}
+                <TeamName name={r.away} competition={r.competition} />
               </Link>
               <small>
                 开赛 {formatDate(r.kickoffAt)} · {r.competition}

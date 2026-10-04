@@ -1,4 +1,8 @@
-import { calendarDay, teamName } from "../../../../packages/display";
+import {
+  calendarDay,
+  teamName,
+  matchesTeamSearch,
+} from "../../../../packages/display";
 import { rows, stmt, uid } from "../repositories/db";
 import type { Context } from "./commands";
 import { canonical, sha } from "../../../../packages/contracts/index";
@@ -169,7 +173,13 @@ export function rowMatches(r: any, p: URLSearchParams, now: number) {
     return false;
   const q = p.get("q")?.toLowerCase();
   return (
-    !q || JSON.stringify([r.title, r.id, r.portfolio]).toLowerCase().includes(q)
+    !q ||
+    JSON.stringify([r.title, r.id, r.portfolio]).toLowerCase().includes(q) ||
+    matchesTeamSearch(
+      q,
+      (r.legs ?? []).flatMap((leg: any) => [leg.home, leg.away]),
+      r.league,
+    )
   );
 }
 export function summarizeRecords(records: any[]) {
@@ -1304,17 +1314,16 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
             f.state !== "CANDIDATE"
           : f.state === status)) &&
       (!q ||
-        (
-          f.home +
-          " " +
-          f.away +
-          " " +
-          teamName(f.home) +
-          " " +
-          teamName(f.away)
-        )
-          .toLowerCase()
-          .includes(q)),
+        matchesTeamSearch(
+          q,
+          [
+            f.home,
+            f.away,
+            `${f.home} ${f.away}`,
+            `${teamName(f.home, f.competition)} ${teamName(f.away, f.competition)}`,
+          ],
+          f.competition,
+        )),
   );
   const live = (f: any) =>
     f.state === "STARTED" &&

@@ -12,6 +12,69 @@ const alias = (name: string) =>
 const aliases = new Map(
   Object.entries(dictionary).map(([name, zh]) => [alias(name), zh]),
 );
+const namesByChinese = new Map<string, string[]>();
+for (const [original, chinese] of Object.entries(dictionary)) {
+  const group = namesByChinese.get(chinese) ?? [];
+  group.push(original);
+  namesByChinese.set(chinese, group);
+}
+export function teamOriginalName(name: unknown) {
+  const raw = String(name ?? "").trim();
+  return (
+    namesByChinese
+      .get(raw)
+      ?.reduce(
+        (best, value) => (value.length > best.length ? value : best),
+        "",
+      ) || raw
+  );
+}
+const searchKey = (text: unknown) =>
+  String(text ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
+export function matchesTeamSearch(
+  query: string,
+  teams: unknown[],
+  competition = "",
+) {
+  const needle = searchKey(query);
+  return (
+    !needle ||
+    teams.some((name) => {
+      const raw = String(name ?? "").trim();
+      const chinese = dictionary[raw] ?? aliases.get(alias(raw)) ?? raw;
+      return [
+        raw,
+        teamName(raw, competition),
+        ...(namesByChinese.get(chinese) ?? []),
+      ].some((value) => searchKey(value).includes(needle));
+    })
+  );
+}
+export function researchScoreBand(value: unknown) {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > 100
+  )
+    return { score: null, grade: "UNKNOWN", label: "原模型未提供评分" };
+  return {
+    score: value,
+    grade: value >= 75 ? "A" : value >= 60 ? "B" : value >= 45 ? "C" : "D",
+    label:
+      value >= 75
+        ? "优先比较"
+        : value >= 60
+          ? "备选观察"
+          : value >= 45
+            ? "观望"
+            : "低分对照",
+  };
+}
 export function teamName(name: unknown, competition = "") {
   const raw = String(name ?? "").trim();
   const base = dictionary[raw] ?? aliases.get(alias(raw)) ?? raw;

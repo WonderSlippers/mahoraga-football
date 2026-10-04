@@ -1866,6 +1866,91 @@ button.secondary {
 .fixture-teams strong {
   font-size: 15px;
 }
+.team-name {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  min-width: 0;
+  max-width: 100%;
+  gap: 3px;
+}
+.team-name .team-original {
+  display: block;
+  color: var(--ws-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.general-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.general-card h3 .team-name > span {
+  color: var(--ws-ink);
+}
+.team-search {
+  margin: 16px 0;
+  width: min(100%, 640px);
+}
+.research-score,
+.recommendation-card > .research-score {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  margin: 10px 0;
+  border-top: 1px solid var(--ws-line);
+  border-bottom: 1px solid var(--ws-line);
+}
+.research-score > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.research-score span,
+.research-score small {
+  font-size: 11px;
+  color: var(--ws-muted);
+  font-weight: 400;
+}
+.research-score strong {
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.research-score strong small {
+  margin-left: 4px;
+}
+.research-score b {
+  font-size: 13px;
+}
+.research-score.grade-A strong,
+.research-score.grade-A b {
+  color: var(--ws-accent);
+}
+.research-score.grade-D strong,
+.research-score.grade-D b {
+  color: var(--ws-orange);
+}
+.research-score.compact {
+  padding: 7px 0;
+  margin: 4px 0;
+  gap: 10px;
+}
+.research-score.compact strong {
+  font-size: 20px;
+}
+.score-explanation {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ws-muted);
+  overflow-wrap: anywhere;
+}
 .team-crest {
   width: 25px;
   height: 25px;

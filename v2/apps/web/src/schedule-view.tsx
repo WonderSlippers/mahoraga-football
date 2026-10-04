@@ -2,10 +2,26 @@ import React from "react";
 import { Link } from "react-router-dom";
 import {
   teamName,
+  teamOriginalName,
   formatTime,
   calendarDay,
   formatDate,
 } from "../../../packages/display";
+import { ResearchScore } from "./research-score";
+export function TeamName({ name, competition = "" }: any) {
+  const chinese = teamName(name, competition),
+    original = teamOriginalName(name);
+  return (
+    <span className="team-name">
+      <span>{chinese || "球队名称未提供"}</span>
+      {original && original !== chinese && (
+        <small className="team-original" lang="en">
+          {original}
+        </small>
+      )}
+    </span>
+  );
+}
 const pct = (v: any) => (v == null ? "—" : (v * 100).toFixed(1) + "%");
 export function Scoreboard({ value, compact = false }: any) {
   if (!value?.score && !value?.clock) return null;
@@ -65,7 +81,11 @@ export function Recommendations({ data, onSelect }: any) {
     <section className="recommendations" aria-label="比赛推荐">
       <div className="recommendation-tabs">
         {[
-          ["research", "市场＋近期研究", data?.candidateCounts?.research],
+          [
+            "research",
+            data?.version?.label ?? "当前模型研究",
+            data?.candidateCounts?.research,
+          ],
           ["strict", "严格前瞻", data?.candidateCounts?.strict],
           ["observe", "待观察", data?.candidateCounts?.observations],
         ].map(([key, label, count]) => (
@@ -82,7 +102,7 @@ export function Recommendations({ data, onSelect }: any) {
       </div>
       <p className="ws-muted">
         {tab === "research"
-          ? "本栏来源：80%市场去水概率＋20%近期比分推算。属于未验证研究，不是V6或V7的预测。V6与旧V2方向请打开推荐跟踪。"
+          ? `本栏使用${data?.version?.label ?? "当前所选模型"}，分数读取保存的排序值。模型概率、EV、数据完整度分别展示，收益优势尚未验证。`
           : tab === "strict"
             ? "严格前瞻是赛前输入、固定规则和记录的验证资格，不是另一个算法名称。"
             : "没有入选的比赛仍在完整赛程中；等待补证不代表现实没有机会。"}
@@ -97,8 +117,8 @@ export function Recommendations({ data, onSelect }: any) {
           >
             <div>
               <strong>
-                {teamName(f.home, f.competition)} —{" "}
-                {teamName(f.away, f.competition)}
+                <TeamName name={f.home} competition={f.competition} /> —{" "}
+                <TeamName name={f.away} competition={f.competition} />
               </strong>
               <small>
                 {calendarDay(f.kickoffAt)} {formatTime(f.kickoffAt)}
@@ -106,16 +126,31 @@ export function Recommendations({ data, onSelect }: any) {
             </div>
             {f.research ? (
               <>
+                <ResearchScore
+                  score={f.research.rankScore}
+                  original={data?.version?.id === "SEPTEMBER20"}
+                  compact
+                />
                 <b className="recommendation-direction">
                   {f.research.selectionName}{" "}
-                  <span>{Number(f.research.decimalOdds).toFixed(2)}</span>
+                  <span>
+                    @{" "}
+                    {Number(f.research.decimalOdds ?? f.research.odds).toFixed(
+                      2,
+                    )}
+                  </span>
                 </b>
                 <p>
-                  研究概率 {pct(f.research.probability)} · 估算EV{" "}
-                  {pct(f.research.ev)}
+                  {f.research.probabilityKind === "STRESS"
+                    ? "压力概率"
+                    : f.research.probabilityKind === "CONSERVATIVE"
+                      ? "扣减后概率"
+                      : "模型概率"}{" "}
+                  {pct(f.research.probability)} · 估算EV {pct(f.research.ev)}
                 </p>
-                <small title="固定80%市场与20%近期赛况，仅用于未验证研究">
-                  未验证研究 · 证据 {pct(f.completeness)}
+                <small>
+                  {f.research.modelLabel} · 未验证研究 · 证据{" "}
+                  {pct(f.completeness)}
                 </small>
               </>
             ) : (
@@ -177,11 +212,15 @@ export function FixtureList({ data, onSelect }: any) {
           <div className="fixture-teams">
             <div>
               <TeamBadge name={f.home} logo={f.publicData?.homeLogo} />
-              <strong title={f.home}>{teamName(f.home, f.competition)}</strong>
+              <strong>
+                <TeamName name={f.home} competition={f.competition} />
+              </strong>
             </div>
             <div>
               <TeamBadge name={f.away} logo={f.publicData?.awayLogo} />
-              <strong title={f.away}>{teamName(f.away, f.competition)}</strong>
+              <strong>
+                <TeamName name={f.away} competition={f.competition} />
+              </strong>
             </div>
           </div>
           <div className="fixture-prices">
@@ -219,6 +258,11 @@ export function FixtureList({ data, onSelect }: any) {
             <span className={"ws-state state-" + f.state}>{f.label}</span>
             {f.state === "CANDIDATE" && f.research ? (
               <>
+                <ResearchScore
+                  score={f.research.rankScore}
+                  original={data?.version?.id === "SEPTEMBER20"}
+                  compact
+                />
                 <strong>
                   {f.research.selectionName} · EV {pct(f.research.ev)}
                 </strong>
@@ -252,6 +296,11 @@ export function FixtureList({ data, onSelect }: any) {
             )}
             {f.generalDirections?.map((p: any) => (
               <div className="saved-direction" key={p.decisionId}>
+                <ResearchScore
+                  score={p.rank}
+                  original={data?.version?.id === "SEPTEMBER20"}
+                  compact
+                />
                 <b>
                   {p.policyLabel ?? "通用赛前"} · {directionName(p)}
                   {p.lineQ == null

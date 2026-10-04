@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { teamName } from "../../../packages/display";
+import { TeamName } from "./schedule-view";
 const amount = (v: any) => (v == null ? "—" : (Number(v) / 1e6).toFixed(2)),
   pct = (v: any) => (v == null ? "—" : (v * 100).toFixed(2) + "%");
 export function LedgerReview({ review }: any) {
@@ -144,7 +144,7 @@ export function LedgerReview({ review }: any) {
         {review.failedLegs.map((r: any) => (
           <article className="ws-leg" key={r.ticketId + ":" + r.index}>
             <b>
-              {teamName(r.home)} — {teamName(r.away)}
+              <TeamName name={r.home} /> — <TeamName name={r.away} />
             </b>
             <p>
               原选择 {r.selection} · 赔率 {r.odds ?? "未知"} · 原比分{" "}

@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { teamName, formatDate } from "../../../packages/display";
+import {
+  teamName,
+  formatDate,
+  calendarDay,
+  matchesTeamSearch,
+} from "../../../packages/display";
 import { useReport } from "./use-report";
+import { TeamName } from "./schedule-view";
+import { ResearchScore } from "./research-score";
 type Client = (path: string, body?: unknown, key?: string) => Promise<any>;
 const pct = (v: any) => (v == null ? "—" : (Number(v) * 100).toFixed(1) + "%");
 const money = (v: any) =>
@@ -35,6 +42,7 @@ function PlanCard({ r, p, value }: any) {
     <article
       className={"general-card" + (value ? " value" : "")}
       data-testid="general-plan"
+      data-decision-id={p.decisionId}
     >
       <div className="general-card-top">
         <span>{value ? "价值研究" : "广覆盖对照"}</span>
@@ -42,10 +50,11 @@ function PlanCard({ r, p, value }: any) {
       </div>
       <Link to={"/match/" + encodeURIComponent(r.fixtureId)}>
         <h3>
-          {teamName(r.home, r.competition)} <span>vs</span>{" "}
-          {teamName(r.away, r.competition)}
+          <TeamName name={r.home} competition={r.competition} /> <span>vs</span>{" "}
+          <TeamName name={r.away} competition={r.competition} />
         </h3>
       </Link>
+      <ResearchScore score={p.rank} original={p.originalStrategy} />
       <div className="general-selection">
         <strong>{planName(p, r)}</strong>
         <b>@ {Number(p.odds).toFixed(2)}</b>
@@ -76,12 +85,24 @@ function PlanCard({ r, p, value }: any) {
       </dl>
       <p className="general-action">
         {value
-          ? "原版策略独立纸面记录 · 90分钟"
+          ? p.probabilityKind === "STRESS"
+            ? "V6原生压力方向 · 研究候选"
+            : p.originalStrategy
+              ? "原版价值候选 · 独立纸面记录"
+              : "通用价值候选 · 独立纸面记录"
           : p.originalStrategy
             ? "原版广覆盖 / 保底纸面记录 · 收益待验证"
             : p.estimatedEV <= 0
               ? "当前价格不足：不投，保留对照"
               : "尚未过精选门槛：观察"}
+      </p>
+      <p className="score-explanation">
+        {p.originalStrategy
+          ? p.probabilityKind === "STRESS"
+            ? "原V6只提供压力概率及EV，没有原版综合评分。"
+            : "原版评分依据：保守EV、方向概率、进球模型与已取得的研究证据。"
+          : "通用评分依据：保守EV、扣减后概率档位、独立进球依据与缺失证据扣分。"}
+        {p.rationale ? " " + p.rationale : ""}
       </p>
       <p>
         {basis(r.output.basis)} ·{" "}
@@ -107,16 +128,37 @@ function PlanCard({ r, p, value }: any) {
 export function UniversalPanel({
   api,
   fixture,
+  scope,
 }: {
   api: Client;
   fixture?: string;
+  scope?: { from: string; to: string; league: string; q: string };
 }) {
+  const [visible, setVisible] = useState(6);
   const { data, error } = useReport(
     api,
     "/workspace/universal" +
       (fixture ? "?fixture=" + encodeURIComponent(fixture) : ""),
   );
-  const records = data?.records ?? [];
+  const records = (data?.records ?? []).filter((r: any) => {
+    if (!scope) return true;
+    const day = calendarDay(r.kickoffAt);
+    return (
+      (!scope.from || day >= scope.from) &&
+      (!scope.to || day <= scope.to) &&
+      (scope.league === "ALL" || r.competition === scope.league) &&
+      matchesTeamSearch(
+        scope.q,
+        [
+          r.home,
+          r.away,
+          `${r.home} ${r.away}`,
+          `${teamName(r.home, r.competition)} ${teamName(r.away, r.competition)}`,
+        ],
+        r.competition,
+      )
+    );
+  });
   const active = records.filter(
     (r: any) => r.fresh && r.actionable && r.state === "DONE",
   );
@@ -138,7 +180,11 @@ export function UniversalPanel({
             y.p.lineQ === x.p.lineQ,
         ) === i,
     )
-    .sort((a: any, b: any) => b.p.estimatedEV - a.p.estimatedEV);
+    .sort(
+      (a: any, b: any) =>
+        (b.p.rank ?? -1) - (a.p.rank ?? -1) ||
+        b.p.estimatedEV - a.p.estimatedEV,
+    );
   const broad = active.flatMap((r: any) =>
     r.output.plans
       .filter((p: any) => p.policyId === "general-v2-all-singles")
@@ -160,28 +206,53 @@ export function UniversalPanel({
         <Link to="/strategies">自动纸面策略 →</Link>
       </div>
       <p className="general-intro">
-        根据实际取得的攻防数据和参考价格筛选，每个方向保留依据与拒绝原因。
+        按冻结评分排序，EV辅助比较。A≥75优先比较 · B≥60备选 · C≥45观望 ·
+        D低分对照。分数不是命中率，高分仍需核对价格、数据和验证状态。
       </p>
       {error && <p role="alert">通用分析读取失败：{error}</p>}
       <div className="general-coverage">
         <span>
-          已分析 <b>{data?.coverage.analysedN ?? "—"}</b> 场
+          已分析{" "}
+          <b>
+            {data ? records.filter((r: any) => r.state === "DONE").length : "—"}
+          </b>{" "}
+          场
         </span>
         <span>
-          有独立攻防 <b>{data?.coverage.independentN ?? "—"}</b> 场
+          有独立攻防{" "}
+          <b>
+            {data
+              ? records.filter(
+                  (r: any) =>
+                    r.output.grid ||
+                    r.output.hasIndependent ||
+                    r.output.goalModel,
+                ).length
+              : "—"}
+          </b>{" "}
+          场
         </span>
         <span>
-          赛事 <b>{data?.coverage.competitionN ?? "—"}</b> 类
+          赛事{" "}
+          <b>
+            {data ? new Set(records.map((r: any) => r.competition)).size : "—"}
+          </b>{" "}
+          类
         </span>
         <span>
           当前价值 <b>{data ? values.length : "—"}</b> 个方向
         </span>
       </div>
       <div className="general-cards">
-        {values.slice(0, fixture ? 10 : 6).map(({ r, p }: any) => (
+        {values.slice(0, fixture ? 10 : visible).map(({ r, p }: any) => (
           <PlanCard key={p.decisionId} r={r} p={p} value />
         ))}
       </div>
+      {!fixture && values.length > visible && (
+        <button className="secondary" onClick={() => setVisible((n) => n + 6)}>
+          查看更多推荐 · 还有 {values.length - visible} 个方向
+        </button>
+      )}
       {data && !values.length && (
         <div className="general-empty">
           <strong>
@@ -229,6 +300,7 @@ export function UniversalPanel({
                     <th>参考价</th>
                     <th>方向概率</th>
                     <th>保守EV</th>
+                    <th>冻结评分</th>
                     <th>价格门槛</th>
                     <th>判定</th>
                   </tr>
@@ -240,6 +312,13 @@ export function UniversalPanel({
                       <td>{Number(p.odds).toFixed(2)}</td>
                       <td>{pct(p.probability)}</td>
                       <td>{pct(p.estimatedEV)}</td>
+                      <td>
+                        <ResearchScore
+                          score={p.rank}
+                          original={p.originalStrategy}
+                          compact
+                        />
+                      </td>
                       <td>{p.minimumOdds?.toFixed(2) ?? "—"}</td>
                       <td>
                         {p.qualified ? "达到研究门槛" : p.reasons.join("；")}
@@ -256,6 +335,11 @@ export function UniversalPanel({
                   className="general-market-card"
                 >
                   <strong>{planName(p, r)}</strong>
+                  <ResearchScore
+                    score={p.rank}
+                    original={p.originalStrategy}
+                    compact
+                  />
                   <span>{p.qualified ? "达到研究门槛" : "观察 / 未入选"}</span>
                   <dl>
                     <div>

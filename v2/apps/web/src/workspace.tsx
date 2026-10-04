@@ -15,6 +15,7 @@ import {
   FixtureList,
   Recommendations,
   TeamBadge,
+  TeamName,
   Scoreboard,
 } from "./schedule-view";
 import { ComparisonPanel } from "./comparison-view";
@@ -416,11 +417,11 @@ export function ScheduleWorkspace({ api, mode }: Props) {
       {["ACTIVE", "UPCOMING", "ALL"].includes(view) &&
         (mode === "LOCAL_RESEARCH" ? (
           <>
-            <UniversalPanel api={api} />
+            <UniversalPanel api={api} scope={{ from, to, league, q }} />
             <details className="ws-panel">
-              <summary>旧市场 / 近期战绩启发式研究</summary>
+              <summary>当前版本候选摘要与数据完整度</summary>
               <p>
-                该方法未调整对手强度，容易将高赔率方向排在前列；仅保留对照。
+                与顶部所选模型一致，展示各场候选与已取得证据；不混用其他版本评分。
               </p>
               <Recommendations
                 data={data}
@@ -484,6 +485,15 @@ export function ScheduleWorkspace({ api, mode }: Props) {
                 : "进行中的比赛优先，接着是未开赛赛程。结束的比赛可在“近期赛果”查看。"}{" "}
           {period === "RECENT" ? `${from} 至 ${to} · 柏林日期` : ""}
         </p>
+        <label className="ws-filter search team-search">
+          <span>搜索球队 · 中文 / 英文 / 别名</span>
+          <input
+            aria-label="搜索球队"
+            placeholder="例如 曼联 / Manchester United / Man Utd"
+            value={q}
+            onChange={(e) => change(setQ)(e.target.value)}
+          />
+        </label>
         {view === "TRACKED" && (
           <div className="tracking-model-tabs ws-pills" aria-label="推荐算法">
             {(data?.version?.id && data.version.id !== "GENERAL"
@@ -565,15 +575,6 @@ export function ScheduleWorkspace({ api, mode }: Props) {
                 ["FINISHED", "已结束"],
               ]}
             />
-            <label className="ws-filter search">
-              <span>搜索球队 / 对阵</span>
-              <input
-                aria-label="搜索球队"
-                placeholder="输入球队名称…"
-                value={q}
-                onChange={(e) => change(setQ)(e.target.value)}
-              />
-            </label>
           </div>
         </details>
         <FixtureList
@@ -676,7 +677,12 @@ export function FixtureWorkspace({ api, mode }: Props) {
       <section className="ws-match-hero">
         <div>
           <TeamBadge name={f.home} logo={data.publicData?.homeLogo} />
-          <h2>{teamName(f.home, f.competition || f.leagueCode)}</h2>
+          <h2>
+            <TeamName
+              name={f.home}
+              competition={f.competition || f.leagueCode}
+            />
+          </h2>
         </div>
         <div className="ws-match-middle">
           <span>
@@ -711,7 +717,12 @@ export function FixtureWorkspace({ api, mode }: Props) {
         </div>
         <div>
           <TeamBadge name={f.away} logo={data.publicData?.awayLogo} />
-          <h2>{teamName(f.away, f.competition || f.leagueCode)}</h2>
+          <h2>
+            <TeamName
+              name={f.away}
+              competition={f.competition || f.leagueCode}
+            />
+          </h2>
         </div>
       </section>
       <div className="ws-note">
