@@ -1,6 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { teamName, formatDate } from "../../../packages/display";
+import {
+  teamName,
+  formatDate,
+  researchScoreBand,
+} from "../../../packages/display";
 import { TeamBadge, TeamName } from "./schedule-view";
 const labels: Record<string, string> = {
   WIN: "赢",
@@ -44,6 +48,13 @@ export function TicketCards({
               <p>
                 {r.legCount > 1 ? `${r.legCount} 串 1` : "单场"} ·{" "}
                 <time>{date(basis === "SETTLED" ? r.settledAt : r.at)}</time>
+                <span className="ticket-frozen-score">
+                  {" "}
+                  · 出票评分{" "}
+                  {researchScoreBand(r.score).score == null
+                    ? "未记录"
+                    : `${r.score} · ${researchScoreBand(r.score).grade}`}
+                </span>
               </p>
             </div>
             <strong className="ticket-outcome">

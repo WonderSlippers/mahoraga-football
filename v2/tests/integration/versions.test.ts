@@ -356,6 +356,21 @@ test("settlement and correction use original core; switched ledger cannot mix mo
     "ledger",
   );
   assert.ok(legacy.items.length > 0);
+  for (const row of legacy.items) {
+    const original = JSON.parse(
+      (
+        await one(
+          c.db,
+          "SELECT originalJson FROM version_ticket_evidence WHERE ticketId=?",
+          row.id,
+        )
+      ).originalJson,
+    );
+    assert.equal(
+      row.score,
+      Math.min(...original.legs.map((l: any) => l.score)),
+    );
+  }
   assert.equal(general.items.length, 0);
   await demoResult(c, uid(), {
     fixtureId: f.id,
@@ -377,6 +392,15 @@ test("settlement and correction use original core; switched ledger cannot mix mo
   assert.deepEqual(
     await rows(c.db, "SELECT * FROM predictions WHERE modelId=?", SEPTEMBER_ID),
     hashes,
+  );
+  const corrected = await workspaceReport(
+    c,
+    new URLSearchParams({ mode: "PAPER_RESEARCH", version: "SEPTEMBER20" }),
+    "ledger",
+  );
+  assert.deepEqual(
+    corrected.items.map((t) => ({ id: t.id, score: t.score })),
+    legacy.items.map((t) => ({ id: t.id, score: t.score })),
   );
   assert.equal(
     (

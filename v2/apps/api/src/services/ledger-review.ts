@@ -1,5 +1,55 @@
 import { multiplier, accountingDay } from "../../../../packages/domain";
 import { summarizeRecords } from "./workspace";
+import { researchScoreBand } from "../../../../packages/display";
+export function scorePerformance(records: any[], now: number) {
+  const summarize = (selected: any[]) => {
+    const summary = summarizeRecords(selected);
+    return {
+      ...summary,
+      profitAtoms: summary.settled ? summary.profitAtoms : null,
+      hitRate:
+        summary.wins + summary.losses
+          ? summary.wins / (summary.wins + summary.losses)
+          : null,
+      neutral: selected.filter((r) =>
+        ["VOID", "PUSH", "CANCELLED"].includes(
+          r.outcome ?? String(r.status).toUpperCase(),
+        ),
+      ).length,
+    };
+  };
+  const bands = [
+    { grade: "A", range: "75–100" },
+    { grade: "B", range: "60–74" },
+    { grade: "C", range: "45–59" },
+    { grade: "D", range: "0–44" },
+    { grade: "UNKNOWN", range: "出票评分未记录 / 不可用" },
+  ].map((band) => ({
+    ...band,
+    ...summarize(
+      records.filter((r) => researchScoreBand(r.score).grade === band.grade),
+    ),
+  }));
+  const exactScores = [
+    ...new Set(records.map((r) => researchScoreBand(r.score).score)),
+  ]
+    .sort((a, b) => (b ?? -1) - (a ?? -1))
+    .map((score) => ({
+      score,
+      grade: researchScoreBand(score).grade,
+      ...summarize(
+        records.filter((r) => researchScoreBand(r.score).score === score),
+      ),
+    }));
+  return {
+    bands,
+    exactScores,
+    asOf: now,
+    tickets: records.length,
+    attribution:
+      "按出票时冻结评分；串关取最低一腿，任一腿缺评分归入未记录。整票盈亏只计一次，半赢/半输计入赢/输，未结不进入ROI分母。",
+  };
+}
 export function reviewLedger(
   records: any[],
   now: number,

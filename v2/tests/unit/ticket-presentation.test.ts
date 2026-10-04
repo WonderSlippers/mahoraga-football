@@ -5,8 +5,92 @@ import {
   legacyTicket,
   ticketOutcome,
   marketLabel,
+  frozenLegResearchScore,
+  ticketResearchScore,
 } from "../../apps/api/src/services/ticket-presentation";
 import { rangeStart, rowMatches } from "../../apps/api/src/services/workspace";
+test("frozen score binds actual prediction policy and price; ambiguous, later and absent evidence stay unknown", () => {
+  const r = {
+    marketSpecJson: JSON.stringify({
+      market: "1X2",
+      selection: "HOME",
+      lineQ: null,
+    }),
+    modelId: "general",
+    fixtureId: "f",
+    frozenOdds: "2.00",
+    scorePolicyId: "policy",
+    createdAt: 20,
+    scoreCalculatedAt: 10,
+  };
+  const plan = {
+    market: "1X2",
+    selection: "HOME",
+    lineQ: null,
+    odds: "2",
+    policyId: "policy",
+    accepted: true,
+    rank: 88,
+  };
+  assert.equal(frozenLegResearchScore(r, [], [plan]), 88);
+  assert.equal(
+    frozenLegResearchScore(
+      {
+        ...r,
+        scorePolicyId: "general-fun-double-v1",
+        scoreDecisionReason: "PAPER_ENTERTAINMENT_NOT_VALUE",
+      },
+      [],
+      [{ ...plan, policyId: "general-v2-all-singles" }],
+    ),
+    88,
+  );
+  assert.equal(
+    frozenLegResearchScore(
+      { ...r, scorePolicyId: "general-fun-double-v1" },
+      [],
+      [{ ...plan, policyId: "general-v2-all-singles" }],
+    ),
+    null,
+  );
+  for (const plans of [
+    [],
+    [plan, plan],
+    [{ ...plan, policyId: "other" }],
+    [{ ...plan, odds: "2.1" }],
+    [{ ...plan, accepted: false }],
+  ])
+    assert.equal(frozenLegResearchScore(r, [], plans), null);
+  assert.equal(
+    frozenLegResearchScore({ ...r, scoreCalculatedAt: 21 }, [], [plan]),
+    null,
+  );
+  const original = { matchId: "f", market: "1x2", pick: 0, odds: 2, score: 65 };
+  assert.equal(
+    frozenLegResearchScore(
+      { ...r, scoreTicketModelId: "general" },
+      [original],
+      [],
+    ),
+    65,
+  );
+  assert.equal(
+    frozenLegResearchScore(
+      { ...r, scoreTicketModelId: "general" },
+      [{ ...original, matchId: "other" }],
+      [],
+    ),
+    null,
+  );
+  assert.equal(ticketResearchScore([{ score: 88 }, { score: 65 }]), 65);
+  for (const legs of [
+    [],
+    [{ score: 88 }, { score: null }],
+    [{ score: 105 }],
+    [{ score: 75, scoreOrigin: "read-time-recomputed" }],
+  ])
+    assert.equal(ticketResearchScore(legs), null);
+});
 const leg = (
   spec: any,
   state = "ACCEPTED_REGULATION",

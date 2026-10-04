@@ -4,6 +4,7 @@ import {
   matchesTeamSearch,
   compareResearchScores,
   fixtureResearchScore,
+  researchScoreBand,
 } from "../../../../packages/display";
 import { rows, stmt, uid } from "../repositories/db";
 import type { Context } from "./commands";
@@ -14,11 +15,21 @@ import {
   oddsBand,
   matchesStudySample,
 } from "./study-metrics";
-import { reviewLedger, savedCounterfactuals } from "./ledger-review";
+import {
+  reviewLedger,
+  savedCounterfactuals,
+  scorePerformance,
+} from "./ledger-review";
 import { publicMarkets } from "./public-research";
 import { UNIVERSAL_ID } from "../../../../packages/domain/universal";
 import { accountingDay } from "../../../../packages/domain";
-import { paperLeg, legacyTicket, ticketOutcome } from "./ticket-presentation";
+import {
+  paperLeg,
+  legacyTicket,
+  ticketOutcome,
+  frozenLegResearchScore,
+  ticketResearchScore,
+} from "./ticket-presentation";
 import { selectedVersion } from "../../../../packages/domain/versions";
 
 const parse = (s: any, fallback: any = null) => {
@@ -162,17 +173,30 @@ export function rowMatches(r: any, p: URLSearchParams, now: number) {
   )
     return false;
   const score = p.get("score");
-  if (
-    score &&
-    score !== "ALL" &&
-    (r.score === null ||
+  if (score && score !== "ALL") {
+    const band = researchScoreBand(r.score);
+    if (["A", "B", "C", "D", "UNKNOWN"].includes(score)) {
+      if (band.grade !== score) return false;
+    } else if (score.startsWith("EXACT:")) {
+      const exact = Number(score.slice(6));
+      if (
+        !score.slice(6).trim() ||
+        !Number.isFinite(exact) ||
+        exact < 0 ||
+        exact > 100 ||
+        band.score !== exact
+      )
+        return false;
+    } else if (
+      band.score == null ||
       !(score === "HIGH"
-        ? r.score >= 75
+        ? band.score >= 75
         : score === "MID"
-          ? r.score >= 45 && r.score < 75
-          : r.score < 45))
-  )
-    return false;
+          ? band.score >= 45 && band.score < 75
+          : band.score < 45)
+    )
+      return false;
+  }
   const q = p.get("q")?.toLowerCase();
   return (
     !q ||
@@ -458,10 +482,10 @@ export async function historyRows(db: D1Database) {
         )
           ? null
           : legs.length > 1
-            ? legs.every((l: any) => finite(l.score) !== null)
-              ? Math.min(...legs.map((l: any) => l.score))
-              : null
-            : finite(raw.score ?? raw.gradeScore ?? legs[0]?.score),
+            ? ticketResearchScore(legs)
+            : researchScoreBand(
+                finite(raw.score ?? raw.gradeScore ?? legs[0]?.score),
+              ).score,
         stakeAtoms: a.stakeAtoms ?? null,
         pnlAtoms: a.pnlAtoms ?? null,
         status: a.status ?? raw.status ?? "UNKNOWN",
@@ -511,20 +535,33 @@ export async function ledgerRows(db: D1Database, mode: string) {
   }
   const x = await rows(
     db,
-    "SELECT t.*,s.currentStatus,s.gross,l.predictionId,l.frozenOdds,l.selection,l.marketSpecJson,r.fixtureId,r.kickoffAt,f.home,f.away,p.modelId,c.competition,json_object('homeLogo',json_extract(c.dataJson,'$.homeLogo'),'awayLogo',json_extract(c.dataJson,'$.awayLogo')) teamLogos,d.strategyVersion,pp.label strategyLabel,a.id adjudicationId,a.state adjudicationState,a.regulationJson,q.providerId quoteProvider,q.observedAt quoteObservedAt,(SELECT MAX(at) FROM settlement_events se WHERE se.ticketId=t.id) settledAt FROM tickets t JOIN ticket_state s ON s.ticketId=t.id JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions r ON r.id=l.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN predictions p ON p.id=l.predictionId JOIN decisions d ON d.id=t.decisionId JOIN quote_selections qs ON qs.id=l.quoteSelectionId JOIN quote_sets q ON q.id=qs.quoteSetId LEFT JOIN fixture_catalog c ON c.fixtureId=f.id LEFT JOIN paper_policies pp ON pp.portfolioId=t.portfolioId LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(ar.revision) FROM result_adjudications ar WHERE ar.fixtureId=r.fixtureId) WHERE t.origin=? ORDER BY t.createdAt,l.rowid LIMIT 10001",
+    "SELECT t.*,s.currentStatus,s.gross,l.predictionId,l.frozenOdds,l.selection,l.marketSpecJson,r.fixtureId,r.kickoffAt,f.home,f.away,p.modelId,c.competition,json_object('homeLogo',json_extract(c.dataJson,'$.homeLogo'),'awayLogo',json_extract(c.dataJson,'$.awayLogo')) teamLogos,d.strategyVersion,d.reason scoreDecisionReason,pp.label strategyLabel,a.id adjudicationId,a.state adjudicationState,a.regulationJson,q.providerId quoteProvider,q.observedAt quoteObservedAt,pp.id scorePolicyId,scoreObservation.calculatedAt scoreCalculatedAt,json_extract(scoreObservation.outputJson,'$.plans') frozenPlansJson,scoreTicket.modelId scoreTicketModelId,json_extract(scoreTicket.originalJson,'$.legs') frozenLegsJson,(SELECT MAX(at) FROM settlement_events se WHERE se.ticketId=t.id) settledAt FROM tickets t JOIN ticket_state s ON s.ticketId=t.id JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions r ON r.id=l.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN predictions p ON p.id=l.predictionId JOIN decisions d ON d.id=t.decisionId JOIN quote_selections qs ON qs.id=l.quoteSelectionId JOIN quote_sets q ON q.id=qs.quoteSetId LEFT JOIN fixture_catalog c ON c.fixtureId=f.id LEFT JOIN paper_policies pp ON pp.portfolioId=t.portfolioId LEFT JOIN input_bundles scoreBundle ON scoreBundle.slotId=p.slotId LEFT JOIN jobs scoreJob ON scoreJob.bundleId=scoreBundle.id AND scoreJob.modelId=p.modelId LEFT JOIN universal_observations scoreObservation ON scoreObservation.jobId=scoreJob.id AND scoreObservation.predictionId=p.id LEFT JOIN version_ticket_evidence scoreTicket ON scoreTicket.ticketId=t.id AND scoreTicket.modelId=p.modelId LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(ar.revision) FROM result_adjudications ar WHERE ar.fixtureId=r.fixtureId) WHERE t.origin=? ORDER BY t.createdAt,l.rowid LIMIT 10001",
     mode === "PAPER_RESEARCH" ? "PAPER_RESEARCH" : "DEMO",
   );
   if (x.length > 10000) throw Error("LEDGER_CAPACITY_REQUIRES_PAGING");
   const grouped = new Map<string, any>();
   for (const r of x) {
+    const score = frozenLegResearchScore(
+      r,
+      parse(r.frozenLegsJson, []),
+      parse(r.frozenPlansJson, []),
+    );
     const leg = {
       ...paperLeg(r),
       ...parse(r.teamLogos, {}),
       title: r.home + " — " + r.away,
+      score,
+      scoreOrigin:
+        score == null
+          ? "NOT_RECORDED"
+          : r.scoreTicketModelId
+            ? "FROZEN_ORIGINAL_TICKET"
+            : "FROZEN_PREDICTION_PLAN",
     };
+    const { frozenLegsJson, frozenPlansJson, ...summary } = r;
     const existing = grouped.get(r.id);
     if (existing) existing.legs.push(leg);
-    else grouped.set(r.id, { ...r, legs: [leg] });
+    else grouped.set(r.id, { ...summary, legs: [leg] });
   }
   return [...grouped.values()].map((r) => ({
     id: r.id,
@@ -549,7 +586,7 @@ export async function ledgerRows(db: D1Database, mode: string) {
         : null,
       r.legs,
     ),
-    score: null,
+    score: ticketResearchScore(r.legs),
     stakeAtoms: String(r.stakeAtoms),
     pnlAtoms: ["OPEN", "REVIEW", "REOPENED"].includes(r.currentStatus)
       ? null
@@ -600,13 +637,13 @@ export async function workspaceReport(
     .sort()
     .reverse()
     .slice(0, 14);
-  const dateMatch = (r: any, at: number | null) => {
+  const dateMatch = (r: any, at: number | null, filters = p) => {
     if (!ledgerMode || mode !== "LEGACY_IMPORT")
-      return rowMatches({ ...r, at }, p, c.now);
+      return rowMatches({ ...r, at }, filters, c.now);
     const currentDay = accountingDay(c.now, "Asia/Shanghai", 8);
     const sourceDay = at ? accountingDay(at, "Asia/Shanghai", 8) : null;
-    const period = p.get("period") || "ALL";
-    let from = p.get("from") || "";
+    const period = filters.get("period") || "ALL";
+    let from = filters.get("from") || "";
     if (period !== "ALL") {
       const calendar = new Date(currentDay + "T00:00:00Z");
       const first =
@@ -626,7 +663,7 @@ export async function workspaceReport(
                 : `${calendar.getUTCFullYear() - (calendar.getUTCMonth() < 6 ? 1 : 0)}-07-01`;
       if (first > from) from = first;
     }
-    const dimensions = new URLSearchParams(p);
+    const dimensions = new URLSearchParams(filters);
     dimensions.delete("period");
     dimensions.delete("from");
     dimensions.delete("to");
@@ -634,7 +671,7 @@ export async function workspaceReport(
       rowMatches(r, dimensions, c.now) &&
       (period !== "YESTERDAY" || (!!sourceDay && sourceDay < currentDay)) &&
       (!from || (!!sourceDay && sourceDay >= from)) &&
-      (!p.get("to") || (!!sourceDay && sourceDay <= p.get("to")!))
+      (!filters.get("to") || (!!sourceDay && sourceDay <= filters.get("to")!))
     );
   };
   const openStates = ["OPEN", "REVIEW", "REOPENED", "PENDING", "UNSETTLED"];
@@ -654,6 +691,19 @@ export async function workspaceReport(
       ),
   );
   const summary = summarizeRecords(filtered);
+  const scoreFilters = new URLSearchParams(p);
+  scoreFilters.delete("score");
+  const scoreCohort = all.filter(
+    (r) =>
+      (!ledgerMode ||
+        basis !== "SETTLED" ||
+        !openStates.includes(String(r.status).toUpperCase())) &&
+      dateMatch(
+        r,
+        ledgerMode && basis === "SETTLED" ? r.settledAt : r.at,
+        scoreFilters,
+      ),
+  );
   const exposureFilters = new URLSearchParams(p);
   for (const key of ["period", "from", "to"]) exposureFilters.delete(key);
   const exposure = summarizeRecords(
@@ -716,6 +766,7 @@ export async function workspaceReport(
     nextOffset: offset + 40 < sorted.length ? offset + 40 : null,
     summary,
     exposure,
+    scorePerformance: ledgerMode ? scorePerformance(scoreCohort, c.now) : null,
     review:
       ledgerMode && mode === "LEGACY_IMPORT"
         ? reviewLedger(filtered, c.now, metadata.strategies)

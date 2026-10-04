@@ -16,6 +16,7 @@ import {
 import {
   counterfactualTicket,
   reviewLedger,
+  scorePerformance,
 } from "../../apps/api/src/services/ledger-review";
 import {
   studyMetrics,
@@ -181,6 +182,82 @@ const ticket = (id: string, status: string, pnl: string, extra: any = {}) => ({
   score: null,
   raw: { legs: [] },
   ...extra,
+});
+test("grade review accounts whole tickets once, separates open/missing money and exact scores, excludes legacy refunds from ROI", () => {
+  const s = scorePerformance(
+    [
+      ticket("a", "WIN", "10000000", { score: 88, legCount: 2 }),
+      ticket("a-loss", "LOSS", "-20000000", { score: 75 }),
+      ticket("a-open", "OPEN", "0", { score: 88 }),
+      ticket("b", "WIN", "5000000", { score: 60 }),
+      ticket("c", "VOID", "0", { score: 45 }),
+      ticket("unknown", "WIN", "0", { pnlAtoms: null }),
+    ],
+    10,
+  );
+  const a = s.bands[0];
+  assert.equal(a.count, 3);
+  assert.equal(a.settled, 2);
+  assert.equal(a.open, 1);
+  assert.equal(a.profitAtoms, "-10000000");
+  assert.equal(a.roi, -0.25);
+  assert.equal(a.wins, 1);
+  assert.equal(a.losses, 1);
+  assert.equal(s.bands[2].roi, null);
+  assert.equal(s.bands[2].neutral, 1);
+  assert.equal(s.bands[3].profitAtoms, null);
+  assert.equal(s.bands[3].roi, null);
+  assert.equal(s.bands[4].profitAtoms, null);
+  assert.equal(s.exactScores.find((x) => x.score === 88)?.count, 2);
+  assert.equal(
+    s.bands.reduce((n, b) => n + b.count, 0),
+    6,
+  );
+  const mixed = scorePerformance(
+    [
+      ticket("x", "WIN", "1", { score: 80, currency: "USD" }),
+      ticket("y", "WIN", "1", { score: 80, currency: "EUR" }),
+    ],
+    10,
+  ).bands[0];
+  assert.equal(mixed.profitAtoms, null);
+  assert.equal(mixed.roi, null);
+});
+test("A/B/C/D unknown and exact-score filters keep original band boundaries", () => {
+  for (const [score, grade] of [
+    [100, "A"],
+    [75, "A"],
+    [74, "B"],
+    [60, "B"],
+    [59, "C"],
+    [45, "C"],
+    [44, "D"],
+    [0, "D"],
+    [null, "UNKNOWN"],
+    [101, "UNKNOWN"],
+  ]) {
+    const r = ticket("x", "OPEN", "0", { score });
+    assert.equal(
+      rowMatches(r, new URLSearchParams({ score: String(grade) }), Date.now()),
+      true,
+    );
+    assert.equal(
+      rowMatches(
+        r,
+        new URLSearchParams({ score: `EXACT:${score}` }),
+        Date.now(),
+      ),
+      typeof score === "number" && score <= 100,
+    );
+  }
+  assert.equal(
+    rowMatches(
+      ticket("x", "OPEN", "0", { score: 0 }),
+      new URLSearchParams("score=EXACT:"),
+      Date.now(),
+    ),
+    false,
+  );
 });
 test("legacy void stakes never dilute ROI and void-only has no action ROI", () => {
   const s = summarizeRecords([

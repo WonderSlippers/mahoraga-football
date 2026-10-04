@@ -230,12 +230,42 @@ test("automatic general paper placement never duplicates after refresh or change
   await generated();
   const r = await autoPaper(c);
   assert.equal(r.placed, 6);
+  const frozen = (await ledgerRows(c.db, "PAPER_RESEARCH")).map((t) => ({
+    id: t.id,
+    score: t.score,
+  }));
+  assert.ok(
+    frozen.every((t) => t.score != null && t.score >= 0 && t.score <= 100),
+  );
   assert.equal((await autoPaper(c)).placed, 0);
   const before = await rows(c.db, "SELECT * FROM tickets");
   const j = await job(c.now + 1000);
   await completeUniversal({ ...c, now: c.now + 1000 }, j.id, payload(j));
   assert.equal((await autoPaper({ ...c, now: c.now + 1000 })).placed, 0);
   assert.deepEqual(await rows(c.db, "SELECT * FROM tickets"), before);
+  assert.deepEqual(
+    (await ledgerRows(c.db, "PAPER_RESEARCH")).map((t) => ({
+      id: t.id,
+      score: t.score,
+    })),
+    frozen,
+  );
+  const review = await workspaceReport(
+    c,
+    new URLSearchParams({
+      mode: "PAPER_RESEARCH",
+      version: "GENERAL",
+      basis: "PLACED",
+      score: "A",
+    }),
+    "ledger",
+  );
+  assert.equal(review.scorePerformance!.tickets, 6);
+  assert.equal(
+    review.scorePerformance!.bands.reduce((n, b) => n + b.count, 0),
+    6,
+  );
+  assert.ok(review.items.every((t) => t.score >= 75));
   assert.equal((await ledgerRows(c.db, "PAPER_RESEARCH")).length, 6);
   assert.equal((await ledgerRows(c.db, "PAPER")).length, 0);
   for (const t of before) assert.equal(t.origin, "PAPER_RESEARCH");
@@ -691,6 +721,8 @@ test("entertainment double runs same-window distinct matches without relaxing va
   assert.equal(entry.odds, 4);
   assert.equal(entry.pnlAtoms, "60000000");
   assert.equal(entry.legCount, 2);
+  assert.ok(entry.legs.every((l: any) => l.score != null));
+  assert.equal(entry.score, Math.min(...entry.legs.map((l: any) => l.score)));
   const report = await strategyArena(c, new URLSearchParams());
   const strategy = report.strategies.find((p: any) => p.id === FUN_DOUBLE.id);
   assert.equal(strategy.category, "BENCHMARK");

@@ -9,6 +9,7 @@ import {
 } from "../../../packages/display";
 import { useReport } from "./use-report";
 import { LedgerReview } from "./ledger-review";
+import { ScorePerformance } from "./score-performance";
 import { TicketCards, StrategyBalances, DailyLedger } from "./ticket-cards";
 import { CurrentMarkets, MatchContext, QuoteHistory } from "./match-evidence";
 import {
@@ -1457,6 +1458,13 @@ export function HistoryWorkspace({
         </>
       )}
 
+      {ledger && (
+        <ScorePerformance
+          data={data?.scorePerformance}
+          selected={filters.score}
+          onSelect={change("score")}
+        />
+      )}
       <section className="ws-panel" id="ticket-records">
         <div className="ws-section-head">
           <h2>
@@ -1595,9 +1603,17 @@ export function HistoryWorkspace({
                   onChange={change("score")}
                   values={[
                     ["ALL", "全部 / 含未记录"],
-                    ["HIGH", "75及以上"],
-                    ["MID", "45–74"],
-                    ["LOW", "低于45"],
+                    ["A", "A · 75及以上"],
+                    ["B", "B · 60–74"],
+                    ["C", "C · 45–59"],
+                    ["D", "D · 低于45"],
+                    ["UNKNOWN", "出票评分未记录"],
+                    ...(filters.score.startsWith("EXACT:")
+                      ? [[filters.score, `${filters.score.slice(6)}分`]]
+                      : []),
+                    ...(["HIGH", "MID", "LOW"].includes(filters.score)
+                      ? [[filters.score, "原评分区间"]]
+                      : []),
                   ]}
                 />
                 <Select

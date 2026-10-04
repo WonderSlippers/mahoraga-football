@@ -1,4 +1,60 @@
 import { multiplier } from "../../../../packages/domain";
+import { researchScoreBand } from "../../../../packages/display";
+
+const UNSCORABLE = [
+  "read-time-recomputed",
+  "unscorable-missing-at-bet-probability",
+];
+export function ticketResearchScore(legs: any[]) {
+  const scores = legs.map((l) =>
+    UNSCORABLE.includes(l.scoreOrigin)
+      ? null
+      : researchScoreBand(l.score).score,
+  );
+  return scores.length && scores.every((score) => score != null)
+    ? Math.min(...(scores as number[]))
+    : null;
+}
+export function frozenLegResearchScore(r: any, originals: any[], plans: any[]) {
+  const spec = JSON.parse(r.marketSpecJson);
+  const sameBet = (p: any) =>
+    p.market === spec.market &&
+    p.selection === spec.selection &&
+    (p.lineQ ?? null) === (spec.lineQ ?? null) &&
+    Number(p.odds) === Number(r.frozenOdds);
+  if (r.scoreCalculatedAt > r.createdAt) return null;
+  if (r.scoreTicketModelId === r.modelId) {
+    const matched = (Array.isArray(originals) ? originals : []).filter(
+      (l) =>
+        l.matchId === r.fixtureId &&
+        sameBet({
+          ...l,
+          market:
+            l.market === "spread"
+              ? "ASIAN_HANDICAP"
+              : l.market === "total"
+                ? "TOTAL_GOALS"
+                : "1X2",
+          selection: ["spread", "total"].includes(l.market)
+            ? String(l.side).toUpperCase()
+            : ["HOME", "DRAW", "AWAY"][l.pick],
+          lineQ: ["spread", "total"].includes(l.market) ? l.line * 4 : null,
+        }),
+    );
+    return matched.length === 1 ? ticketResearchScore(matched) : null;
+  }
+  // Entertainment doubles copy the original broad single expectation; they do
+  // not generate another plan or score. Recover that same frozen source only.
+  const policy =
+    r.scorePolicyId === "general-fun-double-v1" &&
+    r.scoreDecisionReason === "PAPER_ENTERTAINMENT_NOT_VALUE"
+      ? "general-v2-all-singles"
+      : r.scorePolicyId;
+  const matched = (Array.isArray(plans) ? plans : []).filter(
+    (p) => p.accepted && p.policyId === policy && sameBet(p),
+  );
+  return matched.length === 1 ? researchScoreBand(matched[0].rank).score : null;
+}
 
 const OPEN = ["OPEN", "REVIEW", "REOPENED", "PENDING", "UNSETTLED"];
 export function ticketOutcome(
