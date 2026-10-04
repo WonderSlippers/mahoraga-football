@@ -4,6 +4,8 @@ export function ResearchScore({
   score,
   original = false,
   compact = false,
+  label = "研究评分",
+  betKey,
 }: any) {
   const band = researchScoreBand(score);
   return (
@@ -11,9 +13,10 @@ export function ResearchScore({
       className={`research-score grade-${band.grade}${compact ? " compact" : ""}`}
       data-testid="recommendation-score"
       data-score={band.score ?? "UNKNOWN"}
+      data-bet-key={betKey}
     >
       <div>
-        <span>研究评分</span>
+        <span>{label}</span>
         <strong>
           {band.score ?? "—"}
           <small>/100</small>

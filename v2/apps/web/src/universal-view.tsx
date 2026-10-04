@@ -5,6 +5,7 @@ import {
   formatDate,
   calendarDay,
   matchesTeamSearch,
+  researchBetKey,
 } from "../../../packages/display";
 import { useReport } from "./use-report";
 import { TeamName } from "./schedule-view";
@@ -43,6 +44,7 @@ function PlanCard({ r, p, value }: any) {
       className={"general-card" + (value ? " value" : "")}
       data-testid="general-plan"
       data-decision-id={p.decisionId}
+      data-bet-key={r.fixtureId + researchBetKey(p)}
     >
       <div className="general-card-top">
         <span>{value ? "价值研究" : "广覆盖对照"}</span>
@@ -55,6 +57,11 @@ function PlanCard({ r, p, value }: any) {
         </h3>
       </Link>
       <ResearchScore score={p.rank} original={p.originalStrategy} />
+      <small>
+        {p.policyLabel ??
+          (p.originalStrategy ? "原版保存规则" : "通用赛前规则")}{" "}
+        · 预测时点 {fmt(r.cutoffAt)}
+      </small>
       <div className="general-selection">
         <strong>{planName(p, r)}</strong>
         <b>@ {Number(p.odds).toFixed(2)}</b>
@@ -175,9 +182,7 @@ export function UniversalPanel({
         a.findIndex(
           (y) =>
             y.r.fixtureId === x.r.fixtureId &&
-            y.p.market === x.p.market &&
-            y.p.selection === x.p.selection &&
-            y.p.lineQ === x.p.lineQ,
+            researchBetKey(y.p) === researchBetKey(x.p),
         ) === i,
     )
     .sort(
@@ -187,7 +192,15 @@ export function UniversalPanel({
     );
   const broad = active.flatMap((r: any) =>
     r.output.plans
-      .filter((p: any) => p.policyId === "general-v2-all-singles")
+      .filter(
+        (p: any) =>
+          p.policyId === "general-v2-all-singles" &&
+          !values.some(
+            (v: any) =>
+              v.r.fixtureId === r.fixtureId &&
+              researchBetKey(v.p) === researchBetKey(p),
+          ),
+      )
       .map((p: any) => ({ r, p })),
   );
   return (

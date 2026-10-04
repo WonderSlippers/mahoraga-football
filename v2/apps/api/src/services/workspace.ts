@@ -891,7 +891,17 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
       (!p.get("to") || localDay(f.kickoffAt) <= p.get("to")!) &&
       (!p.get("league") ||
         p.get("league") === "ALL" ||
-        f.competition === p.get("league")),
+        f.competition === p.get("league")) &&
+      matchesTeamSearch(
+        p.get("q") ?? "",
+        [
+          f.home,
+          f.away,
+          `${f.home} ${f.away}`,
+          `${teamName(f.home, f.competition)} ${teamName(f.away, f.competition)}`,
+        ],
+        f.competition,
+      ),
   );
   const fixtureScope = JSON.stringify(all.map((f) => f.id)),
     revisionScope = JSON.stringify(all.map((f) => f.revisionId));

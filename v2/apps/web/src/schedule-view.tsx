@@ -6,6 +6,8 @@ import {
   formatTime,
   calendarDay,
   formatDate,
+  groupResearchDirections,
+  researchBetKey,
 } from "../../../packages/display";
 import { ResearchScore } from "./research-score";
 export function TeamName({ name, competition = "" }: any) {
@@ -192,160 +194,216 @@ export function Recommendations({ data, onSelect }: any) {
 export function FixtureList({ data, onSelect }: any) {
   return (
     <div className="fixture-list">
-      {data?.items.map((f: any) => (
-        <Link
-          className="fixture-card"
-          key={f.id}
-          to={"/match/" + encodeURIComponent(f.id)}
-          onClick={onSelect}
-        >
-          <div className="fixture-clock">
-            <strong>{formatTime(f.kickoffAt)}</strong>
-            <small>{calendarDay(f.kickoffAt)}</small>
-            <small>
-              {data.metadata?.leagues?.find(
-                (l: any) => l.code === f.competition,
-              )?.name ??
-                (f.competition === "DEMO" ? "DEMO 合成赛事" : f.competition)}
-            </small>
-          </div>
-          <div className="fixture-teams">
-            <div>
-              <TeamBadge name={f.home} logo={f.publicData?.homeLogo} />
-              <strong>
-                <TeamName name={f.home} competition={f.competition} />
-              </strong>
+      {data?.items.map((f: any) => {
+        const current = f.state === "CANDIDATE" ? f.research : null;
+        const currentKey = current
+          ? researchBetKey({
+              ...current,
+              modelId: current.modelId ?? data?.version?.modelId,
+            })
+          : null;
+        const groups = groupResearchDirections(f.generalDirections);
+        const earlier = groups.find(
+          (g) => researchBetKey(g.primary) === currentKey,
+        );
+        return (
+          <Link
+            className="fixture-card"
+            key={f.id}
+            to={"/match/" + encodeURIComponent(f.id)}
+            onClick={onSelect}
+          >
+            <div className="fixture-clock">
+              <strong>{formatTime(f.kickoffAt)}</strong>
+              <small>{calendarDay(f.kickoffAt)}</small>
+              <small>
+                {data.metadata?.leagues?.find(
+                  (l: any) => l.code === f.competition,
+                )?.name ??
+                  (f.competition === "DEMO" ? "DEMO 合成赛事" : f.competition)}
+              </small>
             </div>
-            <div>
-              <TeamBadge name={f.away} logo={f.publicData?.awayLogo} />
-              <strong>
-                <TeamName name={f.away} competition={f.competition} />
-              </strong>
-            </div>
-          </div>
-          <div className="fixture-prices">
-            {f.state === "STARTED" || f.state === "FINISHED" ? (
-              <>
-                <Scoreboard value={f.scoreboard} />
-                {!f.scoreboard?.score && <span>比分尚未取得 · 不填0</span>}
-                <small>赛前报价与预测在详情中继续保留</small>
-              </>
-            ) : f.referenceMarket ? (
-              <>
-                <span>主 / 平 / 客 · 公开参考</span>
-                <b>
-                  {f.referenceMarket.prices
-                    .map((x: any) => Number(x).toFixed(2))
-                    .join(" / ")}
-                </b>
-                <small>
-                  市场去水{" "}
-                  {f.referenceMarket.probabilities.map(pct).join(" / ")}
-                </small>
-              </>
-            ) : (
-              <>
-                <span>报价正在补取</span>
-                <small>
-                  {f.publicData?.detail?.homeRecent?.length
-                    ? "已取得近期战绩"
-                    : "赛程已确认，后台继续补证"}
-                </small>
-              </>
-            )}
-          </div>
-          <div className="fixture-judgment">
-            <span className={"ws-state state-" + f.state}>{f.label}</span>
-            {f.state === "CANDIDATE" && f.research ? (
-              <>
-                <ResearchScore
-                  score={f.research.rankScore}
-                  original={data?.version?.id === "SEPTEMBER20"}
-                  compact
-                />
+            <div className="fixture-teams">
+              <div>
+                <TeamBadge name={f.home} logo={f.publicData?.homeLogo} />
                 <strong>
-                  {f.research.selectionName} · EV {pct(f.research.ev)}
+                  <TeamName name={f.home} competition={f.competition} />
                 </strong>
-                <small>
-                  {f.research.probabilityKind === "STRESS"
-                    ? "压力概率"
-                    : f.research.probabilityKind === "CONSERVATIVE"
-                      ? "扣减后概率"
-                      : "研究概率"}{" "}
-                  {pct(f.research.probability)}
-                  {f.research.rankScore == null
-                    ? ""
-                    : ` · 排序 ${f.research.rankScore}`}
-                </small>
-              </>
-            ) : (
-              <small>{f.reason}</small>
-            )}
-            {f.state !== "CANDIDATE" && f.tracking && (
-              <div className="saved-direction">
-                <b>
-                  旧市场启发式 · 原方向 {f.tracking.selectionName} @{" "}
-                  {Number(f.tracking.decimalOdds).toFixed(2)}
-                </b>
-                <small>
-                  冻结概率 {pct(f.tracking.probability)} · EV{" "}
-                  {pct(f.tracking.ev)}
-                </small>
-                <small>首次入选 {formatDate(f.tracking.cutoffAt)}</small>
               </div>
-            )}
-            {f.generalDirections?.map((p: any) => (
-              <div className="saved-direction" key={p.decisionId}>
-                <ResearchScore
-                  score={p.rank}
-                  original={data?.version?.id === "SEPTEMBER20"}
-                  compact
-                />
-                <b>
-                  {p.policyLabel ?? "通用赛前"} · {directionName(p)}
-                  {p.lineQ == null
-                    ? ""
-                    : ` ${p.lineQ > 0 ? "+" : ""}${p.lineQ / 4}`}{" "}
-                  @ {Number(p.odds).toFixed(2)}
-                </b>
-                <small>
-                  {p.probabilityKind === "STRESS"
-                    ? "压力概率"
-                    : p.probabilityKind === "CONSERVATIVE"
-                      ? "扣减后概率"
-                      : "原概率"}{" "}
-                  {pct(p.probability)} · 保守EV {pct(p.estimatedEV)} · 冻结{" "}
-                  {formatDate(p.cutoffAt)}
-                </small>
+              <div>
+                <TeamBadge name={f.away} logo={f.publicData?.awayLogo} />
+                <strong>
+                  <TeamName name={f.away} competition={f.competition} />
+                </strong>
               </div>
-            ))}
-            {f.parallelDirections?.map((r: any) => (
-              <div className="saved-direction" key={r.id}>
-                <b>
-                  {r.methodId.startsWith("V6") ? "V6赛前" : "旧V2赛前"} ·{" "}
-                  {r.actions
-                    .map(
-                      (a: any) =>
-                        `${({ BROAD_1X2: "广覆盖", FEATURED_BEST_MARKET: "最优玩法", V6_NATIVE: "原生规则" } as any)[a.strategy] ?? a.strategy}：${directionName(a)}${a.lineQ == null ? "" : a.lineQ / 4} @ ${a.odds == null ? "—" : Number(a.odds).toFixed(2)}`,
-                    )
-                    .join(" / ")}
-                </b>
-                <small>
-                  冻结 {formatDate(r.cutoffAt)} ·{" "}
-                  {r.actions
-                    .map((a: any) => `EV ${pct(a.estimatedEV)}`)
-                    .join(" / ")}
-                </small>
-              </div>
-            ))}
-            <small>
-              证据完整度 {pct(f.completeness)}
-              {f.validation === "LEGACY_NON_PROSPECTIVE" ? " · 历史档案" : ""}
-            </small>
-          </div>
-          <b className="ws-arrow">↗</b>
-        </Link>
-      ))}
+            </div>
+            <div className="fixture-prices">
+              {f.state === "STARTED" || f.state === "FINISHED" ? (
+                <>
+                  <Scoreboard value={f.scoreboard} />
+                  {!f.scoreboard?.score && <span>比分尚未取得 · 不填0</span>}
+                  <small>赛前报价与预测在详情中继续保留</small>
+                </>
+              ) : f.referenceMarket ? (
+                <>
+                  <span>主 / 平 / 客 · 公开参考</span>
+                  <b>
+                    {f.referenceMarket.prices
+                      .map((x: any) => Number(x).toFixed(2))
+                      .join(" / ")}
+                  </b>
+                  <small>
+                    市场去水{" "}
+                    {f.referenceMarket.probabilities.map(pct).join(" / ")}
+                  </small>
+                </>
+              ) : (
+                <>
+                  <span>报价正在补取</span>
+                  <small>
+                    {f.publicData?.detail?.homeRecent?.length
+                      ? "已取得近期战绩"
+                      : "赛程已确认，后台继续补证"}
+                  </small>
+                </>
+              )}
+            </div>
+            <div className="fixture-judgment">
+              <span className={"ws-state state-" + f.state}>{f.label}</span>
+              {f.state === "CANDIDATE" && f.research ? (
+                <>
+                  <ResearchScore
+                    score={f.research.rankScore}
+                    original={data?.version?.id === "SEPTEMBER20"}
+                    compact
+                    label="当前研究评分"
+                    betKey={currentKey}
+                  />
+                  <strong>
+                    {f.research.selectionName} · EV {pct(f.research.ev)}
+                  </strong>
+                  <small>
+                    {f.research.probabilityKind === "STRESS"
+                      ? "压力概率"
+                      : f.research.probabilityKind === "CONSERVATIVE"
+                        ? "扣减后概率"
+                        : "研究概率"}{" "}
+                    {pct(f.research.probability)}
+                  </small>
+                  <small>
+                    {f.research.modelLabel} ·{" "}
+                    {f.research.policyLabel ?? "当前候选"}
+                  </small>
+                  {earlier && (
+                    <small className="score-history">
+                      首次赛前记录：{earlier.primary.rank ?? "未提供"}分
+                      {earlier.primary.cutoffAt
+                        ? ` · ${formatDate(earlier.primary.cutoffAt)}`
+                        : ""}
+                      {` · @ ${Number(earlier.primary.odds).toFixed(2)}`} ·
+                      历史评分不随当前评分改写
+                    </small>
+                  )}
+                </>
+              ) : (
+                <small>{f.reason}</small>
+              )}
+              {f.state !== "CANDIDATE" && f.tracking && (
+                <div className="saved-direction">
+                  <b>
+                    旧市场启发式 · 原方向 {f.tracking.selectionName} @{" "}
+                    {Number(f.tracking.decimalOdds).toFixed(2)}
+                  </b>
+                  <small>
+                    冻结概率 {pct(f.tracking.probability)} · EV{" "}
+                    {pct(f.tracking.ev)}
+                  </small>
+                  <small>首次入选 {formatDate(f.tracking.cutoffAt)}</small>
+                </div>
+              )}
+              {groups
+                .filter((g) => researchBetKey(g.primary) !== currentKey)
+                .map((g) => {
+                  const p = g.primary;
+                  return (
+                    <div
+                      className="saved-direction"
+                      key={researchBetKey(p)}
+                      data-testid="saved-direction"
+                      data-bet-key={researchBetKey(p)}
+                    >
+                      <ResearchScore
+                        score={p.rank}
+                        original={data?.version?.id === "SEPTEMBER20"}
+                        compact
+                        label={
+                          data?.version?.id === "GENERAL"
+                            ? "首次赛前评分"
+                            : "赛前保存评分"
+                        }
+                        betKey={researchBetKey(p)}
+                      />
+                      <b>
+                        {p.selectionName ??
+                          `${({ "1X2": "胜平负", ASIAN_HANDICAP: "亚洲盘", TOTAL_GOALS: "大小球" } as any)[p.market] ?? p.market} · ${directionName(p)}`}
+                        {p.selectionName || p.lineQ == null
+                          ? ""
+                          : ` ${p.lineQ > 0 ? "+" : ""}${p.lineQ / 4}`}{" "}
+                        @ {Number(p.odds).toFixed(2)}
+                      </b>
+                      <small>
+                        适用策略：{g.policies.join(" / ") || "赛前研究"}
+                      </small>
+                      <small>
+                        {p.probabilityKind === "STRESS"
+                          ? "压力概率"
+                          : p.probabilityKind === "CONSERVATIVE"
+                            ? "扣减后概率"
+                            : "原概率"}{" "}
+                        {pct(p.probability)} · 保守EV {pct(p.estimatedEV)} ·
+                        冻结 {formatDate(p.cutoffAt)}
+                      </small>
+                      {g.records.some(
+                        (r) =>
+                          r.rank !== p.rank ||
+                          r.odds !== p.odds ||
+                          r.cutoffAt !== p.cutoffAt,
+                      ) && (
+                        <small>
+                          其他策略或时点另有冻结评分，详情中分别保留；此处使用首条保存记录。
+                        </small>
+                      )}
+                    </div>
+                  );
+                })}
+              {f.parallelDirections?.map((r: any) => (
+                <div className="saved-direction" key={r.id}>
+                  <b>
+                    {r.methodId.startsWith("V6") ? "V6赛前" : "旧V2赛前"} ·{" "}
+                    {r.actions
+                      .map(
+                        (a: any) =>
+                          `${({ BROAD_1X2: "广覆盖", FEATURED_BEST_MARKET: "最优玩法", V6_NATIVE: "原生规则" } as any)[a.strategy] ?? a.strategy}：${directionName(a)}${a.lineQ == null ? "" : a.lineQ / 4} @ ${a.odds == null ? "—" : Number(a.odds).toFixed(2)}`,
+                      )
+                      .join(" / ")}
+                  </b>
+                  <small>
+                    冻结 {formatDate(r.cutoffAt)} ·{" "}
+                    {r.actions
+                      .map((a: any) => `EV ${pct(a.estimatedEV)}`)
+                      .join(" / ")}
+                  </small>
+                </div>
+              ))}
+              <small>
+                证据完整度 {pct(f.completeness)}
+                {f.validation === "LEGACY_NON_PROSPECTIVE" ? " · 历史档案" : ""}
+              </small>
+            </div>
+            <b className="ws-arrow">↗</b>
+          </Link>
+        );
+      })}
     </div>
   );
 }

@@ -60,6 +60,26 @@ async function shot(name) {
   );
   await page.screenshot({ path: `${dir}/${name}.png`, fullPage: true });
 }
+async function uniqueGrades() {
+  for (const row of await page.locator(".fixture-card").all()) {
+    const keys = await row
+      .locator('[data-testid="recommendation-score"][data-bet-key]')
+      .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-bet-key")));
+    assert.equal(
+      keys.length,
+      new Set(keys).size,
+      "same model/market/side/line must have one prominent score per fixture",
+    );
+  }
+  const cards = await page
+    .locator('[data-testid="general-plan"]')
+    .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("data-bet-key")));
+  assert.equal(
+    cards.length,
+    new Set(cards).size,
+    "value and broad sections must not repeat the same bet",
+  );
+}
 try {
   await page.goto(origin + "/workbench?period=ALL&view=ALL&version=GENERAL");
   await ready();
@@ -92,8 +112,11 @@ try {
     }
     if (await page.locator(".general-broad").count())
       await page.locator(".general-broad").evaluate((el) => (el.open = true));
+    await uniqueGrades();
     checks.push({
-      name: version + " frozen scores, bilingual names, probabilities and EV",
+      name:
+        version +
+        " frozen scores, bilingual names, probabilities, EV and unique bet scores",
       cards: await cards.count(),
     });
     await shot(version.toLowerCase() + "-recommendation-scores");
@@ -173,6 +196,7 @@ try {
       expected.items.map((r) => r.id),
     );
     assert.ok((await rows.first().innerText()).includes("Manchester United"));
+    await uniqueGrades();
     checks.push({ name: "bilingual/alias search " + q, total: actual.total });
   }
   await shot("english-team-search");

@@ -75,6 +75,34 @@ export function researchScoreBand(value: unknown) {
             : "低分对照",
   };
 }
+// Group display copies, retaining every frozen strategy/time/price observation.
+// Never select the highest score or merge different lines/model identities.
+export function researchBetKey(p: any) {
+  return JSON.stringify([
+    p.modelId ?? null,
+    p.market ?? "1X2",
+    p.selection,
+    p.lineQ ?? null,
+  ]);
+}
+export function groupResearchDirections(plans: any[] = []) {
+  const groups = new Map<
+    string,
+    { primary: any; records: any[]; policies: string[] }
+  >();
+  for (const p of plans) {
+    const key = researchBetKey(p);
+    let group = groups.get(key);
+    if (!group) {
+      group = { primary: p, records: [], policies: [] };
+      groups.set(key, group);
+    }
+    group.records.push(p);
+    if (p.policyLabel && !group.policies.includes(p.policyLabel))
+      group.policies.push(p.policyLabel);
+  }
+  return [...groups.values()];
+}
 export function teamName(name: unknown, competition = "") {
   const raw = String(name ?? "").trim();
   const base = dictionary[raw] ?? aliases.get(alias(raw)) ?? raw;

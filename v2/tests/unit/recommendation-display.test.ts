@@ -4,6 +4,8 @@ import {
   teamOriginalName,
   matchesTeamSearch,
   researchScoreBand,
+  groupResearchDirections,
+  researchBetKey,
 } from "../../packages/display";
 import { rowMatches } from "../../apps/api/src/services/workspace";
 test("bilingual names preserve source spelling and recover known English names for Chinese archives", () => {
@@ -11,6 +13,35 @@ test("bilingual names preserve source spelling and recover known English names f
   assert.equal(teamOriginalName("曼联"), "Manchester United");
   assert.equal(teamOriginalName("Unknown United"), "Unknown United");
   assert.equal(teamOriginalName("未知队"), "未知队");
+});
+test("one display direction keeps all strategy snapshots without taking the maximum score or changing frozen records", () => {
+  const first = {
+    modelId: "GENERAL",
+    market: "ASIAN_HANDICAP",
+    selection: "HOME",
+    lineQ: 2,
+    odds: "1.95",
+    rank: 78,
+    cutoffAt: 1,
+    policyLabel: "价值单场",
+  };
+  const plans = [
+    first,
+    { ...first, policyLabel: "精选玩法" },
+    { ...first, rank: 92, cutoffAt: 2, odds: "2.1" },
+    { ...first, lineQ: 3 },
+    { ...first, modelId: "V6", rank: null },
+  ];
+  const before = JSON.stringify(plans);
+  const groups = groupResearchDirections(plans);
+  assert.equal(groups.length, 3);
+  assert.equal(groups[0].primary, first);
+  assert.equal(groups[0].primary.rank, 78);
+  assert.equal(groups[0].records.length, 3);
+  assert.deepEqual(groups[0].policies, ["价值单场", "精选玩法"]);
+  assert.equal(groups[2].primary.rank, null);
+  assert.notEqual(researchBetKey(first), researchBetKey(plans[3]));
+  assert.equal(JSON.stringify(plans), before);
 });
 test("team search supports both languages, aliases, accents and punctuation without merging clubs", () => {
   for (const query of ["曼联", "Manchester United", "man utd", "man-utd"]) {
