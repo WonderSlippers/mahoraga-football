@@ -159,6 +159,14 @@ try {
   pass("Ledger renders actual team logos beside original Chinese team names");
   await shot("ledger-desktop", false);
   await shot("ledger-full");
+  await p.getByRole("link", { name: "看票据与结果 ↓", exact: true }).click();
+  await expect(
+    p.locator('[data-testid="ticket-card"]').first(),
+  ).toBeInViewport();
+  pass(
+    "Original selections and results are reachable from the main ledger action without opening folds",
+  );
+  await shot("ledger-tickets", false);
   await p
     .locator('[data-testid="ticket-card"]')
     .first()
@@ -311,6 +319,14 @@ try {
   );
   pass("390px ledger keeps direct selections and odds without page overflow");
   await shot("ledger-mobile", false);
+  await p.getByRole("link", { name: "看票据与结果 ↓", exact: true }).click();
+  await expect(
+    p.locator('[data-testid="ticket-card"]').first(),
+  ).toBeInViewport();
+  pass(
+    "Mobile ledger jumps directly to readable teams, selections, odds and win/loss results",
+  );
+  await shot("ledger-tickets-mobile", false);
   await p.setViewportSize({ width: 1440, height: 1000 });
   await go("/strategies", '[data-testid="strategy-arena"][data-loaded="true"]');
   await p.getByRole("button", { name: "浅色", exact: true }).click();

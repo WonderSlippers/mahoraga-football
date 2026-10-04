@@ -111,7 +111,7 @@ function Json({ value, label = "原始数据 / 审计详情" }: any) {
   );
 }
 function Curve({ points, label }: any) {
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
   const values = points.map((p: any) => Number(p.profitAtoms));
   if (!values.length)
     return (
@@ -128,7 +128,7 @@ function Curve({ points, label }: any) {
         `${i ? "L" : "M"}${20 + (i * 700) / Math.max(1, a.length - 1)},${150 - ((n - lo) / range) * 125}`,
     )
     .join(" ");
-  const index = Math.min(selected, points.length - 1),
+  const index = Math.min(selected ?? points.length - 1, points.length - 1),
     chosen = points[index];
   return (
     <div>
@@ -173,23 +173,24 @@ function Curve({ points, label }: any) {
           {amount(String(lo))}
         </text>
       </svg>
-      <label className="curve-selector">
-        查看结算点
-        <input
-          aria-label="选择结算记录"
-          type="range"
-          min="0"
-          max={points.length - 1}
-          value={index}
-          onChange={(e) => setSelected(Number(e.target.value))}
-        />
-      </label>
-      <p className="ws-caption" aria-live="polite">
-        第 {index + 1} 笔 · {fmt(chosen?.at)} · 累计净收益{" "}
-        {amount(chosen?.profitAtoms)} · 当时回撤 {amount(chosen?.drawdownAtoms)}
-      </p>
       <details className="ws-audit">
-        <summary>曲线原始数据与回撤区间</summary>
+        <summary>逐票结算与回撤明细</summary>
+        <label className="curve-selector">
+          查看结算点
+          <input
+            aria-label="选择结算记录"
+            type="range"
+            min="0"
+            max={points.length - 1}
+            value={index}
+            onChange={(e) => setSelected(Number(e.target.value))}
+          />
+        </label>
+        <p className="ws-caption" aria-live="polite">
+          第 {index + 1} 笔 · {fmt(chosen?.at)} · 累计净收益{" "}
+          {amount(chosen?.profitAtoms)} · 当时回撤{" "}
+          {amount(chosen?.drawdownAtoms)}
+        </p>
         <div className="ws-table-scroll">
           <table>
             <thead>
@@ -1229,6 +1230,11 @@ export function HistoryWorkspace({
             : "保留过去的全部信息。历史可阅读，资格单独判断。"
         }
       >
+        {ledger && (
+          <a className="ws-button" href="#ticket-records">
+            看票据与结果 ↓
+          </a>
+        )}
         <Link className="ws-button secondary" to="/strategies">
           策略竞技场 ↗
         </Link>
@@ -1424,7 +1430,7 @@ export function HistoryWorkspace({
         </>
       )}
 
-      <section className="ws-panel">
+      <section className="ws-panel" id="ticket-records">
         <div className="ws-section-head">
           <h2>
             {ledger ? "票据记录" : "历史档案"} <span>{data?.total ?? "—"}</span>
