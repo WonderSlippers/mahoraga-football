@@ -356,3 +356,5 @@ current.json是实际HTTP快照，00:39柏林研究候选14、V6方向2、旧V2�
 运行观察截至04:30UTC原版63成功观测（39个fixtureRevision，重复刷新不扩大比赛N）、119张新纸面票，V6原生观测95（50个fixtureRevision）且没有假造当前原生票。数字随自动任务追加，以runtime-current.json时点为准。新版本已结数仍0，ROI为null。后台已有新成功时钟；可恢复socket重试已保留，不宣称长期零失败。
 
 旧站5173的workerd PID24644及创建时间不变；旧HEAD325a5087、dirty diff SHA87acee2a和完整status SHA5eabb78b前后相同。没有连接旧D1、调用旧HTTP、控制旧进程、改旧任务、push/部署。旧站自身可能正常写入；这是本次操作范围和身份比较，未冒充系统级旧DB写审计。自身旧原票/预测不改，正常新结算或更正只追加。
+
+最后运行观察追加：Node定时内部调用出现UND_ERR_SOCKET，使用新连接的同一自动接口实际返回200（1.94秒，DEGRADED来源结果如实保留）。定时调用加Connection: close；重跑端到端及实际服务/自动时钟，最终证据记录为runtime-current/restart-result及browser-latest。未承诺消除所有外部来源失败。

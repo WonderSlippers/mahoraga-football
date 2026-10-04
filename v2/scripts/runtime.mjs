@@ -304,6 +304,7 @@ if (command === "doctor") {
           headers: {
             Authorization: "Bearer " + c.serviceToken,
             "Content-Type": "application/json",
+            Connection: "close",
           },
           body: "{}",
           signal: AbortSignal.any([
