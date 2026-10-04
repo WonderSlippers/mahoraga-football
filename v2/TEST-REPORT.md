@@ -421,3 +421,8 @@ node scripts/verify-score-review-browser.mjs最终退出0：8实站检查、5实
 ## 2026-10-05：原版A级稀少与D级集中成因核对
 
 本轮是只读成因分析，不新增模型验证或测试通过数。使用前轮实际API导出10月4日PLACED cohort及新库只读SQLite，校验安装ID；查询70份原版冻结输出、逐策略计数，冻结engine SHA256与pin一致。原版193票A5/D166、134张1X2单场中D130/A0；广覆盖D56+强制D53。70份预测researchPresent=0、goalPresent=34。命令退出0，证据grade-distribution-causes.json；未执行训练、修改参数/评分、写旧D1或重启服务。
+
+
+## 2026-10-05：两版收益与实际选单直接比较
+
+只读比较命令node .runtime-v2/model-comparison-20261005/read.mjs退出0，实站返回通用421票、原版199票；Python compare.py及逐对一致性核查退出0。核查21个完全同价同方向的已结单场，stake/PnL逐对一致；去重保留最早原票，未选最佳赔率或结果。导出截止UTC23:49:21/22；各日期范围、计数、收益、共享/独有方向与实例见comparison.json及两份真实API导出。无新增软件测试/模型验证PASS，未模拟下注或改模型/数据库/服务。
