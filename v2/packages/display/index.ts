@@ -103,6 +103,29 @@ export function groupResearchDirections(plans: any[] = []) {
   }
   return [...groups.values()];
 }
+export function compareResearchScores(a: unknown, b: unknown) {
+  const first = researchScoreBand(a).score;
+  const second = researchScoreBand(b).score;
+  if (first == null) return second == null ? 0 : 1;
+  if (second == null) return -1;
+  return second - first;
+}
+// Rank the scores actually displayed, without replacing a group's first snapshot.
+export function fixtureResearchScore(fixture: any, modelId?: string) {
+  const current = fixture.state === "CANDIDATE" ? fixture.research : null;
+  const currentKey = current
+    ? researchBetKey({ ...current, modelId: current.modelId ?? modelId })
+    : null;
+  const scores = [
+    ...(current ? [current.rankScore] : []),
+    ...groupResearchDirections(fixture.generalDirections)
+      .filter((group) => researchBetKey(group.primary) !== currentKey)
+      .map((group) => group.primary.rank),
+  ]
+    .map((value) => researchScoreBand(value).score)
+    .filter((value): value is number => value != null);
+  return scores.length ? Math.max(...scores) : null;
+}
 export function teamName(name: unknown, competition = "") {
   const raw = String(name ?? "").trim();
   const base = dictionary[raw] ?? aliases.get(alias(raw)) ?? raw;

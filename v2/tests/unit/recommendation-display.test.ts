@@ -6,8 +6,51 @@ import {
   researchScoreBand,
   groupResearchDirections,
   researchBetKey,
+  compareResearchScores,
+  fixtureResearchScore,
 } from "../../packages/display";
 import { rowMatches } from "../../apps/api/src/services/workspace";
+test("higher visible scores lead, valid zero precedes missing scores and equal scores retain order", () => {
+  const scores = [null, 60, 90, NaN, 0, 60, undefined, 101];
+  const rows = scores.map((score, id) => ({ score, id }));
+  assert.deepEqual(
+    [...rows]
+      .sort((a, b) => compareResearchScores(a.score, b.score))
+      .map((r) => r.id),
+    [2, 1, 5, 4, 0, 3, 6, 7],
+  );
+  assert.deepEqual(
+    rows.map((r) => r.id),
+    [0, 1, 2, 3, 4, 5, 6, 7],
+  );
+});
+test("fixture order uses displayed first snapshots and current scores rather than hidden later or other-model scores", () => {
+  const direction = { modelId: "selected", selection: "HOME", rank: 60 };
+  const f = {
+    state: "FINISHED",
+    research: { rankScore: 99 },
+    parallelDirections: [{ rank: 100, modelId: "other" }],
+    generalDirections: [direction, { ...direction, rank: 95 }],
+  };
+  const before = JSON.stringify(f);
+  assert.equal(fixtureResearchScore(f, "selected"), 60);
+  assert.equal(JSON.stringify(f), before);
+  assert.equal(
+    fixtureResearchScore(
+      {
+        ...f,
+        state: "CANDIDATE",
+        research: { selection: "HOME", rankScore: 55 },
+      },
+      "selected",
+    ),
+    55,
+  );
+  assert.equal(
+    fixtureResearchScore({ state: "OBSERVING", generalDirections: [] }),
+    null,
+  );
+});
 test("bilingual names preserve source spelling and recover known English names for Chinese archives", () => {
   assert.equal(teamOriginalName("Manchester United"), "Manchester United");
   assert.equal(teamOriginalName("曼联"), "Manchester United");

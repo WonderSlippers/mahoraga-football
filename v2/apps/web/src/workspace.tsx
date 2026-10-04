@@ -482,7 +482,7 @@ export function ScheduleWorkspace({ api, mode }: Props) {
               ? "进行中比赛与已到开球时间、等待来源确认的比赛。比分和分钟来自来源，不按电脑时间推算。"
               : view === "RESULTS"
                 ? "最近结束的比赛和仍待确认的赛果；只核验90分钟结果，不将加时或点球混入结算。"
-                : "进行中的比赛优先，接着是未开赛赛程。结束的比赛可在“近期赛果”查看。"}{" "}
+                : "按所选模型的显示评分由高到低排列，无评分的比赛排后；同分保留比赛时间顺序。结束的比赛可在“近期赛果”查看。"}{" "}
           {period === "RECENT" ? `${from} 至 ${to} · 柏林日期` : ""}
         </p>
         <label className="ws-filter search team-search">

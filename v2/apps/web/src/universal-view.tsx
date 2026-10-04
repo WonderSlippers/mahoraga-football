@@ -6,6 +6,7 @@ import {
   calendarDay,
   matchesTeamSearch,
   researchBetKey,
+  compareResearchScores,
 } from "../../../packages/display";
 import { useReport } from "./use-report";
 import { TeamName } from "./schedule-view";
@@ -191,22 +192,24 @@ export function UniversalPanel({
     )
     .sort(
       (a: any, b: any) =>
-        (b.p.rank ?? -1) - (a.p.rank ?? -1) ||
+        compareResearchScores(a.p.rank, b.p.rank) ||
         b.p.estimatedEV - a.p.estimatedEV,
     );
-  const broad = active.flatMap((r: any) =>
-    r.output.plans
-      .filter(
-        (p: any) =>
-          p.policyId === "general-v2-all-singles" &&
-          !values.some(
-            (v: any) =>
-              v.r.fixtureId === r.fixtureId &&
-              researchBetKey(v.p) === researchBetKey(p),
-          ),
-      )
-      .map((p: any) => ({ r, p })),
-  );
+  const broad = active
+    .flatMap((r: any) =>
+      r.output.plans
+        .filter(
+          (p: any) =>
+            p.policyId === "general-v2-all-singles" &&
+            !values.some(
+              (v: any) =>
+                v.r.fixtureId === r.fixtureId &&
+                researchBetKey(v.p) === researchBetKey(p),
+            ),
+        )
+        .map((p: any) => ({ r, p })),
+    )
+    .sort((a: any, b: any) => compareResearchScores(a.p.rank, b.p.rank));
   return (
     <section
       className="ws-panel general-panel"

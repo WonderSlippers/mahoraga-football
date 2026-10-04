@@ -8,6 +8,7 @@ import {
   formatDate,
   groupResearchDirections,
   researchBetKey,
+  compareResearchScores,
 } from "../../../packages/display";
 import { ResearchScore } from "./research-score";
 export function TeamName({ name, competition = "" }: any) {
@@ -202,7 +203,9 @@ export function FixtureList({ data, onSelect }: any) {
               modelId: current.modelId ?? data?.version?.modelId,
             })
           : null;
-        const groups = groupResearchDirections(f.generalDirections);
+        const groups = groupResearchDirections(f.generalDirections).sort(
+          (a, b) => compareResearchScores(a.primary.rank, b.primary.rank),
+        );
         const earlier = groups.find(
           (g) => researchBetKey(g.primary) === currentKey,
         );

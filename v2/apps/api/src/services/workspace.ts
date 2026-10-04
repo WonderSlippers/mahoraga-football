@@ -2,6 +2,8 @@ import {
   calendarDay,
   teamName,
   matchesTeamSearch,
+  compareResearchScores,
+  fixtureResearchScore,
 } from "../../../../packages/display";
 import { rows, stmt, uid } from "../repositories/db";
 import type { Context } from "./commands";
@@ -1392,6 +1394,13 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
       referenceMarket: referenceMarket ? market : null,
     };
   };
+  // Sort the complete filtered set before pagination, using the selected model.
+  const displayScores = new Map(
+    filtered.map((f) => [f.id, fixtureResearchScore(f, version.modelId)]),
+  );
+  filtered.sort((a, b) =>
+    compareResearchScores(displayScores.get(a.id), displayScores.get(b.id)),
+  );
   const offset = Number(p.get("offset") || 0);
   if (!Number.isSafeInteger(offset) || offset < 0)
     throw Error("INVALID_CURSOR");
@@ -1429,8 +1438,8 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
     },
     researchCandidates: filtered
       .filter((f) => f.state === "CANDIDATE")
-      .sort(
-        (a, b) => (b.research?.rankScore ?? 0) - (a.research?.rankScore ?? 0),
+      .sort((a, b) =>
+        compareResearchScores(a.research?.rankScore, b.research?.rankScore),
       )
       .slice(0, 12)
       .map(scheduleView),
