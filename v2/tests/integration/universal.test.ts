@@ -532,6 +532,9 @@ test("bilingual schedule and ledger search preserve frozen recommendation scores
   assert.ok(directions.length > 0);
   assert.equal(directions[0].rank, 92);
   for (const q of ["Manchester United", "man utd", "man-utd"]) {
+    const filtered = await universalReport(c, new URLSearchParams({ q }));
+    assert.equal(filtered.records.length, 1);
+    assert.deepEqual(filtered.records[0].output, frozen);
     const schedule = await workspaceSchedule(c, new URLSearchParams({ q }));
     assert.deepEqual(
       schedule.items.map((r: any) => r.id),
@@ -546,6 +549,11 @@ test("bilingual schedule and ledger search preserve frozen recommendation scores
   }
   assert.equal(
     (await workspaceSchedule(c, new URLSearchParams({ q: "曼城" }))).total,
+    0,
+  );
+  assert.equal(
+    (await universalReport(c, new URLSearchParams({ q: "曼城" }))).records
+      .length,
     0,
   );
   await result(1, 0);

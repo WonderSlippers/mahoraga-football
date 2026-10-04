@@ -145,7 +145,11 @@ export function UniversalPanel({
   const { data, error } = useReport(
     api,
     "/workspace/universal" +
-      (fixture ? "?fixture=" + encodeURIComponent(fixture) : ""),
+      (fixture
+        ? "?fixture=" + encodeURIComponent(fixture)
+        : scope?.q
+          ? "?q=" + encodeURIComponent(scope.q)
+          : ""),
   );
   const records = (data?.records ?? []).filter((r: any) => {
     if (!scope) return true;

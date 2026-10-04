@@ -13,6 +13,7 @@ import {
 import { atomic, one, rows, stmt, uid } from "../repositories/db";
 import { place, placeDouble, receipt, type Context } from "./commands";
 import { prepareFunDouble, FUN_DOUBLE } from "./fun-paper";
+import { matchesTeamSearch, teamName } from "../../../../packages/display";
 
 export async function registerUniversal(c: Context) {
   const json = canonical(UNIVERSAL_MANIFEST),
@@ -634,12 +635,35 @@ export async function universalReport(
   c: Context,
   params = new URLSearchParams(),
 ) {
+  const query = params.get("q")?.trim();
+  const matchingRevisions = query
+    ? (
+        await rows(
+          c.db,
+          "SELECT r.id,f.home,f.away,cat.competition FROM fixture_revisions r JOIN fixtures f ON f.id=r.fixtureId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id",
+        )
+      )
+        .filter((r) =>
+          matchesTeamSearch(
+            query,
+            [
+              r.home,
+              r.away,
+              `${r.home} ${r.away}`,
+              `${teamName(r.home, r.competition)} ${teamName(r.away, r.competition)}`,
+            ],
+            r.competition,
+          ),
+        )
+        .map((r) => r.id)
+    : null;
   const captured = await rows(
     c.db,
-    "WITH newest AS MATERIALIZED(SELECT MAX(x.rowid) rowId FROM universal_observations x JOIN fixture_revisions fr ON fr.id=x.fixtureRevisionId JOIN jobs jx ON jx.id=x.jobId WHERE jx.modelId=? AND (?='' OR fr.fixtureId=?) GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,b.cutoffAt,q.observedAt quoteObservedAt,q.providerId,pr.modelId FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN predictions pr ON pr.id=o.predictionId ORDER BY r.kickoffAt LIMIT 2000",
+    `WITH newest AS MATERIALIZED(SELECT MAX(x.rowid) rowId FROM universal_observations x JOIN fixture_revisions fr ON fr.id=x.fixtureRevisionId JOIN jobs jx ON jx.id=x.jobId WHERE jx.modelId=? AND (?='' OR fr.fixtureId=?) ${matchingRevisions ? "AND x.fixtureRevisionId IN(SELECT value FROM json_each(?))" : ""} GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,b.cutoffAt,q.observedAt quoteObservedAt,q.providerId,pr.modelId FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN predictions pr ON pr.id=o.predictionId ORDER BY r.kickoffAt LIMIT 2000`,
     UNIVERSAL_ID,
     params.get("fixture") ?? "",
     params.get("fixture") ?? "",
+    ...(matchingRevisions ? [JSON.stringify(matchingRevisions)] : []),
   );
   const records = captured.map(({ outputJson, ...r }: any) => {
     const full = JSON.parse(outputJson);
