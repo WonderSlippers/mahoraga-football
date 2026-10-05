@@ -1,0 +1,885 @@
+/* A quiet product shell with the strategies, action and results in front. */
+body > #root > header {
+  min-height: 76px;
+  padding: 16px 30px;
+}
+.shell {
+  grid-template-columns: 184px minmax(0, 1fr);
+}
+.shell > nav {
+  padding: 26px 16px;
+  position: sticky;
+  top: 0;
+  height: calc(100vh - 76px);
+}
+.shell > main {
+  max-width: 1460px;
+  padding: 34px 42px 48px;
+}
+.nav-divider {
+  height: 1px;
+  background: var(--ws-line);
+  margin: 24px 10px;
+}
+.navnote {
+  margin: 34px 10px !important;
+  line-height: 1.8 !important;
+}
+.navtitle {
+  letter-spacing: 0.5px !important;
+}
+.shell > nav a {
+  font-size: 14px;
+  padding: 15px 12px;
+  border-radius: 8px;
+}
+.shell > nav a.active {
+  border-left: 0;
+  box-shadow: inset 3px 0 var(--ws-accent);
+}
+.ws-read-state.quiet {
+  display: none;
+}
+.workspace-page .ws-head {
+  margin-bottom: 22px;
+}
+.workspace-page .ws-head h1 {
+  font-size: 34px;
+  letter-spacing: -1px;
+}
+.workspace-page .ws-head .eyebrow {
+  display: none;
+}
+.workspace-page .ws-head .ws-deck {
+  max-width: 700px;
+  font-size: 14px;
+}
+.positive {
+  color: var(--ws-accent);
+}
+.negative {
+  color: #ee9292;
+}
+:root[data-theme="light"] .negative {
+  color: #a43535;
+}
+.arena-page {
+  max-width: 1210px;
+  margin: 0 auto;
+}
+.arena-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 26px;
+  margin: 2px 0 22px;
+}
+.arena-head h1 {
+  font-size: clamp(28px, 2.8vw, 40px);
+  letter-spacing: -2px;
+  line-height: 1.3;
+  font-weight: 750;
+  margin: 10px 0 12px;
+}
+.arena-head h1 > span {
+  color: var(--ws-accent);
+}
+.arena-head p:not(.eyebrow) {
+  font-size: 14px;
+  margin: 0;
+}
+.arena-head .eyebrow {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--ws-muted);
+}
+.arena-head-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  min-width: 150px;
+}
+.arena-head-links > * {
+  text-align: center;
+}
+.arena-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 24px 0;
+}
+.arena-periods {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--ws-panel);
+  border: 1px solid var(--ws-line);
+  border-radius: 10px;
+}
+.arena-periods button {
+  background: transparent;
+  color: var(--ws-muted);
+  border: 0;
+  padding: 9px 19px;
+  border-radius: 7px;
+}
+.arena-periods button.selected {
+  background: var(--ws-soft);
+  color: var(--ws-ink);
+}
+.arena-live {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--ws-muted);
+  text-decoration: none;
+}
+.arena-live i {
+  width: 7px;
+  height: 7px;
+  display: block;
+  border-radius: 50%;
+  background: var(--ws-orange);
+}
+.arena-live.live i {
+  background: var(--ws-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ws-accent) 10%, transparent);
+}
+.arena-live > span {
+  margin-left: 5px;
+}
+.arena-overview {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  border-top: 1px solid var(--ws-line);
+  border-bottom: 1px solid var(--ws-line);
+  margin: 0 0 24px;
+  padding: 20px 0;
+}
+.arena-overview > div {
+  padding: 0 24px;
+  border-left: 1px solid var(--ws-line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.arena-overview > div:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.arena-overview span {
+  font-size: 12px;
+  color: var(--ws-muted);
+}
+.arena-overview strong {
+  font-size: 32px;
+  line-height: 1.4;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+.arena-overview > div:first-child strong {
+  font-size: 24px;
+}
+.arena-overview small,
+.arena-overview a {
+  font-size: 11px;
+  color: var(--ws-muted);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.arena-overview strong small {
+  margin-left: 7px;
+  font-size: 12px;
+}
+.arena-panel {
+  background: var(--ws-panel);
+  border: 1px solid var(--ws-line);
+  border-radius: 14px;
+  padding: 26px 28px;
+  margin: 0 0 24px;
+}
+.arena-panel .eyebrow,
+.arena-feed .eyebrow {
+  font-size: 9px;
+  color: var(--ws-muted);
+  letter-spacing: 2px;
+  margin: 0 0 6px;
+}
+.arena-panel h2,
+.arena-feed h2 {
+  font-size: 21px;
+  letter-spacing: -0.4px;
+}
+.profit-chart svg {
+  display: block;
+  width: 100%;
+  max-height: 290px;
+  margin: 8px auto 0;
+  overflow: visible;
+}
+.profit-chart svg text {
+  fill: var(--ws-muted);
+  font-size: 11px;
+}
+.chart-grid {
+  stroke: var(--ws-line);
+  stroke-width: 1;
+  stroke-dasharray: 3 6;
+}
+.chart-zero {
+  stroke: var(--ws-muted);
+  stroke-width: 1;
+  opacity: 0.4;
+}
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 12px 0 0;
+}
+.chart-legend button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ws-muted);
+  font-size: 11px;
+  padding: 7px 3px;
+}
+.chart-legend button[aria-pressed="true"] {
+  color: var(--ws-ink);
+}
+.chart-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.arena-rank-scroll {
+  overflow-x: auto;
+}
+.arena-ranking table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.arena-ranking th {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ws-muted);
+  padding: 16px 10px;
+  text-align: right;
+  border-bottom: 1px solid var(--ws-line);
+  white-space: nowrap;
+}
+.arena-ranking td {
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--ws-line);
+  font-size: 14px;
+  text-align: right;
+  white-space: nowrap;
+}
+.arena-ranking td:nth-child(2) {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.5px;
+}
+.arena-ranking th:first-child,
+.arena-ranking td:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+.arena-ranking tr.focused {
+  background: var(--ws-soft);
+}
+.arena-ranking tr:last-child td {
+  border-bottom: 0;
+}
+.rank-select {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 0;
+  background: transparent;
+  color: var(--ws-ink);
+  padding: 3px 0;
+  text-align: left;
+}
+.rank-select > span:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rank-select b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.rank-select small {
+  font-size: 10px;
+  color: var(--ws-muted);
+}
+.rank-select .rank-mobile-counts {
+  display: none;
+}
+.rank-number {
+  font-size: 13px;
+  color: var(--ws-muted);
+  font-variant-numeric: tabular-nums;
+}
+.arena-ranking td a {
+  font-size: 12px;
+  color: var(--ws-muted);
+  text-decoration: none;
+}
+.arena-caption {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ws-muted);
+  margin: 14px 0 0;
+}
+.arena-caption a {
+  float: right;
+}
+.arena-focus {
+  padding: 18px 22px;
+  border-left: 3px solid var(--ws-accent);
+  background: var(--ws-soft);
+  border-radius: 0 10px 10px 0;
+  margin-bottom: 24px;
+}
+.arena-focus p {
+  font-size: 12px;
+  margin: 8px 0 14px;
+}
+.arena-focus button {
+  font-size: 11px;
+}
+.arena-feed {
+  margin: 34px 0;
+}
+.arena-feed .ticket-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.ticket-card {
+  margin: 0;
+  border-radius: 12px;
+  padding: 20px;
+}
+.ticket-card header {
+  min-height: 0 !important;
+  padding: 0 0 14px !important;
+  gap: 12px;
+  background: transparent !important;
+}
+.ticket-card header b {
+  font-size: 13px;
+}
+.ticket-card header p {
+  font-size: 10px;
+  line-height: 1.4;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+.ticket-outcome {
+  font-size: 20px;
+}
+.ticket-outcome small {
+  font-size: 11px;
+}
+.ticket-teams {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ticket-teams > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.ticket-teams em {
+  font-size: 10px;
+  font-style: normal;
+  color: var(--ws-muted);
+}
+.ticket-teams .team-crest {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.ticket-teams b {
+  font-size: 14px;
+}
+.ticket-leg {
+  padding: 16px 0;
+  gap: 12px;
+}
+.ticket-selection {
+  font-size: 14px;
+  margin: 10px 0 6px;
+}
+.ticket-leg small {
+  font-size: 10px;
+}
+.leg-result {
+  min-width: 55px;
+  gap: 6px;
+}
+.leg-result > b {
+  font-size: 22px;
+}
+.leg-result > span {
+  font-size: 11px;
+}
+.ticket-card footer {
+  gap: 10px;
+  font-size: 11px;
+  padding-top: 13px;
+}
+.ticket-card footer span:nth-child(4) {
+  display: none;
+}
+.ticket-card footer button {
+  font-size: 11px;
+  padding: 7px 10px;
+}
+.compact .ticket-leg > div > small,
+.compact .leg-result > a {
+  display: none;
+}
+.chart-empty {
+  padding: 50px 20px;
+  text-align: center;
+  color: var(--ws-muted);
+  font-size: 13px;
+}
+.chart-empty a {
+  display: block;
+  margin-top: 14px;
+}
+.arena-skeleton {
+  height: 170px;
+  background: var(--ws-panel);
+  border: 1px solid var(--ws-line);
+  border-radius: 14px;
+}
+.arena-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 13px 0;
+  border-top: 1px solid var(--ws-line);
+}
+.arena-setting b {
+  font-size: 13px;
+  flex: 1;
+}
+.arena-setting label {
+  font-size: 12px;
+}
+.arena-setting select {
+  margin-left: 8px;
+}
+.arena-error {
+  border: 1px solid var(--ws-orange);
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.arena-error button {
+  margin-left: 16px;
+}
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.tool-card {
+  padding: 24px;
+  border: 1px solid var(--ws-line);
+  border-radius: 12px;
+  text-decoration: none;
+  background: var(--ws-panel);
+  transition:
+    transform 0.15s,
+    border-color 0.15s;
+}
+.tool-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--ws-accent);
+}
+.tool-card > span {
+  float: right;
+  color: var(--ws-accent);
+}
+.tool-card p {
+  font-size: 13px;
+}
+.ledger-clean .ticket-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.ledger-clean .ws-note {
+  display: none;
+}
+.ledger-clean .ws-summary {
+  gap: 8px;
+}
+.ledger-clean .ws-stat {
+  padding: 16px;
+  border-radius: 10px;
+}
+.ledger-clean .ws-chart-panel {
+  border-radius: 12px;
+  margin: 24px 0;
+}
+.ledger-clean .ws-chart-panel {
+  padding: 18px 20px;
+}
+.ledger-clean .ws-chart-panel .ws-curve {
+  height: 155px;
+}
+.ledger-clean .ws-chart-panel .curve-selector {
+  font-size: 11px;
+}
+.curve-selector input {
+  accent-color: var(--ws-accent);
+}
+.lab-clean .lab-tabs {
+  margin-bottom: 24px;
+}
+.lab-clean > .workspace-page .ws-head {
+  display: none;
+}
+.ledger-clean .ws-chart-panel > .ws-bottom-links {
+  display: none;
+}
+.ledger-clean .ws-chart-panel .ws-section-head > span {
+  display: none;
+}
+.ledger-clean .ws-ledger-modes {
+  margin-bottom: 16px;
+}
+.ledger-clean .ledger-date-basis {
+  margin-bottom: 20px;
+}
+.ledger-clean .ledger-date-basis > span {
+  margin-left: auto;
+  font-size: 11px;
+}
+.ledger-primary-filters {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  flex-wrap: wrap;
+  margin: 10px 0 20px;
+}
+.ledger-primary-filters label {
+  flex: 1;
+  min-width: 155px;
+}
+.ledger-primary-filters input,
+.ledger-primary-filters select {
+  width: 100%;
+}
+.schedule-overview > span:not(:first-child),
+.schedule-jump {
+  display: none;
+}
+.schedule-overview {
+  border: 0;
+  padding: 0;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.lifecycle-tabs {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.workspace-page .general-coverage,
+.workspace-page .general-footnote {
+  display: none;
+}
+.general-panel > .ws-section-label {
+  display: none;
+}
+.general-panel > p:not([role="alert"]) {
+  font-size: 12px;
+}
+.general-panel h2 {
+  font-size: 22px;
+}
+.general-empty {
+  padding: 16px 18px;
+}
+.general-empty p {
+  font-size: 11px;
+}
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--ws-accent);
+  outline-offset: 4px;
+}
+@media (max-width: 1100px) {
+  .shell > main {
+    padding: 28px 24px;
+  }
+  .shell {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+  .arena-overview > div {
+    padding: 0 16px;
+  }
+  .arena-overview strong {
+    font-size: 27px;
+  }
+  .arena-overview > div:first-child strong {
+    font-size: 21px;
+  }
+  .arena-panel {
+    padding: 22px;
+  }
+  .arena-ranking td {
+    font-size: 12px;
+    padding: 13px 8px;
+  }
+}
+@media (max-width: 760px) {
+  body > #root > header {
+    min-height: 64px;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+  .brand {
+    font-size: 21px;
+  }
+  .brand-avatar {
+    width: 34px;
+    height: 34px;
+  }
+  header small {
+    display: none;
+  }
+  .shell {
+    display: block;
+  }
+  .shell > nav {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    height: auto;
+    display: flex;
+    gap: 3px;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--ws-line);
+    border-right: 0;
+    overflow-x: auto;
+    background: var(--ws-bg);
+  }
+  .shell > nav a {
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 12px 11px;
+    margin: 0;
+  }
+  .shell > nav a > span,
+  .navtitle,
+  .navnote,
+  .nav-divider {
+    display: none;
+  }
+  .shell > main {
+    padding: 24px 16px 40px;
+  }
+  .arena-head {
+    align-items: start;
+    gap: 12px;
+    margin: 4px 0 24px;
+  }
+  .arena-head h1 {
+    font-size: 28px;
+    letter-spacing: -1.5px;
+  }
+  .arena-head p:not(.eyebrow) {
+    font-size: 12px;
+  }
+  .arena-head-links {
+    min-width: 0;
+  }
+  .arena-head-links .ws-button {
+    font-size: 11px;
+    padding: 10px;
+  }
+  .arena-head-links > button {
+    font-size: 10px;
+  }
+  .arena-toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .arena-periods button {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  .arena-live {
+    font-size: 10px;
+  }
+  .arena-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 0;
+    padding: 22px 0;
+  }
+  .arena-overview > div:nth-child(3) {
+    border: 0;
+    padding-left: 0;
+  }
+  .arena-overview strong {
+    font-size: 28px;
+  }
+  .arena-overview > div:first-child strong {
+    font-size: 22px;
+  }
+  .arena-overview > div {
+    gap: 7px;
+  }
+  .arena-overview small {
+    font-size: 10px;
+  }
+  .arena-panel {
+    padding: 18px 14px;
+    border-radius: 12px;
+  }
+  .arena-panel .ws-section-head {
+    gap: 12px;
+  }
+  .arena-panel .ws-section-head > span {
+    font-size: 10px;
+  }
+  .arena-panel h2,
+  .arena-feed h2 {
+    font-size: 19px;
+  }
+  .profit-chart svg {
+    min-height: 170px;
+  }
+  .chart-legend {
+    gap: 3px 12px;
+  }
+  .chart-legend button {
+    font-size: 10px;
+  }
+  .arena-ranking table {
+    min-width: 0;
+  }
+  .arena-ranking td,
+  .arena-ranking th {
+    padding: 13px 5px;
+    font-size: 11px;
+  }
+  .arena-ranking td:nth-child(2) {
+    font-size: 16px;
+  }
+  .arena-ranking th:nth-child(n + 4):nth-child(-n + 7),
+  .arena-ranking td:nth-child(n + 4):nth-child(-n + 7) {
+    display: none;
+  }
+  .rank-select {
+    gap: 7px;
+  }
+  .rank-select b {
+    font-size: 12px;
+  }
+  .rank-select .rank-mobile-counts {
+    display: block;
+    font-size: 9px;
+  }
+  .arena-ranking .ws-section-head > span {
+    display: none;
+  }
+  .arena-feed .ticket-cards,
+  .ledger-clean .ticket-cards,
+  .tools-grid {
+    grid-template-columns: 1fr;
+  }
+  .ticket-card {
+    padding: 16px;
+  }
+  .ticket-teams b {
+    font-size: 13px;
+  }
+  .arena-caption {
+    font-size: 10px;
+  }
+  .arena-caption a {
+    float: none;
+    display: block;
+    margin-top: 8px;
+  }
+  .arena-setting {
+    flex-wrap: wrap;
+  }
+  .ledger-clean .ws-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ledger-clean .ws-stat {
+    padding: 10px;
+  }
+  .ledger-clean .ws-stat strong {
+    font-size: 22px;
+  }
+  .ledger-clean .ws-stat p {
+    font-size: 10px;
+  }
+  .ledger-clean .ledger-date-basis > span {
+    display: none;
+  }
+  .workspace-page .ws-head {
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .workspace-page .ws-head > div:last-child:not(:first-child) {
+    flex-wrap: wrap;
+    flex-direction: row;
+    max-width: none;
+    padding-top: 0;
+    justify-content: flex-start;
+  }
+  .workspace-page .ws-head .ws-button {
+    font-size: 11px;
+    white-space: nowrap;
+    padding: 10px 12px;
+  }
+  .tool-card {
+    padding: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .tool-card {
+    transition: none;
+  }
+}

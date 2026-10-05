@@ -1,0 +1,277 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FrozenInputV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mode",
+    "fixtureId",
+    "revisionId",
+    "observedAt",
+    "ingestedAt",
+    "cutoffAt",
+    "kickoffAt",
+    "odds",
+    "missingMask"
+  ],
+  "properties": {
+    "mode": {
+      "enum": [
+        "DEMO",
+        "LOCAL_RESEARCH",
+        "HISTORICAL_REPLAY",
+        "LEGACY_IMPORT",
+        "USER_REPORTED"
+      ]
+    },
+    "fixtureId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revisionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ingestedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cutoffAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "kickoffAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "odds": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9]+(\\.[0-9]{1,12})?$"
+      }
+    },
+    "missingMask": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "researchFeatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "homeRecent",
+        "awayRecent",
+        "neutralSite",
+        "sourceSnapshotId",
+        "observedAt"
+      ],
+      "properties": {
+        "homeRecent": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "at", "gf", "ga", "opponent", "competition"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "gf": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "ga": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "opponent": {
+                "type": "string"
+              },
+              "competition": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "awayRecent": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "at", "gf", "ga", "opponent", "competition"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "gf": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "ga": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 99
+              },
+              "opponent": {
+                "type": "string"
+              },
+              "competition": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "neutralSite": {
+          "type": ["boolean", "null"]
+        },
+        "sourceSnapshotId": {
+          "type": "string"
+        },
+        "observedAt": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "comparisonFeatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "competition",
+        "home",
+        "away",
+        "goalStats",
+        "featureRow",
+        "featureSources",
+        "featureHash",
+        "offers"
+      ],
+      "properties": {
+        "competition": {
+          "type": "string"
+        },
+        "home": {
+          "type": "string"
+        },
+        "away": {
+          "type": "string"
+        },
+        "goalStats": {
+          "type": ["object", "null"],
+          "maxProperties": 12
+        },
+        "featureRow": {
+          "type": ["object", "null"],
+          "maxProperties": 12
+        },
+        "featureSources": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object"
+          }
+        },
+        "featureHash": {
+          "type": ["string", "null"]
+        },
+        "legacyState": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["revision", "evolution", "seed"],
+          "properties": {
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "evolution": {
+              "type": "object"
+            },
+            "seed": {
+              "type": "object"
+            }
+          }
+        },
+        "offers": {
+          "type": "array",
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["market", "selection", "lineQ", "odds"],
+            "properties": {
+              "market": {
+                "enum": ["1X2", "ASIAN_HANDICAP", "TOTAL_GOALS"]
+              },
+              "selection": {
+                "enum": ["HOME", "DRAW", "AWAY", "OVER", "UNDER"]
+              },
+              "lineQ": {
+                "type": ["integer", "null"]
+              },
+              "odds": {
+                "type": "string",
+                "pattern": "^[0-9]+(\\.[0-9]{1,12})?$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "generalCalibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "revision",
+        "modelTrust",
+        "temperature",
+        "effectiveAt"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "GENERAL_PREQUENTIAL_CALIBRATION_V1"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modelTrust": {
+          "type": "number",
+          "minimum": 0.6,
+          "maximum": 1
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1.4
+        },
+        "effectiveAt": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

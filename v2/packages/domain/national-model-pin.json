@@ -1,0 +1,176 @@
+{
+  "artifactSha256": "db04f469742be2a9c56dcd3cb232fd191ebf0d3fae933998daf7dc48bcc33969",
+  "file": "national-v1.json",
+  "validation": {
+    "trainingN": 4384,
+    "calibration": {
+      "N": 241,
+      "totalN": 243,
+      "coverage": 0.9917695473251029,
+      "LogLoss": 0.9643437134478473,
+      "Brier": 0.5738014286865202,
+      "fromDate": "2024-01-01",
+      "throughDate": "2024-11-19",
+      "ROI": null,
+      "reason": "NO_HISTORICAL_ODDS",
+      "calibration": [
+        {
+          "lower": 0.0,
+          "N": 11,
+          "predicted": 0.07217298636897325,
+          "observed": 0.0
+        },
+        {
+          "lower": 0.1,
+          "N": 99,
+          "predicted": 0.1563978128292264,
+          "observed": 0.1414141414141414
+        },
+        {
+          "lower": 0.2,
+          "N": 261,
+          "predicted": 0.25317904423789117,
+          "observed": 0.23371647509578544
+        },
+        {
+          "lower": 0.3,
+          "N": 165,
+          "predicted": 0.3402268034623837,
+          "observed": 0.32727272727272727
+        },
+        {
+          "lower": 0.4,
+          "N": 71,
+          "predicted": 0.44968774480166696,
+          "observed": 0.5352112676056338
+        },
+        {
+          "lower": 0.5,
+          "N": 64,
+          "predicted": 0.5544846051162498,
+          "observed": 0.546875
+        },
+        {
+          "lower": 0.6,
+          "N": 40,
+          "predicted": 0.6463637491124639,
+          "observed": 0.725
+        },
+        {
+          "lower": 0.7,
+          "N": 8,
+          "predicted": 0.7391468034105633,
+          "observed": 0.875
+        },
+        {
+          "lower": 0.8,
+          "N": 4,
+          "predicted": 0.8307478905808883,
+          "observed": 0.75
+        },
+        {
+          "lower": 0.9,
+          "N": 0,
+          "predicted": null,
+          "observed": null
+        }
+      ]
+    },
+    "holdout": {
+      "N": 427,
+      "totalN": 429,
+      "coverage": 0.9953379953379954,
+      "LogLoss": 0.9668183099355362,
+      "Brier": 0.5775480535195703,
+      "fromDate": "2025-01-18",
+      "throughDate": "2026-07-18",
+      "ROI": null,
+      "reason": "NO_HISTORICAL_ODDS",
+      "calibration": [
+        {
+          "lower": 0.0,
+          "N": 14,
+          "predicted": 0.07793818085344424,
+          "observed": 0.0
+        },
+        {
+          "lower": 0.1,
+          "N": 206,
+          "predicted": 0.1632460346815942,
+          "observed": 0.11650485436893204
+        },
+        {
+          "lower": 0.2,
+          "N": 458,
+          "predicted": 0.2538097582937471,
+          "observed": 0.24890829694323144
+        },
+        {
+          "lower": 0.3,
+          "N": 263,
+          "predicted": 0.3395425726506283,
+          "observed": 0.34220532319391633
+        },
+        {
+          "lower": 0.4,
+          "N": 113,
+          "predicted": 0.45371646112787245,
+          "observed": 0.5221238938053098
+        },
+        {
+          "lower": 0.5,
+          "N": 132,
+          "predicted": 0.5514180892052358,
+          "observed": 0.5681818181818182
+        },
+        {
+          "lower": 0.6,
+          "N": 73,
+          "predicted": 0.6342780439723001,
+          "observed": 0.6575342465753424
+        },
+        {
+          "lower": 0.7,
+          "N": 18,
+          "predicted": 0.7206742632253167,
+          "observed": 0.7222222222222222
+        },
+        {
+          "lower": 0.8,
+          "N": 4,
+          "predicted": 0.8510086468544472,
+          "observed": 1.0
+        },
+        {
+          "lower": 0.9,
+          "N": 0,
+          "predicted": null,
+          "observed": null
+        }
+      ]
+    },
+    "design": "2010-2023 training; 2024 calibration; 2025+ holdout. Design selected during 2026 research, not prospective.",
+    "scope": "Mens senior national Friendly only; competitive transfer unvalidated",
+    "limitations": [
+      "Cup and shootout scores excluded; not a result adjudication source",
+      "No historical prices; no ROI validation",
+      "Competitive and club transfer require their own forward evidence"
+    ]
+  },
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/martj42/international_results/master/results.csv",
+      "sha256": "df35268f8fc341ff7fb93d448b4e40356676ac35300a6b4461fd199a99ac1514",
+      "observedAt": "2026-10-01T23:01:08.821585+00:00",
+      "bytes": 3729861
+    },
+    {
+      "url": "https://raw.githubusercontent.com/martj42/international_results/master/shootouts.csv",
+      "sha256": "2acdc95fdad14f5f17200150a1a4a5fa6c2ccf57d31c8b4f61a2c7d9c0493113",
+      "observedAt": "2026-10-01T23:01:09.013899+00:00",
+      "bytes": 29050
+    }
+  ],
+  "trainingCutoffAt": "2024-01-01T00:00:00Z",
+  "calibrationCutoffAt": "2025-01-01T00:00:00Z"
+}

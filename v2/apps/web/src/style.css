@@ -1,0 +1,365 @@
+:root {
+  font-family: Inter, "Microsoft YaHei", sans-serif;
+  color: #dbe5e9;
+  background: #0d151b;
+  font-size: 15px;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 22px 36px;
+  border-bottom: 1px solid #293841;
+  background: #101d25;
+}
+.brand {
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: 2px;
+}
+.brand span {
+  color: #65ddc1;
+}
+.badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border: 1px solid #8f743b;
+  border-radius: 5px;
+  font-size: 12px;
+  color: #f2d18a;
+  white-space: nowrap;
+}
+header small {
+  margin-left: auto;
+  color: #91a8b5;
+}
+.shell {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  min-height: 82vh;
+}
+nav {
+  padding: 30px 18px;
+  border-right: 1px solid #293841;
+}
+nav a {
+  display: block;
+  padding: 14px;
+  color: #9db1bd;
+  text-decoration: none;
+  border-radius: 6px;
+  margin: 6px 0;
+}
+nav a.active {
+  background: #19352f;
+  color: #76e2c4;
+}
+.navtitle {
+  color: #617e8c;
+  font-size: 12px;
+  padding-left: 14px;
+}
+.navnote {
+  margin: 55px 14px;
+  color: #7d96a3;
+  font-size: 12px;
+  line-height: 2.2;
+}
+main {
+  padding: 36px 42px;
+  max-width: 1230px;
+  width: 100%;
+}
+.heading,
+.row,
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+.eyebrow {
+  letter-spacing: 2px;
+  color: #69cdb6;
+  font-size: 12px;
+}
+h1 {
+  font-size: 30px;
+  margin: 12px 0 14px;
+}
+h2 {
+  overflow-wrap: anywhere;
+  font-size: 19px;
+  font-weight: 600;
+  margin: 8px 0;
+}
+p {
+  color: #96acb8;
+  line-height: 1.8;
+}
+a {
+  color: inherit;
+}
+article {
+  padding: 24px;
+  background: #14232d;
+  border: 1px solid #2a3c46;
+  border-radius: 10px;
+  margin: 18px 0;
+}
+.callout {
+  border-left: 3px solid #c4a55f;
+  background: #211f1a;
+  color: #c6b996;
+  padding: 17px 20px;
+  line-height: 1.8;
+  margin: 22px 0;
+}
+.toolbar {
+  margin-top: 25px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  margin: 22px 0;
+}
+.metrics small {
+  display: block;
+  color: #8ca7b4;
+  margin-bottom: 8px;
+}
+.metrics strong {
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}
+.summary {
+  grid-template-columns: repeat(4, 1fr);
+  padding: 24px;
+  background: #14232d;
+  border-radius: 10px;
+}
+.positive {
+  color: #74e2c3;
+  border-color: #366e60;
+}
+.neutral {
+  color: #9bafbb;
+  border-color: #536771;
+}
+.muted {
+  color: #6e8794;
+  font-size: 14px;
+}
+.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+button {
+  background: #66d8ba;
+  border: 1px solid transparent;
+  color: #112720;
+  padding: 12px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+button.secondary {
+  background: transparent;
+  color: #a5bac5;
+  border-color: #46606e;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+input:focus-visible {
+  outline: 3px solid #f0c46d;
+  outline-offset: 4px;
+}
+details {
+  margin: 18px 0;
+}
+summary {
+  cursor: pointer;
+  color: #99b8c7;
+}
+.textlink {
+  color: #78d9c1;
+  text-decoration: none;
+}
+.empty {
+  padding: 45px;
+  background: #13222c;
+  border: 1px dashed #39505b;
+  border-radius: 8px;
+  color: #9db3c0;
+  margin: 24px 0;
+}
+.login {
+  margin: 60px auto;
+  max-width: 600px;
+}
+input,
+select {
+  display: block;
+  width: 100%;
+  margin: 12px 0 24px;
+  padding: 14px;
+  background: #14232d;
+  color: #fff;
+  border: 1px solid #46606e;
+  border-radius: 6px;
+}
+label {
+  display: block;
+  min-width: 0;
+}
+form {
+  max-width: 760px;
+}
+select {
+  max-width: 100%;
+  font: inherit;
+}
+:root[data-theme="light"] {
+  color: #172f3b;
+  background: #f3f6f8;
+}
+:root[data-theme="light"] header,
+:root[data-theme="light"] article,
+:root[data-theme="light"] .summary,
+:root[data-theme="light"] input,
+:root[data-theme="light"] select {
+  background: #fff;
+  color: #172f3b;
+}
+:root[data-theme="light"] nav,
+:root[data-theme="light"] pre,
+:root[data-theme="light"] .empty {
+  background: #e7eff3;
+  color: #172f3b;
+}
+:root[data-theme="light"] p,
+:root[data-theme="light"] button.secondary,
+:root[data-theme="light"] summary {
+  color: #415d6c;
+}
+:root[data-theme="light"] .callout {
+  background: #fbf1d9;
+  color: #675326;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  background: #0c1820;
+  padding: 20px;
+  line-height: 1.8;
+  border-radius: 8px;
+}
+[role="alert"] {
+  color: #f6a89b;
+}
+footer {
+  padding: 24px 36px;
+  border-top: 1px solid #293841;
+  color: #617e8c;
+  font-size: 12px;
+}
+@media (max-width: 800px) {
+  header {
+    padding: 18px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header small {
+    margin: 0;
+    width: 100%;
+  }
+  .shell {
+    display: block;
+  }
+  nav {
+    display: flex;
+    padding: 10px;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 1px solid #293841;
+  }
+  nav a {
+    white-space: nowrap;
+    font-size: 13px;
+    padding: 10px;
+  }
+  .navtitle,
+  .navnote {
+    display: none;
+  }
+  main {
+    padding: 22px 16px;
+  }
+  .heading {
+    display: block;
+  }
+  .heading button {
+    margin: 10px 0;
+  }
+  .row {
+    flex-wrap: wrap;
+  }
+  .metrics,
+  .summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  h1 {
+    font-size: 26px;
+  }
+  article {
+    padding: 18px;
+  }
+  button {
+    min-height: 44px;
+  }
+  .metrics strong {
+    font-size: 22px;
+  }
+}
+dialog {
+  color: #dbe5e9;
+  background: #151d2b;
+  border: 1px solid #45536b;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: min(600px, calc(100vw - 32px));
+}
+html[data-theme="light"] dialog {
+  color: #21313d;
+  background: #fff;
+}
+dialog::backdrop {
+  background: #0009;
+}
+:focus-visible {
+  outline: 3px solid #6ac6ff;
+  outline-offset: 4px;
+}

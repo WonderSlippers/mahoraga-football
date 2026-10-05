@@ -1,0 +1,9 @@
+node_modules/
+.runtime-v2/
+.models-local/
+.venv/
+dist/
+test-results/
+playwright-report/
+__pycache__/
+*.pyc

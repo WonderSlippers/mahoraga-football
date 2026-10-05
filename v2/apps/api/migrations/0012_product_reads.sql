@@ -1,0 +1,13 @@
+CREATE INDEX IF NOT EXISTS prediction_model_fixture ON predictions(modelId,fixtureRevisionId,calculatedAt);
+CREATE INDEX IF NOT EXISTS universal_fixture_time ON universal_observations(fixtureRevisionId,calculatedAt,id);
+CREATE INDEX IF NOT EXISTS universal_fixture_row ON universal_observations(fixtureRevisionId);
+CREATE INDEX IF NOT EXISTS universal_prediction ON universal_observations(predictionId);
+CREATE INDEX IF NOT EXISTS slot_expiry ON observation_slots(state,deadlineAt);
+CREATE INDEX IF NOT EXISTS jobs_model_bundle ON jobs(modelId,bundleId,state);
+CREATE INDEX IF NOT EXISTS ticket_daily_policy ON tickets(portfolioId,placementDay);
+CREATE INDEX IF NOT EXISTS legs_fixture ON ticket_legs(fixtureRevisionId,ticketId);
+CREATE INDEX IF NOT EXISTS quote_observed_recent ON quote_sets(observedAt,suspended);
+CREATE INDEX IF NOT EXISTS decision_strategy_time ON decisions(strategyVersion,decidedAt,expectationId);
+CREATE INDEX IF NOT EXISTS expectation_quote_prediction ON market_expectations(quoteSelectionId,predictionId);
+CREATE INDEX IF NOT EXISTS decision_value_read ON decisions(expectationId) WHERE accepted=1 AND reason NOT IN('PAPER_BENCHMARK_NOT_VALUE','PAPER_ENTERTAINMENT_NOT_VALUE');
+CREATE INDEX IF NOT EXISTS decision_accepted_read ON decisions(expectationId,id,reason) WHERE accepted=1;

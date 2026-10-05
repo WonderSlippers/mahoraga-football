@@ -1,0 +1,56 @@
+{
+  "name": "mahoraga-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "doctor": "node scripts/runtime.mjs doctor",
+    "bootstrap:demo": "node scripts/runtime.mjs bootstrap",
+    "dev": "node scripts/runtime.mjs dev",
+    "stop:v2": "node scripts/runtime.mjs stop",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
+    "test:integration": "tsx --test --test-concurrency=1 tests/integration/*.test.ts",
+    "test:e2e": "playwright test",
+    "report:verification": "node scripts/report.mjs",
+    "test:model-parity": "node scripts/run-python.mjs model-parity",
+    "bootstrap:research": "node scripts/research.mjs bootstrap",
+    "dev:research": "node scripts/research.mjs dev",
+    "stop:research": "node scripts/research.mjs stop",
+    "test:import": "tsx --test tests/unit/imports.test.ts tests/integration/imports.test.ts tests/integration/backup.test.ts",
+    "test:load": "tsx scripts/load-http.ts",
+    "backup:verify": "node scripts/backup-paged.mjs",
+    "test:capacity": "tsx scripts/capacity.ts"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "csv-parse": "7.0.3",
+    "decimal.js": "10.6.0",
+    "drizzle-orm": "0.45.2",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-router-dom": "7.18.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260515.1",
+    "@playwright/test": "1.58.2",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "esbuild": "0.28.2",
+    "miniflare": "4.20260730.0",
+    "prettier": "3.8.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.1"
+  },
+  "overrides": {
+    "miniflare": {
+      "undici": "7.30.0",
+      "sharp": "0.35.5"
+    }
+  }
+}

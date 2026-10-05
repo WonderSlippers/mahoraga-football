@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS import_batches(id TEXT PRIMARY KEY,namespace TEXT NOT NULL,sourceHash TEXT NOT NULL,previewHash TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('STAGING','PREVIEW','COMMITTED')),createdAt INTEGER NOT NULL,committedAt INTEGER,manifestJson TEXT NOT NULL,reportJson TEXT NOT NULL,warningsJson TEXT NOT NULL,claimsJson TEXT NOT NULL,UNIQUE(namespace,sourceHash));
+CREATE TABLE IF NOT EXISTS import_file_chunks(batchId TEXT NOT NULL REFERENCES import_batches(id),fileIndex INTEGER NOT NULL,chunkNo INTEGER NOT NULL,content TEXT NOT NULL,PRIMARY KEY(batchId,fileIndex,chunkNo));
+CREATE TABLE IF NOT EXISTS import_rows(batchId TEXT NOT NULL REFERENCES import_batches(id),rowNo INTEGER NOT NULL,businessKey TEXT NOT NULL,contentHash TEXT NOT NULL,disposition TEXT NOT NULL,rowJson TEXT NOT NULL,PRIMARY KEY(batchId,rowNo));
+CREATE TABLE IF NOT EXISTS archive_keys(businessKey TEXT PRIMARY KEY,contentHash TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS import_commits(batchId TEXT PRIMARY KEY REFERENCES import_batches(id),guard INTEGER NOT NULL CHECK(guard=1));
+CREATE TABLE IF NOT EXISTS archive_records(id TEXT PRIMARY KEY,batchId TEXT NOT NULL REFERENCES import_batches(id),businessKey TEXT NOT NULL UNIQUE,portfolio TEXT NOT NULL,kind TEXT NOT NULL,originalId TEXT,contentHash TEXT NOT NULL,rawJson TEXT NOT NULL,stakeAtoms TEXT,pnlAtoms TEXT,legCount INTEGER,status TEXT,currency TEXT,mode TEXT NOT NULL CHECK(mode='LEGACY_IMPORT'),warningsJson TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS archive_page ON archive_records(portfolio,id);
