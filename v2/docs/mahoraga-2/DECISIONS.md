@@ -80,3 +80,9 @@ LOCAL_RESEARCH必须使用独立profile（research）、独立installation/D1、
 ## 2026-10-05：自动运行与参数反馈核验
 
 自动运行、参数反馈与重新训练分别表述。原版按原校准桶调整marginShift，每步1pp、边界±2pp；按两类已结腿收益差调整modelW，每步0.05、边界0.2–0.8。不是依据ABC盈亏自动选择评级或训练新模型。只有新推理使用后续状态，原Prediction/原票不重算；参数revision事件作为实际变动证据。
+
+## 2026-10-05：通用后台自动校准
+
+本次用户明确授权通用自我调整，采用有限概率校准，不改评分阈值/仓位、不训练V6/V7、不晋升严格实时候选。改变输出用独立模型身份，保留旧固定manifest。训练至少60、最近最多400，后续需20新比赛；每步≤0.05。候选后30新比赛验证，与当前和固定配方同批比较；LogLoss改善≥0.002、Brier回退≤0.0005，相对固定LogLoss回退≤0.005才接受。训练仅Python主动领取，网页/API不拟合。已有赛程可用候选后首次合格快照验证，避免只取全历史首次快照使学习停滞。训练赛果更正令未决候选失效，审计追加。动态参数写入每个新input bundle，预测复盘读取冻结revision。
+
+最终运行核验：新校准变体已通过真实来源生成DONE预测，并保存参数revision0；同一真实输入的中性参数central/grid与原固定配方逐值一致。独立2.0真实重启后97场未决候选、训练hash、参数均完整恢复。新库quick_check=ok；7个事实表既有水位内逐行hash未变；旧源码HEAD/dirty/status与5173 PID11220创建时间未变，未打开旧D1。新Web5274/API8789可用，supervisor PID16856，runner PID10836。证据runtime.json/live-inference.json/preservation-{before,after}.json/availability-after.json。

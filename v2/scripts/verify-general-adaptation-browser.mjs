@@ -46,6 +46,17 @@ try {
     page: "workbench",
     observations: general.records.length,
   });
+  const calibrated = general.records.find(
+    (r) =>
+      r.output?.adaptation?.snapshot &&
+      r.output.variant === "GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1",
+  );
+  assert.ok(
+    calibrated,
+    "actual background capture must produce at least one new adaptive prediction",
+  );
+  assert.ok(calibrated.output.adaptation.snapshot.modelTrust >= 0.6);
+  pass("Actual new General prediction carries a frozen parameter revision");
   const learning = await get("/api/v2/workspace/general-adaptation");
   assert.equal(learning.active.protocol, "GENERAL_PREQUENTIAL_CALIBRATION_V1");
   assert.equal(learning.rules.minimumValidation, 30);

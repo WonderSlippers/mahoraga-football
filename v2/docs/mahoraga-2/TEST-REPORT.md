@@ -88,3 +88,9 @@ node scripts/verify-score-review-browser.mjs最终退出0：8实站检查、5实
 ## 2026-10-05：自动运行与参数反馈核验
 
 本轮只读代码与新库状态检查退出0，不增加软件/模型验证测试数。runtime cwd和manifest安装ID核实；version_state revision16、modelW0.8、marginShift−0.02，种子0.2/+0.02；最近revision13–16权重0.65→0.70→0.75→0.8。通用无version_state记录；固定50%由实际Python配方确认。自动任务明确调用versionPaperStep，参数更新原子写入version_state和追加events。未触发手动tick/训练/改参数，证据parameter-adjustment.json。
+
+## 2026-10-05：通用后台自动校准
+
+本次真实执行：npm run check、npm run build退出0；npm run test:unit 97/97；tsx --test --test-concurrency=1 general-adaptation/universal/public-research/versions四个D1套件34/34；Python test_adaptation 4/4；固定通用7/7；npm run test:model-parity 6/6，均无跳过。Edge真实浏览器7项通过、4截图（工作台、账本、手机账本、数据状态）。首次Python中性参数grid二次对齐浮点扰动1失败已修复为中性直接保留原grid；schema回归预期13与新0014冲突1失败已修正预期14并保留数据/FK/不可变检查；失败日志保留。D1测试数据明确CONTRACT_ONLY，测试成功不是新校准盈利验证。实际后台97场自动候选VALIDATING，尚无真实新参数应用/收益改善结论。日志/命令/保护证据位于outputs/general-adaptation-20261005。
+
+最终运行核验：新校准变体已通过真实来源生成DONE预测，并保存参数revision0；同一真实输入的中性参数central/grid与原固定配方逐值一致。独立2.0真实重启后97场未决候选、训练hash、参数均完整恢复。新库quick_check=ok；7个事实表既有水位内逐行hash未变；旧源码HEAD/dirty/status与5173 PID11220创建时间未变，未打开旧D1。新Web5274/API8789可用，supervisor PID16856，runner PID10836。证据runtime.json/live-inference.json/preservation-{before,after}.json/availability-after.json。
