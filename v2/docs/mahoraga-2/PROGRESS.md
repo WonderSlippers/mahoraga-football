@@ -119,3 +119,8 @@ T14 DONE（只读德甲切片）：5274/8789、research独立installation与D1�
 已实现并验证GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1：保留原固定配方，后台Python领取训练任务，按比赛去重拟合modelTrust/temperature候选，只在候选提出后的30场新前瞻快照上通过LogLoss/Brier校验才原子启用。旧Prediction/原票/manifest不变；通用复盘保留固定版记录，切换不重复同场同策略加仓。实现说明GENERAL-ADAPTATION.md。代码提交658a8b1。软件验证97 unit +34 D1 +4校准推断 +7固定通用检查 +6 V6/V7 parity全部通过。实际研究后台已自动使用97场冻结比赛提出候选(modelTrust0.95,temperature0.95)，目前VALIDATING，活动revision0/1.0/1.0；尚未宣称新参数已启用或盈利改善。浏览器7检查、4真实截图通过。恢复/保护最终核验见本次证据。
 
 最终运行核验：新校准变体已通过真实来源生成DONE预测，并保存参数revision0；同一真实输入的中性参数central/grid与原固定配方逐值一致。独立2.0真实重启后97场未决候选、训练hash、参数均完整恢复。新库quick_check=ok；7个事实表既有水位内逐行hash未变；旧源码HEAD/dirty/status与5173 PID11220创建时间未变，未打开旧D1。新Web5274/API8789可用，supervisor PID16856，runner PID10836。证据runtime.json/live-inference.json/preservation-{before,after}.json/availability-after.json。
+
+
+## 2026-10-05：竞技场直接显示比赛开赛时间
+
+已修复策略竞技场紧凑卡片隐藏比赛开赛时间的问题。最近预览、各策略完整列表及复盘共用卡片均在球队上方直接展示冻结开赛年月日/时分，标注柏林时间；二串一逐腿展示。出票/结算时间独立标注。未改模型、数据库、原票或后台任务。

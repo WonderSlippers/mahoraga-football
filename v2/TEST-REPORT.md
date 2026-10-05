@@ -437,3 +437,9 @@ node scripts/verify-score-review-browser.mjs最终退出0：8实站检查、5实
 本次真实执行：npm run check、npm run build退出0；npm run test:unit 97/97；tsx --test --test-concurrency=1 general-adaptation/universal/public-research/versions四个D1套件34/34；Python test_adaptation 4/4；固定通用7/7；npm run test:model-parity 6/6，均无跳过。Edge真实浏览器7项通过、4截图（工作台、账本、手机账本、数据状态）。首次Python中性参数grid二次对齐浮点扰动1失败已修复为中性直接保留原grid；schema回归预期13与新0014冲突1失败已修正预期14并保留数据/FK/不可变检查；失败日志保留。D1测试数据明确CONTRACT_ONLY，测试成功不是新校准盈利验证。实际后台97场自动候选VALIDATING，尚无真实新参数应用/收益改善结论。日志/命令/保护证据位于outputs/general-adaptation-20261005。
 
 最终运行核验：新校准变体已通过真实来源生成DONE预测，并保存参数revision0；同一真实输入的中性参数central/grid与原固定配方逐值一致。独立2.0真实重启后97场未决候选、训练hash、参数均完整恢复。新库quick_check=ok；7个事实表既有水位内逐行hash未变；旧源码HEAD/dirty/status与5173 PID11220创建时间未变，未打开旧D1。新Web5274/API8789可用，supervisor PID16856，runner PID10836。证据runtime.json/live-inference.json/preservation-{before,after}.json/availability-after.json。
+
+## 2026-10-05：竞技场直接显示比赛开赛时间
+
+范围：仅TicketCards前端时间呈现及样式；读取冻结fixture revision kickoffAt，不重算模型或写账本。npm run check退出0；npm run build退出0；node scripts/verify-arena-kickoff-browser.mjs最终退出0，13项检查、238次已保存开赛时间逐项对照真实API响应，0最终失败、0浏览器错误；5张真实Edge截图包含桌面预览/精选单场/二串一和手机单场/二串一。通用全部7策略、原版真实票据和V6空状态已检查；通用价值二串一当前0票，V6当前0票，不能据此称其真实串关/模型表现验证通过。V7不在现有全局版本入口，本次没有测试该版本票据。无模拟响应、合成票据或真实投注操作。
+
+首次日志目录未创建造成重定向失败，命令未执行，不计通过。浏览器第一轮因假设V6已有票失败；第二轮因假设全局有V7选项超时失败（均退出1）；保留browser-first-failed及browser-second-failed原始日志/JSON。最终脚本读取实际入口选项，严格区分真实票据与空状态。证据outputs/arena-kickoff-20261005/{commands.json,browser.json,*.png,check.log,build.log,before.json,after.json}。未启动、停止或重启服务；旧5173进程与新5274进程身份核对见before/after；未打开旧数据库。

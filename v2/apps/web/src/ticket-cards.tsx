@@ -4,6 +4,7 @@ import {
   teamName,
   formatDate,
   researchScoreBand,
+  DISPLAY_TIME_ZONE,
 } from "../../../packages/display";
 import { TeamBadge, TeamName } from "./schedule-view";
 const labels: Record<string, string> = {
@@ -25,6 +26,15 @@ const money = (x: any) =>
         maximumFractionDigits: 2,
       });
 const date = (x: any) => (x == null ? "时间未保存" : formatDate(x));
+const kickoffFormatter = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: DISPLAY_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
 export function TicketCards({
   records,
   onDetail,
@@ -47,6 +57,7 @@ export function TicketCards({
               <b>{r.strategyLabel ?? r.strategy}</b>
               <p>
                 {r.legCount > 1 ? `${r.legCount} 串 1` : "单场"} ·{" "}
+                {basis === "SETTLED" ? "结算 " : "出票 "}
                 <time>{date(basis === "SETTLED" ? r.settledAt : r.at)}</time>
                 <span className="ticket-frozen-score">
                   {" "}
@@ -65,6 +76,19 @@ export function TicketCards({
           {r.legs?.map((l: any, i: number) => (
             <div className="ticket-leg" key={i}>
               <div>
+                <p className="ticket-kickoff" data-testid="ticket-kickoff">
+                  {l.kickoffAt == null ? (
+                    <span>开赛时间未保存</span>
+                  ) : (
+                    <>
+                      <span>开赛</span>{" "}
+                      <time dateTime={new Date(l.kickoffAt).toISOString()}>
+                        {kickoffFormatter.format(new Date(l.kickoffAt))}
+                      </time>{" "}
+                      <span>柏林时间</span>
+                    </>
+                  )}
+                </p>
                 <div className="ticket-teams">
                   <span>
                     <TeamBadge name={l.home} logo={l.homeLogo} />
@@ -123,7 +147,6 @@ export function TicketCards({
                   )[l.market] ??
                     l.marketType ??
                     "原市场"}{" "}
-                  · 开赛 {date(l.kickoffAt)}
                 </small>
               </div>
               <div className={`leg-result outcome-${l.outcome}`}>

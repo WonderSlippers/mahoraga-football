@@ -3123,6 +3123,24 @@ body {
   color: var(--ws-muted);
   margin: 0 6px;
 }
+.ticket-kickoff {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ticket-kickoff span {
+  color: var(--ws-muted);
+  font-size: 11px;
+}
+.ticket-kickoff time {
+  color: var(--ws-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 .ticket-selection {
   margin: 9px 0;
   font-size: 16px;

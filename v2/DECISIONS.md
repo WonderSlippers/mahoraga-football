@@ -138,3 +138,8 @@
 本次用户明确授权通用自我调整，采用有限概率校准，不改评分阈值/仓位、不训练V6/V7、不晋升严格实时候选。改变输出用独立模型身份，保留旧固定manifest。训练至少60、最近最多400，后续需20新比赛；每步≤0.05。候选后30新比赛验证，与当前和固定配方同批比较；LogLoss改善≥0.002、Brier回退≤0.0005，相对固定LogLoss回退≤0.005才接受。训练仅Python主动领取，网页/API不拟合。已有赛程可用候选后首次合格快照验证，避免只取全历史首次快照使学习停滞。训练赛果更正令未决候选失效，审计追加。动态参数写入每个新input bundle，预测复盘读取冻结revision。
 
 最终运行核验：新校准变体已通过真实来源生成DONE预测，并保存参数revision0；同一真实输入的中性参数central/grid与原固定配方逐值一致。独立2.0真实重启后97场未决候选、训练hash、参数均完整恢复。新库quick_check=ok；7个事实表既有水位内逐行hash未变；旧源码HEAD/dirty/status与5173 PID11220创建时间未变，未打开旧D1。新Web5274/API8789可用，supervisor PID16856，runner PID10836。证据runtime.json/live-inference.json/preservation-{before,after}.json/availability-after.json。
+
+
+## 2026-10-05：竞技场直接显示比赛开赛时间
+
+开赛时间是比赛卡片必要信息，不随compact模式隐藏。读取原票关联fixture revision的kickoffAt，沿用Europe/Berlin展示时区；缺失显示开赛时间未保存，不用出票时间或当前计算时间替代。每条串关腿单独展示。保留原有市场信息的紧凑处理。
