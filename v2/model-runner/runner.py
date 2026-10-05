@@ -4,7 +4,8 @@ from pathlib import Path
 from datetime import datetime
 from jsonschema import Draft7Validator,FormatChecker
 from comparison_models import IDS as COMPARISON_IDS,predict_comparison
-from universal_model_v2 import MODEL_ID as UNIVERSAL_ID,predict_universal
+from universal_model_v2 import MODEL_ID as FIXED_GENERAL_ID,predict_universal as predict_fixed_general
+from general_adaptation import MODEL_ID as UNIVERSAL_ID,predict_universal,fit as fit_general
 from legacy_full import MODEL_ID as LEGACY_FULL_ID,predict_legacy_full
 SCHEMA=json.loads((Path(__file__).parents[1]/'packages/contracts/input.schema.json').read_text())
 def validate(value):
@@ -53,6 +54,7 @@ def main():
         with urllib.request.urlopen(request,timeout=30 if path=='/internal/v2/paper/step' else 10) as response:return json.load(response)['data']
     last_tick=0
     last_paper=0
+    last_learning=0
     while True:
         job=None
         try:
@@ -66,6 +68,15 @@ def main():
                 try:post('/internal/v2/paper/step',{})
                 except Exception as exc:print('PAPER_STEP_RETRY',type(exc).__name__,flush=True)
                 last_paper=time.monotonic()
+            if time.monotonic()-last_learning>60:
+                try:
+                    learning=post('/internal/v2/general-learning/claim',{'owner':owner})
+                    if learning.get('job'):
+                        task=learning['job'];parameters=fit_general(task)
+                        result=post('/internal/v2/general-learning/'+task['id']+'/propose',dict(owner=owner,fencingToken=task['fencingToken'],trainingHash=task['trainingHash'],parameters=parameters))
+                        print('GENERAL_LEARNING',result['state'],flush=True)
+                except Exception as exc:print('GENERAL_LEARNING_RETRY',type(exc).__name__,flush=True)
+                last_learning=time.monotonic()
             job=post('/internal/v2/model-jobs/claim',{'owner':owner})
             if job:
                 stop=threading.Event()
@@ -92,10 +103,10 @@ def main():
                         output=predict_legacy_full(job,value)
                         post('/internal/v2/model-jobs/'+job['id']+'/complete-version',dict(lease,bundleHash=job['bundleHash'],modelHash=job['modelHash'],output=output,featureCanonical=job['canonical']))
                         print('LEGACY_FULL_JOB_'+output['state'],job['id'],output['reason'],flush=True)
-                    elif job['modelId']==UNIVERSAL_ID:
+                    elif job['modelId'] in [UNIVERSAL_ID,FIXED_GENERAL_ID]:
                         value=validate(json.loads(job['canonical']))
                         if hashlib.sha256(job['canonical'].encode()).hexdigest()!=job['bundleHash']:raise ValueError('MODEL_HASH_MISMATCH')
-                        output=predict_universal(job,value)
+                        output=(predict_universal if job['modelId']==UNIVERSAL_ID else predict_fixed_general)(job,value)
                         post('/internal/v2/model-jobs/'+job['id']+'/complete-universal',dict(lease,bundleHash=job['bundleHash'],modelHash=job['modelHash'],output=output,featureCanonical=job['canonical']))
                         print('GENERAL_JOB_'+output['state'],job['id'],output['reason'],flush=True)
                     elif job['modelId'] in COMPARISON_IDS:

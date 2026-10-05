@@ -1,7 +1,9 @@
 import nationalPin from "./national-model-pin.json";
 import codePins from "./universal-code-pins.json";
 import v2CodePins from "./general-v2-code-pins.json";
-export const UNIVERSAL_ID = "GENERAL_FOOTBALL_RESEARCH_V2";
+import { GENERAL_ADAPTIVE_ID, ADAPTATION_RULES } from "./general-adaptation";
+import adaptationCodePins from "./general-adaptation-code-pins.json";
+export const UNIVERSAL_ID = GENERAL_ADAPTIVE_ID;
 export const UNIVERSAL_MANIFEST = {
   id: UNIVERSAL_ID,
   label: "通用赛前研究",
@@ -19,6 +21,7 @@ export const UNIVERSAL_MANIFEST = {
     "Opponent-adjusted ridge Poisson; men's senior national Friendly training; competitive transfer unvalidated",
   national: nationalPin,
   codePins: { ...codePins, ...v2CodePins },
+  calibration: { ...ADAPTATION_RULES, codePins: adaptationCodePins },
   pricingVersion: "GENERAL_COHERENT_RETURN_V2",
   maximumEstimatedEV: 0.2,
   strictForwardEligible: false,

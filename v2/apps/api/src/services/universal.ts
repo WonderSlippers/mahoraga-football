@@ -1,3 +1,7 @@
+import {
+  GENERAL_FIXED_ID,
+  calibrate,
+} from "../../../../packages/domain/general-adaptation";
 import { canonical, central, sha } from "../../../../packages/contracts";
 import {
   marketBaseline,
@@ -89,9 +93,9 @@ export async function registerUniversal(c: Context) {
   }
 }
 
-export function validateGeneralOutput(o: any) {
+export function validateGeneralOutput(o: any, modelId: string = UNIVERSAL_ID) {
   if (
-    o?.variant !== UNIVERSAL_ID ||
+    o?.variant !== modelId ||
     o.researchOnly !== true ||
     !["DONE", "BLOCKED"].includes(o.state) ||
     typeof o.reason !== "string"
@@ -246,7 +250,7 @@ export async function completeUniversal(c: Context, id: string, p: any) {
     ),
     input = JSON.parse(b.canonical);
   if (
-    j.modelId !== UNIVERSAL_ID ||
+    ![UNIVERSAL_ID, GENERAL_FIXED_ID].includes(j.modelId) ||
     p.bundleHash !== b.manifestHash ||
     p.modelHash !== model.manifestHash ||
     p.featureCanonical !== b.canonical ||
@@ -264,7 +268,29 @@ export async function completeUniversal(c: Context, id: string, p: any) {
     ).mode !== "LOCAL_RESEARCH"
   )
     throw Error("MODE_MISMATCH");
-  validateGeneralOutput(p.output);
+  validateGeneralOutput(p.output, j.modelId);
+  if (j.modelId === UNIVERSAL_ID) {
+    if (
+      !input.generalCalibration ||
+      input.generalCalibration.effectiveAt > b.cutoffAt
+    )
+      throw Error("CALIBRATION_SNAPSHOT_MISSING");
+    if (p.output.state === "DONE") {
+      const a = p.output.adaptation;
+      if (
+        !a ||
+        a.baseVariant !== GENERAL_FIXED_ID ||
+        canonical(a.snapshot) !== canonical(input.generalCalibration)
+      )
+        throw Error("CALIBRATION_SNAPSHOT_MISMATCH");
+      const calculated = calibrate(a.baseCentral, marketBaseline(input.odds), {
+        modelTrust: input.generalCalibration.modelTrust,
+        temperature: input.generalCalibration.temperature,
+      });
+      if (calculated.some((v, i) => Math.abs(v - p.output.central[i]) > 1e-8))
+        throw Error("CALIBRATION_OUTPUT_MISMATCH");
+    }
+  }
   const requestHash = await sha(canonical(p.output));
   const prior = await stmt(
     c.db,
@@ -315,7 +341,7 @@ export async function completeUniversal(c: Context, id: string, p: any) {
         "INSERT INTO feature_snapshots VALUES(?,?,?,?,?)",
         feature,
         b.id,
-        UNIVERSAL_ID,
+        j.modelId,
         b.manifestHash,
         b.canonical,
       ),
@@ -325,13 +351,13 @@ export async function completeUniversal(c: Context, id: string, p: any) {
         prediction,
         b.slotId,
         input.revisionId,
-        UNIVERSAL_ID,
+        j.modelId,
         feature,
         c.now,
         canonical(p.output.central),
         await sha(
           canonical({
-            modelId: UNIVERSAL_ID,
+            modelId: j.modelId,
             bundleHash: b.manifestHash,
             output: p.output,
           }),
@@ -565,7 +591,7 @@ export async function autoPaper(c: Context) {
   await prepareFunDouble(c);
   const candidates = await rows(
     c.db,
-    "WITH latest AS MATERIALIZED(SELECT r2.fixtureId,d2.strategyVersion,MAX(d2.decidedAt) at FROM decisions d2 JOIN market_expectations e2 ON e2.id=d2.expectationId JOIN predictions p2 ON p2.id=e2.predictionId JOIN fixture_revisions r2 ON r2.id=p2.fixtureRevisionId JOIN fixtures lf ON lf.id=r2.fixtureId WHERE p2.modelId=? AND lf.status='SCHEDULED' AND r2.kickoffAt>? AND r2.kickoffAt<=? GROUP BY r2.fixtureId,d2.strategyVersion) SELECT d.id,d.strategyVersion,p.id portfolioId,p.revision,r.fixtureId,r.kickoffAt,cat.competition,e.ev FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId JOIN fixture_revisions r ON r.id=pr.fixtureRevisionId JOIN latest latest ON latest.fixtureId=r.fixtureId AND latest.strategyVersion=d.strategyVersion AND latest.at=d.decidedAt JOIN fixtures f ON f.id=r.fixtureId JOIN paper_policies pp ON pp.strategyVersion=d.strategyVersion JOIN portfolios p ON p.id=pp.portfolioId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId JOIN market_definitions m ON m.id=qs.marketId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE pr.modelId=? AND d.accepted=1 AND pp.enabled=1 AND (SELECT COUNT(*) FROM tickets WHERE portfolioId=p.id AND placementDay=?)<pp.maximumPerDay AND NOT EXISTS(SELECT 1 FROM tickets t WHERE t.portfolioId=p.id AND t.businessKey=r.fixtureId||'|'||pr.modelId||'|'||d.strategyVersion||CASE WHEN pp.id='general-v2-forced-fun' THEN '|'||m.type ELSE '' END) AND NOT EXISTS(SELECT 1 FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions fr ON fr.id=l.fixtureRevisionId WHERE pp.id IN('general-v2-double','general-fun-double-v1') AND t.portfolioId=p.id AND fr.fixtureId=r.fixtureId) AND f.status='SCHEDULED' AND r.kickoffAt>? AND r.kickoffAt<=? AND qs.observedAt>=? ORDER BY CASE WHEN d.reason='PAPER_BENCHMARK_NOT_VALUE' THEN 1 ELSE 0 END,e.ev DESC,r.kickoffAt LIMIT 1000",
+    "WITH latest AS MATERIALIZED(SELECT r2.fixtureId,d2.strategyVersion,MAX(d2.decidedAt) at FROM decisions d2 JOIN market_expectations e2 ON e2.id=d2.expectationId JOIN predictions p2 ON p2.id=e2.predictionId JOIN fixture_revisions r2 ON r2.id=p2.fixtureRevisionId JOIN fixtures lf ON lf.id=r2.fixtureId WHERE p2.modelId=? AND lf.status='SCHEDULED' AND r2.kickoffAt>? AND r2.kickoffAt<=? GROUP BY r2.fixtureId,d2.strategyVersion) SELECT d.id,d.strategyVersion,p.id portfolioId,p.revision,r.fixtureId,r.kickoffAt,cat.competition,e.ev FROM decisions d JOIN market_expectations e ON e.id=d.expectationId JOIN predictions pr ON pr.id=e.predictionId JOIN fixture_revisions r ON r.id=pr.fixtureRevisionId JOIN latest latest ON latest.fixtureId=r.fixtureId AND latest.strategyVersion=d.strategyVersion AND latest.at=d.decidedAt JOIN fixtures f ON f.id=r.fixtureId JOIN paper_policies pp ON pp.strategyVersion=d.strategyVersion JOIN portfolios p ON p.id=pp.portfolioId JOIN quote_selections q ON q.id=e.quoteSelectionId JOIN quote_sets qs ON qs.id=q.quoteSetId JOIN market_definitions m ON m.id=qs.marketId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id WHERE pr.modelId=? AND d.accepted=1 AND pp.enabled=1 AND (SELECT COUNT(*) FROM tickets WHERE portfolioId=p.id AND placementDay=?)<pp.maximumPerDay AND NOT EXISTS(SELECT 1 FROM tickets t WHERE t.portfolioId=p.id AND t.businessKey IN(r.fixtureId||'|'||pr.modelId||'|'||d.strategyVersion||CASE WHEN pp.id='general-v2-forced-fun' THEN '|'||m.type ELSE '' END,r.fixtureId||'|GENERAL_FOOTBALL_RESEARCH_V2|'||d.strategyVersion||CASE WHEN pp.id='general-v2-forced-fun' THEN '|'||m.type ELSE '' END)) AND NOT EXISTS(SELECT 1 FROM tickets t JOIN ticket_legs l ON l.ticketId=t.id JOIN fixture_revisions fr ON fr.id=l.fixtureRevisionId WHERE pp.id IN('general-v2-double','general-fun-double-v1') AND t.portfolioId=p.id AND fr.fixtureId=r.fixtureId) AND f.status='SCHEDULED' AND r.kickoffAt>? AND r.kickoffAt<=? AND qs.observedAt>=? ORDER BY CASE WHEN d.reason='PAPER_BENCHMARK_NOT_VALUE' THEN 1 ELSE 0 END,e.ev DESC,r.kickoffAt LIMIT 1000",
     UNIVERSAL_ID,
     c.now + 600000,
     c.now + 86400000,
@@ -659,8 +685,9 @@ export async function universalReport(
     : null;
   const captured = await rows(
     c.db,
-    `WITH newest AS MATERIALIZED(SELECT MAX((SELECT x.rowid FROM universal_observations x INDEXED BY universal_fixture_row JOIN jobs jx ON jx.id=x.jobId WHERE x.fixtureRevisionId=fr.id AND jx.modelId=? ORDER BY x.rowid DESC LIMIT 1)) rowId FROM fixture_revisions fr WHERE (?='' OR fr.fixtureId=?) ${matchingRevisions ? "AND fr.id IN(SELECT value FROM json_each(?))" : ""} GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,b.cutoffAt,q.observedAt quoteObservedAt,q.providerId,pr.modelId FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN predictions pr ON pr.id=o.predictionId ORDER BY r.kickoffAt LIMIT 2000`,
+    `WITH newest AS MATERIALIZED(SELECT MAX((SELECT x.rowid FROM universal_observations x INDEXED BY universal_fixture_row JOIN jobs jx ON jx.id=x.jobId WHERE x.fixtureRevisionId=fr.id AND jx.modelId IN(?,?) ORDER BY x.rowid DESC LIMIT 1)) rowId FROM fixture_revisions fr WHERE (?='' OR fr.fixtureId=?) ${matchingRevisions ? "AND fr.id IN(SELECT value FROM json_each(?))" : ""} GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,r.kickoffAt,f.home,f.away,f.status fixtureStatus,cat.competition,b.cutoffAt,q.observedAt quoteObservedAt,q.providerId,pr.modelId FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN fixtures f ON f.id=r.fixtureId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId LEFT JOIN fixture_catalog cat ON cat.fixtureId=f.id LEFT JOIN predictions pr ON pr.id=o.predictionId ORDER BY r.kickoffAt LIMIT 2000`,
     UNIVERSAL_ID,
+    GENERAL_FIXED_ID,
     params.get("fixture") ?? "",
     params.get("fixture") ?? "",
     ...(matchingRevisions ? [JSON.stringify(matchingRevisions)] : []),

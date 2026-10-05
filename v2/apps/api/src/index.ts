@@ -1,3 +1,8 @@
+import {
+  claimGeneralLearning,
+  proposeGeneralLearning,
+  generalAdaptationReport,
+} from "./services/general-adaptation";
 import { exactFields, sha } from "../../../packages/contracts/index";
 import { stmt, one, rows, uid } from "./repositories/db";
 import { place, settle, summary } from "./services/commands";
@@ -248,6 +253,24 @@ export default {
           );
           return ok(completed);
         }
+        if (path === "/internal/v2/general-learning/claim") {
+          exactFields(body, ["owner"]);
+          return ok(await claimGeneralLearning(context, body.owner));
+        }
+        const learningProposal = path.match(
+          /^\/internal\/v2\/general-learning\/([^/]+)\/propose$/,
+        );
+        if (learningProposal) {
+          exactFields(body, [
+            "owner",
+            "fencingToken",
+            "trainingHash",
+            "parameters",
+          ]);
+          return ok(
+            await proposeGeneralLearning(context, learningProposal[1], body),
+          );
+        }
         if (path === "/internal/v2/paper/step") {
           exactFields(body, []);
           return ok({
@@ -444,6 +467,8 @@ export default {
           return ok(await modelLaboratory(context, url.searchParams));
         if (path === "/api/v2/workspace/comparison")
           return ok(await comparisonReport(context, url.searchParams));
+        if (path === "/api/v2/workspace/general-adaptation")
+          return ok(await generalAdaptationReport(context));
         if (path === "/api/v2/workspace/universal")
           return ok(
             selectedVersion(url.searchParams).id === "GENERAL"

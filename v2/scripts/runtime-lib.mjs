@@ -143,6 +143,12 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
       "utf8",
     ),
   );
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0014_general_adaptation.sql"),
+      "utf8",
+    ),
+  );
   const immutable = [
     "version_observations",
     "version_ticket_evidence",
@@ -214,7 +220,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
     if (existing.id !== c.installationId || existing.mode !== c.mode)
       throw Error("INSTALLATION_MISMATCH");
     await db
-      .prepare("UPDATE installations SET schemaVersion=13 WHERE id=?")
+      .prepare("UPDATE installations SET schemaVersion=14 WHERE id=?")
       .bind(c.installationId)
       .run();
     return;
@@ -223,7 +229,7 @@ export async function migrate(db, c, { schemaOnly = false } = {}) {
   await db.batch([
     db
       .prepare("INSERT INTO installations VALUES(?,?,?,?,?)")
-      .bind(c.installationId, c.mode, 12, c.appCodeSha, Date.now()),
+      .bind(c.installationId, c.mode, 14, c.appCodeSha, Date.now()),
     ...(c.mode === "DEMO"
       ? [
           db.prepare(

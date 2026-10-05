@@ -14,6 +14,13 @@ export type FrozenInput = {
   kickoffAt: string;
   odds: string[];
   missingMask: string[];
+  generalCalibration?: {
+    protocol: string;
+    revision: number;
+    modelTrust: number;
+    temperature: number;
+    effectiveAt: number;
+  };
   researchFeatures?: {
     homeRecent: {
       id: string;
@@ -53,6 +60,11 @@ export function input(value: unknown): FrozenInput {
       [...v.researchFeatures.homeRecent, ...v.researchFeatures.awayRecent].some(
         (g) => Date.parse(g.at) >= Date.parse(v.cutoffAt),
       ))
+  )
+    throw Error("FEATURE_LATE");
+  if (
+    v.generalCalibration &&
+    v.generalCalibration.effectiveAt > Date.parse(v.cutoffAt)
   )
     throw Error("FEATURE_LATE");
   return v;

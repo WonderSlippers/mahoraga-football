@@ -10,3 +10,4 @@ model-runner/universal_model_v2.py -text -eol
 model-runner/universal-goals.mjs -text -eol
 model-runner/build_national_model.py -text -eol
 model-runner/assets/national-v1.json -text -eol
+model-runner/general_adaptation.py -text -eol

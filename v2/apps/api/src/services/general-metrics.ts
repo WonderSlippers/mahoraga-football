@@ -1,3 +1,4 @@
+import { GENERAL_FIXED_ID } from "../../../../packages/domain/general-adaptation";
 import { versionPolicy } from "../../../../packages/domain/versions";
 import { rows } from "../repositories/db";
 import type { Context } from "./commands";
@@ -19,7 +20,7 @@ export async function generalMetrics(c: Context) {
     FROM universal_observations o JOIN fixture_revisions r ON r.id=o.fixtureRevisionId
     JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId
     JOIN jobs j ON j.id=o.jobId
-    WHERE o.state='DONE' AND j.modelId=? AND o.calculatedAt<r.kickoffAt AND b.cutoffAt<r.kickoffAt AND q.observedAt<=b.cutoffAt
+    WHERE o.state='DONE' AND j.modelId IN(?,?) AND o.calculatedAt<r.kickoffAt AND b.cutoffAt<r.kickoffAt AND q.observedAt<=b.cutoffAt
     ) SELECT o.outputJson,r.fixtureId,r.kickoffAt,b.cutoffAt,b.canonical,cat.competition,cat.season,a.state resultState,a.regulationJson
     FROM first_ids x JOIN universal_observations o ON o.id=x.id
     JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId
@@ -27,6 +28,7 @@ export async function generalMetrics(c: Context) {
     LEFT JOIN result_adjudications a ON a.fixtureId=r.fixtureId AND a.revision=(SELECT MAX(z.revision) FROM result_adjudications z WHERE z.fixtureId=r.fixtureId)
     WHERE x.n=1`,
     UNIVERSAL_ID,
+    GENERAL_FIXED_ID,
   );
   const samples = frozen
     .filter((r) => r.resultState === "ACCEPTED_REGULATION")
@@ -36,6 +38,8 @@ export async function generalMetrics(c: Context) {
         input = JSON.parse(r.canonical);
       return {
         fixtureId: r.fixtureId,
+        variant: output.variant ?? GENERAL_FIXED_ID,
+        parameterRevision: output.adaptation?.snapshot?.revision ?? null,
         date: new Date(r.kickoffAt).toISOString(),
         competition: r.competition,
         season: r.season,
@@ -112,6 +116,8 @@ export async function generalMetrics(c: Context) {
     probability,
     baseline,
     byStrategy,
+    byVariant: groups("variant"),
+    byParameterRevision: groups("parameterRevision"),
     bySeason: groups("season"),
     byLeague: groups("competition"),
     byOdds: groups("odds"),

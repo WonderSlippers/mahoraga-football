@@ -1,3 +1,4 @@
+import { calibrationSnapshot } from "../../apps/api/src/services/general-adaptation";
 import { test, before, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
@@ -70,7 +71,7 @@ beforeEach(async () => {
   await registerUniversal(c);
 });
 afterEach(async () => mf.dispose());
-async function job(at = c.now) {
+async function job(at = c.now, modelId: string = UNIVERSAL_ID) {
   const value = JSON.parse(b.canonical);
   const current = await one(
     c.db,
@@ -80,6 +81,7 @@ async function job(at = c.now) {
   value.revisionId = current.id;
   value.kickoffAt = new Date(current.kickoffAt).toISOString();
   value.mode = "LOCAL_RESEARCH";
+  value.generalCalibration = await calibrationSnapshot({ ...c, now: at });
   value.cutoffAt = new Date(at).toISOString();
   value.comparisonFeatures = {
     competition: "TEST_ONLY",
@@ -127,7 +129,7 @@ async function job(at = c.now) {
       "INSERT INTO jobs(id,bundleId,modelId,state,deadlineAt) VALUES(?,?,?,'QUEUED',?)",
       uid(),
       bundle,
-      UNIVERSAL_ID,
+      modelId,
       at + 300000,
     ),
   ]);
@@ -156,7 +158,18 @@ function payload(
     bundleHash: j.bundleHash,
     modelHash: j.modelHash,
     featureCanonical: j.canonical,
-    output: o,
+    output:
+      o.state === "DONE"
+        ? {
+            ...o,
+            variant: j.modelId,
+            adaptation: {
+              snapshot: JSON.parse(j.canonical).generalCalibration,
+              baseCentral: o.central,
+              baseVariant: "GENERAL_FOOTBALL_RESEARCH_V2",
+            },
+          }
+        : o,
   };
 }
 async function generated() {
@@ -165,6 +178,86 @@ async function generated() {
   const record = await completeUniversal(c, j.id, p);
   return { j, p, record };
 }
+test("adaptive output cannot override frozen server parameters or return unrelated probabilities", async () => {
+  const j = await job(),
+    p = payload(j);
+  const mismatched = structuredClone(p);
+  mismatched.output.adaptation.snapshot.revision++;
+  await assert.rejects(
+    completeUniversal(c, j.id, mismatched),
+    /CALIBRATION_SNAPSHOT_MISMATCH/,
+  );
+  const unrelated = structuredClone(p);
+  unrelated.output.adaptation.baseCentral = [0.5, 0.3, 0.2];
+  await assert.rejects(
+    completeUniversal(c, j.id, unrelated),
+    /CALIBRATION_OUTPUT_MISMATCH/,
+  );
+  assert.equal((await one(c.db, "SELECT COUNT(*) n FROM predictions")).n, 0);
+});
+test("switch from fixed to adaptive General preserves old tickets and prevents repeat stake for same policy and fixture", async () => {
+  const fixed = "GENERAL_FOOTBALL_RESEARCH_V2";
+  await stmt(
+    c.db,
+    "INSERT INTO model_manifests VALUES(?, '{}','CONTRACT_TEST_ONLY','CENTRAL_AND_SCORE_DISTRIBUTION','UNVALIDATED_FORWARD_RESEARCH')",
+    fixed,
+  ).run();
+  const oldJob = await job(c.now, fixed);
+  await completeUniversal(c, oldJob.id, payload(oldJob));
+  const oldOutput = JSON.parse(
+    (
+      await one(
+        c.db,
+        "SELECT outputJson FROM universal_observations WHERE jobId=?",
+        oldJob.id,
+      )
+    ).outputJson,
+  );
+  const plan = oldOutput.plans.find(
+    (p: any) => p.policyId === "general-v2-all-singles",
+  );
+  await place(c, uid(), {
+    decisionId: plan.decisionId,
+    portfolioId: "paper:general-v2-all-singles",
+    stakeAtoms: "20000000",
+    expectedRevision: 0,
+  });
+  const original = await rows(c.db, "SELECT * FROM tickets");
+  const newJob = await job(c.now + 1000);
+  await completeUniversal(
+    { ...c, now: c.now + 1000 },
+    newJob.id,
+    payload(newJob),
+  );
+  await autoPaper({ ...c, now: c.now + 1000 });
+  assert.equal(
+    (
+      await one(
+        c.db,
+        "SELECT COUNT(*) n FROM tickets WHERE portfolioId='paper:general-v2-all-singles'",
+      )
+    ).n,
+    1,
+  );
+  assert.deepEqual(
+    (await rows(c.db, "SELECT * FROM tickets")).filter(
+      (t) => t.id === original[0].id,
+    ),
+    original,
+  );
+  const review = await workspaceReport(
+    c,
+    new URLSearchParams(
+      "mode=PAPER_RESEARCH&version=GENERAL&basis=PLACED&period=ALL",
+    ),
+    "ledger",
+  );
+  assert.ok(
+    review.items.some((t: any) => t.models.includes(fixed)),
+    "historical fixed-model tickets stay in General review",
+  );
+});
+
 test("general completion freezes full quotes/prediction/decisions atomically and is idempotent", async () => {
   const { j, p, record } = await generated();
   assert.equal((await completeUniversal(c, j.id, p)).id, record.id);
@@ -489,7 +582,7 @@ test("schema upgrade is repeatable on populated new ledger and preserves all ori
   await migrate(c.db, { ...cfg, mode: "LOCAL_RESEARCH" });
   assert.equal(
     (await one(c.db, "SELECT schemaVersion FROM installations")).schemaVersion,
-    13,
+    14,
   );
   await assert.rejects(
     stmt(c.db, "UPDATE tickets SET stakeAtoms=1").run(),

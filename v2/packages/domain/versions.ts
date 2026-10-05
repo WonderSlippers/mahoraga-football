@@ -4,7 +4,7 @@ export const VERSIONS = [
   {
     id: "GENERAL",
     label: "通用 · 2.0",
-    modelId: "GENERAL_FOOTBALL_RESEARCH_V2",
+    modelId: "GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1",
     status: "RUNNING",
     description: "同一比分分布驱动胜平负、亚洲盘和大小球",
   },

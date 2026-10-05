@@ -1,3 +1,4 @@
+import { calibrationSnapshot } from "./general-adaptation";
 import { canonical, sha, input } from "../../../../packages/contracts";
 import { modelTeamName } from "../../../../packages/sources/team-identity";
 import { atomic, stmt, uid, rows } from "../repositories/db";
@@ -172,6 +173,7 @@ export async function freezePublicResearch(
     f.id,
   ).first<any>();
   const legacy = await legacyState(c);
+  const generalCalibration = await calibrationSnapshot(c);
   const previous = await stmt(
     c.db,
     "SELECT MAX(observedAt) at FROM quote_sets q JOIN market_definitions m ON m.id=q.marketId WHERE m.fixtureId=?",
@@ -186,6 +188,8 @@ export async function freezePublicResearch(
     if (
       (JSON.parse(last?.canonical ?? "{}").comparisonFeatures?.featureHash ??
         null) === (featureRow?.featureHash ?? null) &&
+      JSON.parse(last?.canonical ?? "{}").generalCalibration?.revision ===
+        generalCalibration.revision &&
       JSON.parse(last?.canonical ?? "{}").comparisonFeatures?.legacyState
         ?.revision === legacy.revision &&
       (await stmt(
@@ -220,6 +224,7 @@ export async function freezePublicResearch(
       f.detail?.observedAt ?? observedAt,
       goalStats?.observedAt ?? 0,
       featureRow?.observedAt ?? 0,
+      generalCalibration.effectiveAt,
     );
   if (cutoff >= f.kickoffAt) return;
   const features =
@@ -240,6 +245,7 @@ export async function freezePublicResearch(
       : undefined;
   const frozen = input({
     mode: "LOCAL_RESEARCH",
+    generalCalibration,
     fixtureId: f.id,
     revisionId: revision.id,
     observedAt: new Date(observedAt).toISOString(),

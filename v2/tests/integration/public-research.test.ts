@@ -128,7 +128,7 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
         path.resolve(".venv/Scripts/python.exe"),
         [
           "-c",
-          "import json,sys;sys.stdin.reconfigure(encoding='utf-8');from runner import predict,validate;from comparison_models import predict_comparison,IDS;from universal_model_v2 import predict_universal,MODEL_ID;from legacy_full import predict_legacy_full,MODEL_ID as LEGACY_ID;j=json.load(sys.stdin);print(json.dumps(predict_legacy_full(j,validate(json.loads(j['canonical']))) if j['modelId']==LEGACY_ID else predict_universal(j,validate(json.loads(j['canonical']))) if j['modelId']==MODEL_ID else predict_comparison(j,validate(json.loads(j['canonical']))) if j['modelId'] in IDS else predict(j)))",
+          "import json,sys;sys.stdin.reconfigure(encoding='utf-8');from runner import predict,validate;from comparison_models import predict_comparison,IDS;from general_adaptation import predict_universal,MODEL_ID;from legacy_full import predict_legacy_full,MODEL_ID as LEGACY_ID;j=json.load(sys.stdin);print(json.dumps(predict_legacy_full(j,validate(json.loads(j['canonical']))) if j['modelId']==LEGACY_ID else predict_universal(j,validate(json.loads(j['canonical']))) if j['modelId']==MODEL_ID else predict_comparison(j,validate(json.loads(j['canonical']))) if j['modelId'] in IDS else predict(j)))",
         ],
         {
           cwd: path.resolve("model-runner"),
@@ -141,11 +141,11 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
       const comparison =
         job.modelId.startsWith("V6_C388_FROZEN") ||
         job.modelId.startsWith("LEGACY_20260920") ||
-        job.modelId === "GENERAL_FOOTBALL_RESEARCH_V2";
+        job.modelId === "GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1";
       const result = await (
         job.modelId === SEPTEMBER_ID
           ? completeVersion
-          : job.modelId === "GENERAL_FOOTBALL_RESEARCH_V2"
+          : job.modelId === "GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1"
             ? completeUniversal
             : comparison
               ? completeComparison
@@ -203,7 +203,7 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
     );
     await stmt(
       db,
-      "UPDATE jobs SET state='FAILED' WHERE modelId='GENERAL_FOOTBALL_RESEARCH_V2'",
+      "UPDATE jobs SET state='FAILED' WHERE modelId='GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1'",
     ).run();
     const failedGeneral = await workspaceSchedule(
       { ...c, now: Date.now() },
@@ -216,7 +216,7 @@ test("public fixture to frozen quote, real Python inference, decision and migrat
     ).run();
     await stmt(
       db,
-      "UPDATE jobs SET state='DONE' WHERE modelId='GENERAL_FOOTBALL_RESEARCH_V2'",
+      "UPDATE jobs SET state='DONE' WHERE modelId='GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1'",
     ).run();
     const recoveredPrimary = await workspaceSchedule(
       { ...c, now: Date.now() },

@@ -118,7 +118,10 @@ export async function place(
     )
       throw Error("PAPER_POLICY_MISMATCH");
     if (
-      d.modelId !== "GENERAL_FOOTBALL_RESEARCH_V2" ||
+      ![
+        "GENERAL_FOOTBALL_RESEARCH_V2",
+        "GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1",
+      ].includes(d.modelId) ||
       d.strategyVersion !== policy.strategyVersion ||
       stake !== 20000000
     )

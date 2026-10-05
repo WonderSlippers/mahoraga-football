@@ -201,9 +201,16 @@
           "additionalProperties": false,
           "required": ["revision", "evolution", "seed"],
           "properties": {
-            "revision": { "type": "integer", "minimum": 0 },
-            "evolution": { "type": "object" },
-            "seed": { "type": "object" }
+            "revision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "evolution": {
+              "type": "object"
+            },
+            "seed": {
+              "type": "object"
+            }
           }
         },
         "offers": {
@@ -229,6 +236,40 @@
               }
             }
           }
+        }
+      }
+    },
+    "generalCalibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "revision",
+        "modelTrust",
+        "temperature",
+        "effectiveAt"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "GENERAL_PREQUENTIAL_CALIBRATION_V1"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modelTrust": {
+          "type": "number",
+          "minimum": 0.6,
+          "maximum": 1
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0.8,
+          "maximum": 1.4
+        },
+        "effectiveAt": {
+          "type": "integer",
+          "minimum": 0
         }
       }
     }

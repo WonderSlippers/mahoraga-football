@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS general_calibration_state(modelId TEXT PRIMARY KEY,revision INTEGER NOT NULL CHECK(revision>=0),parametersJson TEXT NOT NULL,effectiveAt INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS general_learning_jobs(id TEXT PRIMARY KEY,trainingHash TEXT NOT NULL UNIQUE,trainingJson TEXT NOT NULL,baseRevision INTEGER NOT NULL,parametersJson TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('QUEUED','RUNNING','VALIDATING','COMPLETE','STALE')),owner TEXT,fencingToken INTEGER NOT NULL DEFAULT 0,leaseUntil INTEGER NOT NULL DEFAULT 0,createdAt INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS general_learning_proposals(jobId TEXT PRIMARY KEY REFERENCES general_learning_jobs(id),parametersJson TEXT NOT NULL,requestHash TEXT NOT NULL,proposedAt INTEGER NOT NULL,owner TEXT NOT NULL,fencingToken INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS general_learning_events(id TEXT PRIMARY KEY,jobId TEXT NOT NULL REFERENCES general_learning_jobs(id),kind TEXT NOT NULL,revision INTEGER NOT NULL,at INTEGER NOT NULL,evidenceJson TEXT NOT NULL,UNIQUE(jobId,kind));
+CREATE UNIQUE INDEX IF NOT EXISTS general_learning_one_active ON general_learning_jobs((1)) WHERE state IN('QUEUED','RUNNING','VALIDATING');
+CREATE TRIGGER IF NOT EXISTS immutable_general_learning_training BEFORE UPDATE OF trainingHash,trainingJson,baseRevision,parametersJson,createdAt ON general_learning_jobs BEGIN SELECT RAISE(ABORT,'IMMUTABLE_FACT'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_general_learning_jobs_DELETE BEFORE DELETE ON general_learning_jobs BEGIN SELECT RAISE(ABORT,'IMMUTABLE_FACT'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_general_learning_proposals_UPDATE BEFORE UPDATE ON general_learning_proposals BEGIN SELECT RAISE(ABORT,'IMMUTABLE_FACT'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_general_learning_proposals_DELETE BEFORE DELETE ON general_learning_proposals BEGIN SELECT RAISE(ABORT,'IMMUTABLE_FACT'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_general_learning_events_UPDATE BEFORE UPDATE ON general_learning_events BEGIN SELECT RAISE(ABORT,'IMMUTABLE_FACT'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_general_learning_events_DELETE BEFORE DELETE ON general_learning_events BEGIN SELECT RAISE(ABORT,'IMMUTABLE_FACT'); END;

@@ -918,7 +918,10 @@ export function FixtureWorkspace({ api, mode }: Props) {
                     ? "市场基准 · 比例去水"
                     : p.modelId === "RECENT_FORM_MARKET80_RESEARCH_V1"
                       ? "市场80%＋近期赛况20% · 未验证研究"
-                      : p.modelId === "GENERAL_FOOTBALL_RESEARCH_V2"
+                      : [
+                            "GENERAL_FOOTBALL_RESEARCH_V2",
+                            "GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1",
+                          ].includes(p.modelId)
                         ? "通用赛前模型 · 当前固定研究方法"
                         : p.modelId === "GENERAL_FOOTBALL_RESEARCH_V1"
                           ? "通用初版 · 已停止新增，保留审计"

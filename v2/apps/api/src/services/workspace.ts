@@ -1,3 +1,4 @@
+import { GENERAL_FIXED_ID } from "../../../../packages/domain/general-adaptation";
 import {
   calendarDay,
   teamName,
@@ -612,7 +613,11 @@ export async function workspaceReport(
     type === "history" ? await historyRows(c.db) : await ledgerRows(c.db, mode);
   const version = selectedVersion(p);
   if (mode === "PAPER_RESEARCH")
-    all = all.filter((r) => r.models.includes(version.modelId));
+    all = all.filter((r) =>
+      version.id === "GENERAL"
+        ? r.models.some((id: string) => id.startsWith("GENERAL_FOOTBALL_"))
+        : r.models.includes(version.modelId),
+    );
   const ledgerMode = type === "ledger";
   const basis = p.get("basis") ?? "SETTLED";
   if (!["PLACED", "SETTLED"].includes(basis)) throw Error("INVALID_FILTER");
@@ -991,7 +996,7 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   }
   const failures = await rows(
     c.db,
-    "SELECT fr.fixtureId,COUNT(*) failedJobs FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision WHERE fr.fixtureId IN(SELECT value FROM json_each(?)) AND j.state='FAILED' AND (j.modelId='GENERAL_FOOTBALL_RESEARCH_V2' OR j.modelId IN('MARKET_PROPORTIONAL_V1','RECENT_FORM_MARKET80_RESEARCH_V1','DEMO_FIXED_CENTRAL_V1') AND NOT EXISTS(SELECT 1 FROM jobs gj JOIN input_bundles gb ON gb.id=gj.bundleId JOIN observation_slots gs ON gs.id=gb.slotId JOIN fixture_revisions gr ON gr.id=gs.fixtureRevisionId WHERE gj.modelId='GENERAL_FOOTBALL_RESEARCH_V2' AND gr.fixtureId=fr.fixtureId)) AND b.cutoffAt=(SELECT MAX(b2.cutoffAt) FROM jobs j2 JOIN input_bundles b2 ON b2.id=j2.bundleId JOIN observation_slots s2 ON s2.id=b2.slotId JOIN fixture_revisions r2 ON r2.id=s2.fixtureRevisionId JOIN fixtures f2 ON f2.id=r2.fixtureId AND f2.currentRevision=r2.revision WHERE r2.fixtureId=fr.fixtureId AND j2.modelId=j.modelId) GROUP BY fr.fixtureId",
+    "SELECT fr.fixtureId,COUNT(*) failedJobs FROM jobs j JOIN input_bundles b ON b.id=j.bundleId JOIN observation_slots s ON s.id=b.slotId JOIN fixture_revisions fr ON fr.id=s.fixtureRevisionId JOIN fixtures f ON f.id=fr.fixtureId AND f.currentRevision=fr.revision WHERE fr.fixtureId IN(SELECT value FROM json_each(?)) AND j.state='FAILED' AND (j.modelId IN('GENERAL_FOOTBALL_RESEARCH_V2','GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1') OR j.modelId IN('MARKET_PROPORTIONAL_V1','RECENT_FORM_MARKET80_RESEARCH_V1','DEMO_FIXED_CENTRAL_V1') AND NOT EXISTS(SELECT 1 FROM jobs gj JOIN input_bundles gb ON gb.id=gj.bundleId JOIN observation_slots gs ON gs.id=gb.slotId JOIN fixture_revisions gr ON gr.id=gs.fixtureRevisionId WHERE gj.modelId IN('GENERAL_FOOTBALL_RESEARCH_V2','GENERAL_FOOTBALL_ADAPTIVE_RESEARCH_V1') AND gr.fixtureId=fr.fixtureId)) AND b.cutoffAt=(SELECT MAX(b2.cutoffAt) FROM jobs j2 JOIN input_bundles b2 ON b2.id=j2.bundleId JOIN observation_slots s2 ON s2.id=b2.slotId JOIN fixture_revisions r2 ON r2.id=s2.fixtureRevisionId JOIN fixtures f2 ON f2.id=r2.fixtureId AND f2.currentRevision=r2.revision WHERE r2.fixtureId=fr.fixtureId AND j2.modelId=j.modelId) GROUP BY fr.fixtureId",
     fixtureScope,
   );
   for (const f of all)
@@ -1008,14 +1013,16 @@ export async function workspaceSchedule(c: Context, p: URLSearchParams) {
   );
   const general = await rows(
     c.db,
-    "WITH eligible AS MATERIALIZED(SELECT DISTINCT o.id,o.calculatedAt,r.fixtureId,r.kickoffAt FROM decisions d INDEXED BY decision_value_read CROSS JOIN market_expectations e ON e.id=d.expectationId CROSS JOIN universal_observations o ON o.predictionId=e.predictionId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN jobs j ON j.id=o.jobId WHERE d.accepted=1 AND d.reason NOT IN('PAPER_BENCHMARK_NOT_VALUE','PAPER_ENTERTAINMENT_NOT_VALUE') AND d.reason='UNVALIDATED_PAPER_VALUE' AND j.modelId=? AND r.fixtureId IN(SELECT value FROM json_each(?)) AND o.calculatedAt<r.kickoffAt), ranked AS(SELECT id,ROW_NUMBER() OVER(PARTITION BY fixtureId ORDER BY calculatedAt,id) n FROM eligible) SELECT o.id,o.outputJson,r.fixtureId,r.kickoffAt,o.calculatedAt,b.cutoffAt,q.observedAt quoteAt FROM ranked x JOIN universal_observations o ON o.id=x.id JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE x.n=1",
+    "WITH eligible AS MATERIALIZED(SELECT DISTINCT o.id,o.calculatedAt,r.fixtureId,r.kickoffAt FROM decisions d INDEXED BY decision_value_read CROSS JOIN market_expectations e ON e.id=d.expectationId CROSS JOIN universal_observations o ON o.predictionId=e.predictionId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN jobs j ON j.id=o.jobId WHERE d.accepted=1 AND d.reason NOT IN('PAPER_BENCHMARK_NOT_VALUE','PAPER_ENTERTAINMENT_NOT_VALUE') AND d.reason='UNVALIDATED_PAPER_VALUE' AND j.modelId IN(?,?) AND r.fixtureId IN(SELECT value FROM json_each(?)) AND o.calculatedAt<r.kickoffAt), ranked AS(SELECT id,ROW_NUMBER() OVER(PARTITION BY fixtureId ORDER BY calculatedAt,id) n FROM eligible) SELECT o.id,o.outputJson,r.fixtureId,r.kickoffAt,o.calculatedAt,b.cutoffAt,q.observedAt quoteAt FROM ranked x JOIN universal_observations o ON o.id=x.id JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId WHERE x.n=1",
     UNIVERSAL_ID,
+    GENERAL_FIXED_ID,
     fixtureScope,
   );
   const generalLatest = await rows(
     c.db,
-    "WITH newest AS MATERIALIZED(SELECT MAX((SELECT x.rowid FROM universal_observations x INDEXED BY universal_fixture_row JOIN jobs jx ON jx.id=x.jobId WHERE x.fixtureRevisionId=fr.id AND jx.modelId=? ORDER BY x.rowid DESC LIMIT 1)) rowId FROM fixture_revisions fr WHERE fr.fixtureId IN(SELECT value FROM json_each(?)) GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,b.cutoffAt,q.observedAt quoteAt FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId",
+    "WITH newest AS MATERIALIZED(SELECT MAX((SELECT x.rowid FROM universal_observations x INDEXED BY universal_fixture_row JOIN jobs jx ON jx.id=x.jobId WHERE x.fixtureRevisionId=fr.id AND jx.modelId IN(?,?) ORDER BY x.rowid DESC LIMIT 1)) rowId FROM fixture_revisions fr WHERE fr.fixtureId IN(SELECT value FROM json_each(?)) GROUP BY fr.fixtureId) SELECT o.*,r.fixtureId,b.cutoffAt,q.observedAt quoteAt FROM newest n JOIN universal_observations o ON o.rowid=n.rowId JOIN fixture_revisions r ON r.id=o.fixtureRevisionId JOIN input_bundles b ON b.id=o.bundleId JOIN quote_sets q ON q.id=b.quoteSetId",
     UNIVERSAL_ID,
+    GENERAL_FIXED_ID,
     fixtureScope,
   );
   const selectedObservations =

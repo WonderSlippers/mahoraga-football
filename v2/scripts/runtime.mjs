@@ -163,8 +163,14 @@ if (command === "doctor") {
       await db.exec(
         `CREATE TRIGGER IF NOT EXISTS immutable_${table}_${action} BEFORE ${action} ON ${table} BEGIN SELECT RAISE(ABORT, 'IMMUTABLE_FACT'); END;`,
       );
+  await db.exec(
+    fs.readFileSync(
+      path.join(root, "apps/api/migrations/0014_general_adaptation.sql"),
+      "utf8",
+    ),
+  );
   await db
-    .prepare("UPDATE installations SET schemaVersion=13 WHERE id=?")
+    .prepare("UPDATE installations SET schemaVersion=14 WHERE id=?")
     .bind(c.installationId)
     .run();
   await db.exec(
